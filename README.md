@@ -8,9 +8,9 @@ Cangjie. It targets two eventual surfaces:
 
 The current `0.1.0` development line contains PNG signature/endian/CRC32
 primitives, a bounded in-memory chunk reader, strictly validated IHDR/PLTE/tRNS
-handling, a non-interlaced raw-row decoder, and an RGBA8 expansion path for bit
-depths up to 8 plus an RGBA16 preservation path. It is not yet a complete PNG
-decoder or a replacement for libpng.
+handling, a non-interlaced raw-row decoder, RGBA8/RGBA16 transformed surfaces,
+and the first fixed and compressed metadata layers. It is not yet a complete
+PNG decoder or a replacement for libpng.
 
 ## Build
 
@@ -58,10 +58,17 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - immutable gAMA, cHRM, sRGB, sBIT, bKGD, and pHYs metadata retained across
   packed, RGBA8, and RGBA16 results with strict length, value, order, and
   uniqueness validation
+- bounded unknown-length zlib inflate for iCCP, zTXt, and compressed iTXt with
+  complete compressed-input consumption and the configured chunk-byte limit
+- immutable iCCP profile, byte-owned tEXt/zTXt/iTXt entries, and validated tIME
+  metadata retained across packed, RGBA8, and RGBA16 results
+- explicit unknown-chunk policies for discard, retain ancillary, and retain
+  all, preserving chunk type, payload, and after-IHDR/after-PLTE/after-IDAT
+  location
 
-Gamma correction, background composition, remaining standard metadata,
-unknown-chunk retention, Adam7 execution, progressive reading, and all write/C
-ABI surfaces remain open work.
+ICC color application, gamma correction, background composition, remaining
+standard metadata, Adam7 execution, progressive reading, and all write/C ABI
+surfaces remain open work.
 
 ## Native Dependency
 

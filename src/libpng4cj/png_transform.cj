@@ -460,6 +460,24 @@ public func decodePngRgba8NonInterlaced(
     transformPngRowsToRgba8(decodePngNonInterlaced(bytes, limits), limits)
 }
 
+public func decodePngRgba8NonInterlaced(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba8Rows {
+    transformPngRowsToRgba8(
+        decodePngNonInterlaced(bytes, limits, unknownPolicy),
+        limits
+    )
+}
+
+public func decodePngRgba8NonInterlaced(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba8Rows {
+    decodePngRgba8NonInterlaced(bytes, PngReadLimits(), unknownPolicy)
+}
+
 public func decodePngRgba8NonInterlaced(bytes: Array<Byte>): PngRgba8Rows {
     decodePngRgba8NonInterlaced(bytes, PngReadLimits())
 }
@@ -474,6 +492,27 @@ public func decodePngRgba8NonInterlaced(
 
 public func decodePngRgba8NonInterlaced(
     bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy,
+    mode: Png16To8Mode
+): PngRgba8Rows {
+    transformPngRowsToRgba8(
+        decodePngNonInterlaced(bytes, limits, unknownPolicy),
+        limits,
+        mode
+    )
+}
+
+public func decodePngRgba8NonInterlaced(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy,
+    mode: Png16To8Mode
+): PngRgba8Rows {
+    decodePngRgba8NonInterlaced(bytes, PngReadLimits(), unknownPolicy, mode)
+}
+
+public func decodePngRgba8NonInterlaced(
+    bytes: Array<Byte>,
     mode: Png16To8Mode
 ): PngRgba8Rows {
     decodePngRgba8NonInterlaced(bytes, PngReadLimits(), mode)
@@ -484,6 +523,24 @@ public func decodePngRgba16NonInterlaced(
     limits: PngReadLimits
 ): PngRgba16Rows {
     transformPngRowsToRgba16(decodePngNonInterlaced(bytes, limits), limits)
+}
+
+public func decodePngRgba16NonInterlaced(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba16Rows {
+    transformPngRowsToRgba16(
+        decodePngNonInterlaced(bytes, limits, unknownPolicy),
+        limits
+    )
+}
+
+public func decodePngRgba16NonInterlaced(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba16Rows {
+    decodePngRgba16NonInterlaced(bytes, PngReadLimits(), unknownPolicy)
 }
 
 public func decodePngRgba16NonInterlaced(bytes: Array<Byte>): PngRgba16Rows {

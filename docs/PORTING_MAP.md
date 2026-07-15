@@ -118,4 +118,30 @@ does not apply gamma precedence, gamma correction, or background composition.
 
 Gamma/background transforms, alpha composition, channel/filler and user
 transforms, compressed/text/time metadata, unknown chunks, Adam7, and
-progressive reading remain later packets.
+progressive reading remained later packets at that checkpoint.
+
+## Implemented Compressed Text Time And Unknown Metadata
+
+LP-S004D extends `pngrutil.c`, `png.c`, `pngget.c`, and `pngset.c` translation
+through `png_extended_metadata.cj` and the shared decode/zlib layers:
+
+- iCCP uses bounded unknown-length zlib inflate and validates the declared
+  profile length, ICC header, PNG color-space compatibility, forbidden profile
+  classes, PCS encoding, and tag-table ranges
+- tEXt, zTXt, and iTXt retain copy-owned byte arrays without Latin-1/UTF-8
+  conversion or normalization; compressed forms require complete zlib input
+- tIME retains one validated seven-byte modification timestamp, including the
+  PNG/libpng leap-second value of 60
+- `PngUnknownChunkPolicy` exposes discard, retain-ancillary, and retain-all
+  behavior while preserving each retained chunk's type, payload, safe-to-copy
+  bit, and after-IHDR/after-PLTE/after-IDAT location
+
+Compressed metadata output is bounded by `PngReadLimits.maxChunkBytes`, matching
+the frozen reader's single application-level decompression limit. Recognized
+text and time chunks after IDAT close the consecutive-IDAT sequence. All new
+metadata is propagated through packed, RGBA8, and RGBA16 result surfaces.
+
+This packet does not apply ICC profiles, gamma, or backgrounds, and does not
+retain eXIf, sPLT, hIST, oFFs, pCAL, or sCAL as recognized standard metadata.
+Advanced transforms, Adam7, progressive reading, write support, and C ABI
+compatibility remain later work.

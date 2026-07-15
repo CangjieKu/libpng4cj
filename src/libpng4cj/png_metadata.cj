@@ -199,6 +199,7 @@ class ParsedPngMetadata {
     var background: PngBackground = PngBackground()
     var hasPhysicalDimensions: Bool = false
     var physicalDimensions: PngPhysicalDimensions = PngPhysicalDimensions()
+    let extended: ParsedExtendedMetadata = ParsedExtendedMetadata()
 }
 
 public class PngReadMetadata {
@@ -216,12 +217,18 @@ public class PngReadMetadata {
     public let background: PngBackground
     public let hasPhysicalDimensions: Bool
     public let physicalDimensions: PngPhysicalDimensions
+    public let hasIccProfile: Bool
+    public let iccProfile: PngIccProfile
+    public let hasModificationTime: Bool
+    public let modificationTime: PngModificationTime
     public let transparentGray: UInt16
     public let transparentRed: UInt16
     public let transparentGreen: UInt16
     public let transparentBlue: UInt16
     private let ownedPalette: Array<Byte>
     private let ownedPaletteAlpha: Array<Byte>
+    private let ownedTextEntries: Array<PngTextEntry>
+    private let ownedUnknownChunks: Array<PngUnknownChunk>
 
     init(
         palette: Array<Byte>,
@@ -244,6 +251,12 @@ public class PngReadMetadata {
         background = parsed.background
         hasPhysicalDimensions = parsed.hasPhysicalDimensions
         physicalDimensions = parsed.physicalDimensions
+        hasIccProfile = parsed.extended.hasIccProfile
+        iccProfile = parsed.extended.iccProfile
+        hasModificationTime = parsed.extended.hasModificationTime
+        modificationTime = parsed.extended.modificationTime
+        ownedTextEntries = parsed.extended.textEntries()
+        ownedUnknownChunks = parsed.extended.unknownChunks()
         transparentGray = transparency.gray
         transparentRed = transparency.red
         transparentGreen = transparency.green
@@ -256,6 +269,36 @@ public class PngReadMetadata {
 
     public func paletteAlpha(): Array<Byte> {
         ownedPaletteAlpha.clone()
+    }
+
+    public func textEntryCount(): Int64 {
+        ownedTextEntries.size
+    }
+
+    public func textEntry(index: Int64): PngTextEntry {
+        if (index < 0 || index >= ownedTextEntries.size) {
+            throw PngFormatException(InvalidArgument, index, "PNG text entry index is out of bounds")
+        }
+        ownedTextEntries[index]
+    }
+
+    public func textEntries(): Array<PngTextEntry> {
+        ownedTextEntries.clone()
+    }
+
+    public func unknownChunkCount(): Int64 {
+        ownedUnknownChunks.size
+    }
+
+    public func unknownChunk(index: Int64): PngUnknownChunk {
+        if (index < 0 || index >= ownedUnknownChunks.size) {
+            throw PngFormatException(InvalidArgument, index, "PNG unknown chunk index is out of bounds")
+        }
+        ownedUnknownChunks[index]
+    }
+
+    public func unknownChunks(): Array<PngUnknownChunk> {
+        ownedUnknownChunks.clone()
     }
 
     public func paletteEntryCount(): Int64 {
@@ -426,7 +469,8 @@ class PngMetadataBuilder {
         ihdr: PngIhdr,
         seenPalette: Bool,
         seenIdat: Bool,
-        palette: Array<Byte>
+        palette: Array<Byte>,
+        limits: PngReadLimits
     ): Bool {
         if (chunk.isType(PNG_CHUNK_gAMA)) {
             if (seenPalette || seenIdat) {
@@ -526,7 +570,22 @@ class PngMetadataBuilder {
             parsed.hasPhysicalDimensions = true
             return true
         }
-        false
+        handleExtendedMetadataChunk(parsed.extended, chunk, ihdr, seenPalette, seenIdat, limits)
+    }
+
+    func retainUnknown(
+        chunk: PngChunk,
+        seenPalette: Bool,
+        seenIdat: Bool,
+        policy: PngUnknownChunkPolicy
+    ): Bool {
+        if (!shouldRetainUnknown(chunk, policy)) {
+            return false
+        }
+        parsed.extended.addUnknown(
+            PngUnknownChunk(chunk.chunkType(), chunk.payload(), unknownChunkLocation(seenPalette, seenIdat))
+        )
+        true
     }
 
     func build(palette: Array<Byte>, transparency: ParsedPngTransparency): PngReadMetadata {

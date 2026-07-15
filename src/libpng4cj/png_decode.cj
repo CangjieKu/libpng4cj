@@ -106,7 +106,11 @@ private func decodeInflatedRows(inflated: Array<Byte>, ihdr: PngIhdr): Array<Arr
     rows
 }
 
-public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): PngDecodedRows {
+public func decodePngNonInterlaced(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngDecodedRows {
     let session = PngReadSession(bytes, limits)
     let ihdr = session.readIhdr()
     if (ihdr.interlaceMethod != None) {
@@ -192,12 +196,21 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
             }
             transparency = parsePngTransparencyChunk(chunk, ihdr, palette)
             seenTransparency = true
-        } else if (metadataBuilder.handleChunk(chunk, ihdr, seenPalette, seenIdat, palette)) {
+        } else if (metadataBuilder.handleChunk(chunk, ihdr, seenPalette, seenIdat, palette, limits)) {
+            if (seenIdat) {
+                idatEnded = true
+            }
         } else {
             if (seenIdat) {
                 idatEnded = true
             }
-            if (isCriticalChunk(chunk.chunkType())) {
+            let retained = metadataBuilder.retainUnknown(
+                chunk,
+                seenPalette,
+                seenIdat,
+                unknownPolicy
+            )
+            if (isCriticalChunk(chunk.chunkType()) && !retained) {
                 throw PngFormatException(
                     UnsupportedCriticalChunk,
                     chunk.offset,
@@ -217,6 +230,17 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
     PngDecodedRows(ihdr, metadata, decodeInflatedRows(inflated, ihdr))
 }
 
+public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): PngDecodedRows {
+    decodePngNonInterlaced(bytes, limits, Discard)
+}
+
+public func decodePngNonInterlaced(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngDecodedRows {
+    decodePngNonInterlaced(bytes, PngReadLimits(), unknownPolicy)
+}
+
 public func decodePngNonInterlaced(bytes: Array<Byte>): PngDecodedRows {
-    decodePngNonInterlaced(bytes, PngReadLimits())
+    decodePngNonInterlaced(bytes, PngReadLimits(), Discard)
 }
