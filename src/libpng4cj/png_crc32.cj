@@ -28,7 +28,11 @@ public func pngCrc32(bytes: Array<Byte>): UInt32 {
 
 public func pngChunkCrc32(chunkType: Array<Byte>, data: Array<Byte>): UInt32 {
     if (!isValidChunkType(chunkType)) {
-        throw PngFormatException("PNG chunk type must contain four ASCII letters")
+        throw PngFormatException(
+            InvalidChunkType,
+            -1,
+            "PNG chunk type must contain four ASCII letters"
+        )
     }
     let afterType = updateCrc32(PNG_CRC_INITIAL, chunkType)
     updateCrc32(afterType, data) ^ PNG_CRC_INITIAL

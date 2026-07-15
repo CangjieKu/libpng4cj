@@ -29,3 +29,16 @@ Refactoring for a more idiomatic Cangjie API happens only after behavior parity.
 The native Cangjie facade may be smaller and safer, but the `libpng16`
 compatibility surface must preserve upstream default-config behavior. Cangjie
 exceptions must be converted before control returns across the C ABI.
+
+## Implemented Read Foundation
+
+LP-S002 maps the first parts of `png.c`, `pngerror.c`, and `pngrutil.c` into:
+
+- `png_error.cj`: stable error categories and byte offsets
+- `png_chunk.cj`: owned read session, user limits, chunk framing, and CRC gate
+- `png_ihdr.cj`: IHDR model, field validation, and row-byte derivation
+
+The default limits currently match the vendored prebuilt libpng configuration:
+8,000,000 bytes per chunk and 1,000,000 pixels per image dimension. The
+architecture-specific transformed-row allocation gate belongs to the IDAT/read
+packet because this layer does not allocate pixel rows.
