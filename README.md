@@ -87,6 +87,9 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - copy-owned `G`, `GA`, `AG`, `GX`, and `XG` rows across native 8-bit, native
   UInt16, and explicit Strip/Scale 16-to-8 output; conversion preserves alpha,
   equal RGB samples, frozen transform order, and final one/two-channel limits
+- Cangjie-owned `PngReadTransformState` translating `png_rtran_ok` lifecycle
+  gates plus the simple scale/strip/expand/gray setter bits; state projections
+  reuse the existing 16-to-8, row-shape, and RGB-to-gray row implementations
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining

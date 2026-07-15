@@ -390,4 +390,20 @@ public class PngRowShapeTransformTestSuite {
         @Assert(strippedWithFiller.layout.toString(), "XRGB")
         @Assert(strippedWithFiller.row(0), expectedFiller)
     }
+
+    @TestCase
+    public func projectsSimpleSetterStateIntoExistingRowShapeBehavior(): Unit {
+        let rgba = makeShapePng(
+            UInt32(2), UInt8(8), UInt8(6), [], SHAPE_RGBA8_ZLIB
+        )
+        let state = PngReadTransformState()
+        @Assert(state.setStripAlpha(), true)
+        let stripped = transformPngRowsToPixels8(
+            decodePngNonInterlaced(rgba),
+            state.rowShapeTransform()
+        )
+        let expected: Array<Byte> = [1, 2, 3, 5, 6, 7]
+        @Assert(stripped.layout.toString(), "RGB")
+        @Assert(stripped.row(0), expected)
+    }
 }

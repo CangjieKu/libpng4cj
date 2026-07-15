@@ -386,4 +386,21 @@ public class PngRgbToGrayTransformTestSuite {
             @Assert(e.kind.toString(), "DECODE_LIMIT_EXCEEDED")
         }
     }
+
+    @TestCase
+    public func projectsStatefulRgbToGraySetterIntoExistingRowCore(): Unit {
+        let png = makeGrayPng(
+            UInt32(2), UInt8(8), UInt8(2), [], GRAY_RGB8_ZLIB
+        )
+        let decoded = decodePngNonInterlaced(png)
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(100000), UInt32(0)),
+            true
+        )
+        let rows = transformPngRowsToGray8(decoded, state.rgbToGrayTransform())
+        let expected: Array<Byte> = [10, 40]
+        @Assert(rows.row(0), expected)
+    }
 }

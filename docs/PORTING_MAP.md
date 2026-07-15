@@ -245,6 +245,26 @@ The first structural realignment covers:
 Future transform packets should advance entries in the translation ledger and
 prove them against the frozen source before Cangjie-specific optimization.
 
+## Implemented Read Transform State
+
+LP-S004J adds `png_read_transform_state.cj` as the first translated
+`png_struct`-shaped read-transform state carrier:
+
+- `png_rtran_ok` rejects setters after row initialization, rejects
+  IHDR-dependent setters before the header, and enables explicit
+  detect-uninitialized state on success
+- Scale and Strip retain independent bits while the existing Scale mode wins
+  when both are selected, matching frozen transform order
+- strip-alpha projects to `PngRowShapeTransform`
+- expand, palette-to-RGB, gray-depth expansion, tRNS-to-alpha, expand-16, and
+  gray-to-RGB preserve their exact overlapping upstream bit semantics
+- stateful fixed RGB-to-gray configuration requires IHDR and requests expand
+  for indexed input before projecting to the existing translated row core
+
+Application error/warning callbacks, transformed IHDR projection, direct C ABI
+setters, and the complete stateful `png_do_read_transformations` dispatcher
+remain later translation work.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

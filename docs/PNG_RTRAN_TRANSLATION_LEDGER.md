@@ -24,24 +24,24 @@ Status meanings:
 | Line | Upstream function | Cangjie anchor | Status | Remaining dependency |
 | ---: | --- | --- | --- | --- |
 | 41 | `png_set_crc_action` | chunk CRC policy | partial | configurable critical/ancillary actions |
-| 115 | `png_rtran_ok` | none | pending | read-struct lifecycle and IHDR mode gate |
+| 115 | `png_rtran_ok` | `PngReadTransformState.pngRtranOk` | translated | application error callback emission deferred |
 | 142 | `png_set_background_fixed` | retained bKGD only | pending | background transform state |
 | 172 | `png_set_background` | none | pending | floating-point facade |
-| 188 | `png_set_scale_16` | `Png16To8Mode.Scale` | partial | upstream transform-bit state |
-| 202 | `png_set_strip_16` | `Png16To8Mode.Strip` | partial | upstream transform-bit state |
-| 215 | `png_set_strip_alpha` | `PngRowShapeTransform.stripAlpha` | partial | translated setter/state carrier |
+| 188 | `png_set_scale_16` | `PngReadTransformState.setScale16` | translated | direct C ABI setter deferred |
+| 202 | `png_set_strip_16` | `PngReadTransformState.setStrip16` | translated | direct C ABI setter deferred |
+| 215 | `png_set_strip_alpha` | `PngReadTransformState.setStripAlpha` | translated | direct C ABI setter deferred |
 | 361 | `png_set_alpha_mode_fixed` | none | pending | alpha/background/gamma state |
 | 461 | `png_set_alpha_mode` | none | pending | floating-point facade |
 | 489 | `png_set_quantize` | none | pending | palette quantization state |
 | 892 | `png_set_gamma_fixed` | retained gAMA only | pending | gamma transform state and tables |
 | 934 | `png_set_gamma` | none | pending | floating-point facade |
-| 948 | `png_set_expand` | `expandRowToRgba8/16` | partial | translated transform-bit state |
-| 978 | `png_set_palette_to_rgb` | palette expansion | partial | translated setter/state carrier |
-| 990 | `png_set_expand_gray_1_2_4_to_8` | packed gray expansion | partial | translated setter/state carrier |
-| 1002 | `png_set_tRNS_to_alpha` | semantic tRNS alpha | partial | translated setter/state carrier |
-| 1018 | `png_set_expand_16` | UInt16 output expansion | partial | exact upstream expand-16 state |
-| 1031 | `png_set_gray_to_rgb` | grayscale RGBA expansion | partial | direct gray-to-RGB row surface |
-| 1046 | `png_set_rgb_to_gray_fixed` | `pngSetRgbToGrayFixed` | translated | warning callback emission deferred |
+| 948 | `png_set_expand` | `PngReadTransformState.setExpand` | translated | transformed IHDR projection deferred |
+| 978 | `png_set_palette_to_rgb` | `PngReadTransformState.setPaletteToRgb` | translated | transformed IHDR projection deferred |
+| 990 | `png_set_expand_gray_1_2_4_to_8` | `PngReadTransformState.setExpandGrayOneTwoFourToEight` | translated | transformed IHDR projection deferred |
+| 1002 | `png_set_tRNS_to_alpha` | `PngReadTransformState.setTransparencyToAlpha` | translated | transformed IHDR projection deferred |
+| 1018 | `png_set_expand_16` | `PngReadTransformState.setExpand16` | translated | transformed IHDR projection deferred |
+| 1031 | `png_set_gray_to_rgb` | `PngReadTransformState.setGrayToRgb` | translated | direct `png_do_gray_to_rgb` row topology remains partial |
+| 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
 | 1118 | `png_set_rgb_to_gray` | none | pending | floating-point fixed conversion facade |
 | 1132 | `png_set_read_user_transform_fn` | none | pending | callback ABI and row hook |
 | 1151 | `png_gamma_threshold` | none | pending | gamma fixed-point substrate |
@@ -77,3 +77,9 @@ oracle, and only then simplify or optimize the Cangjie implementation. A passing
 convenience API is evidence for a row operation, not proof that its upstream
 setter, state mutation, metadata projection, warning path, or compile guards are
 already translated.
+
+LP-S004J keeps the frozen state aliasing intact: `png_set_expand`,
+`png_set_palette_to_rgb`, and `png_set_tRNS_to_alpha` all set the same
+`PNG_EXPAND | PNG_EXPAND_tRNS` bits in libpng `1.6.58`; the Cangjie state does
+not invent distinct persistent flags merely because the public setter names
+differ.
