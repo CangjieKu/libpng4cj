@@ -5,6 +5,12 @@ public let PNG_CHUNK_PLTE: Array<Byte> = [0x50, 0x4c, 0x54, 0x45]
 public let PNG_CHUNK_IDAT: Array<Byte> = [0x49, 0x44, 0x41, 0x54]
 public let PNG_CHUNK_IEND: Array<Byte> = [0x49, 0x45, 0x4e, 0x44]
 public let PNG_CHUNK_tRNS: Array<Byte> = [0x74, 0x52, 0x4e, 0x53]
+public let PNG_CHUNK_gAMA: Array<Byte> = [0x67, 0x41, 0x4d, 0x41]
+public let PNG_CHUNK_cHRM: Array<Byte> = [0x63, 0x48, 0x52, 0x4d]
+public let PNG_CHUNK_sRGB: Array<Byte> = [0x73, 0x52, 0x47, 0x42]
+public let PNG_CHUNK_sBIT: Array<Byte> = [0x73, 0x42, 0x49, 0x54]
+public let PNG_CHUNK_bKGD: Array<Byte> = [0x62, 0x4b, 0x47, 0x44]
+public let PNG_CHUNK_pHYs: Array<Byte> = [0x70, 0x48, 0x59, 0x73]
 
 public let PNG_DEFAULT_MAX_COMPRESSED_BYTES: UInt64 = UInt64(256_000_000)
 public let PNG_DEFAULT_MAX_INFLATED_BYTES: UInt64 = UInt64(256_000_000)

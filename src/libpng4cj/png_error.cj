@@ -30,6 +30,9 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
     | InvalidTransparency
     | UnsupportedTransform
     | PaletteIndexOutOfRange
+    | InvalidMetadata
+    | DuplicateMetadata
+    | MetadataOutOfOrder
 
     public operator func ==(right: PngErrorKind): Bool {
         ordinalValue() == right.ordinalValue()
@@ -70,6 +73,9 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case InvalidTransparency => 26
             case UnsupportedTransform => 27
             case PaletteIndexOutOfRange => 28
+            case InvalidMetadata => 29
+            case DuplicateMetadata => 30
+            case MetadataOutOfOrder => 31
         }
     }
 
@@ -104,6 +110,9 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case InvalidTransparency => "INVALID_TRANSPARENCY"
             case UnsupportedTransform => "UNSUPPORTED_TRANSFORM"
             case PaletteIndexOutOfRange => "PALETTE_INDEX_OUT_OF_RANGE"
+            case InvalidMetadata => "INVALID_METADATA"
+            case DuplicateMetadata => "DUPLICATE_METADATA"
+            case MetadataOutOfOrder => "METADATA_OUT_OF_ORDER"
         }
     }
 }

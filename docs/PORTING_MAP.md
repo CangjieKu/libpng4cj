@@ -99,6 +99,23 @@ RGBA8 overloads without a mode still reject 16-bit source images, so callers do
 not lose precision through an implicit default. RGBA16 output is charged at
 eight bytes per pixel against the transformed-output limit.
 
-Gamma/background/color-space handling, alpha composition, channel/filler and
-user transforms, remaining standard metadata, unknown chunks, Adam7, and
+## Implemented Fixed Color And Display Metadata
+
+LP-S004C extends the `pngrutil.c`, `pngget.c`, and `pngset.c` translation with
+immutable native representations for:
+
+- gAMA file gamma as PNG fixed-point UInt32
+- cHRM signed fixed-point white/red/green/blue chromaticities
+- sRGB rendering intent without replacing simultaneously present gAMA/cHRM
+- source-depth-validated sBIT channel significance
+- source-color-aware bKGD samples, including indexed palette expansion
+- pHYs pixels-per-unit values and the frozen upstream unit byte
+
+All six chunks are unique and pre-IDAT. gAMA, cHRM, sRGB, and sBIT additionally
+precede PLTE; indexed bKGD requires PLTE first. Metadata is retained unchanged
+through packed, RGBA8, and RGBA16 result surfaces. This packet deliberately
+does not apply gamma precedence, gamma correction, or background composition.
+
+Gamma/background transforms, alpha composition, channel/filler and user
+transforms, compressed/text/time metadata, unknown chunks, Adam7, and
 progressive reading remain later packets.

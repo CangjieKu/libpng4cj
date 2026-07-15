@@ -126,6 +126,7 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
     var seenIend = false
     var palette = Array<Byte>()
     var transparency = ParsedPngTransparency()
+    let metadataBuilder = PngMetadataBuilder()
 
     while (!seenIend) {
         if (session.remaining() == 0) {
@@ -161,6 +162,13 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
                     "PLTE must precede tRNS"
                 )
             }
+            if (metadataBuilder.hasBackground()) {
+                throw PngFormatException(
+                    MetadataOutOfOrder,
+                    chunk.offset,
+                    "PLTE must precede bKGD"
+                )
+            }
             if (seenIdat) {
                 throw PngFormatException(InvalidPalette, chunk.offset, "PLTE must appear before IDAT")
             }
@@ -184,6 +192,7 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
             }
             transparency = parsePngTransparencyChunk(chunk, ihdr, palette)
             seenTransparency = true
+        } else if (metadataBuilder.handleChunk(chunk, ihdr, seenPalette, seenIdat, palette)) {
         } else {
             if (seenIdat) {
                 idatEnded = true
@@ -204,7 +213,7 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
 
     let expectedSize = expectedInflatedSize(ihdr, limits)
     let inflated = inflatePngZlibExact(compressed.toArray(), expectedSize)
-    let metadata = PngReadMetadata(palette, transparency)
+    let metadata = metadataBuilder.build(palette, transparency)
     PngDecodedRows(ihdr, metadata, decodeInflatedRows(inflated, ihdr))
 }
 

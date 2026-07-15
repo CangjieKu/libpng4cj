@@ -55,10 +55,13 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - libpng-aligned 8-to-16 channel expansion by `value * 257`
 - explicit `Strip` and `Scale` modes for 16-to-8 conversion; the original
   no-policy RGBA8 entry still rejects 16-bit input
+- immutable gAMA, cHRM, sRGB, sBIT, bKGD, and pHYs metadata retained across
+  packed, RGBA8, and RGBA16 results with strict length, value, order, and
+  uniqueness validation
 
-Gamma/background/color conversion, remaining standard metadata, unknown-chunk
-retention, Adam7 execution, progressive reading, and all write/C ABI surfaces
-remain open work.
+Gamma correction, background composition, remaining standard metadata,
+unknown-chunk retention, Adam7 execution, progressive reading, and all write/C
+ABI surfaces remain open work.
 
 ## Native Dependency
 
