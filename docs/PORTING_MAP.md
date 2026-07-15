@@ -145,3 +145,26 @@ This packet does not apply ICC profiles, gamma, or backgrounds, and does not
 retain eXIf, sPLT, hIST, oFFs, pCAL, or sCAL as recognized standard metadata.
 Advanced transforms, Adam7, progressive reading, write support, and C ABI
 compatibility remain later work.
+
+## Implemented Late Channel Transforms
+
+LP-S004E maps the first low-coupling tail of `png_do_read_transformations` and
+the shared `pngtrans.c` channel operations into `png_channel_transform.cj`:
+
+- `InvertMonochrome` affects grayscale-family source color channels without
+  changing alpha
+- `InvertAlpha` and `SwapAlpha` operate only when source alpha or tRNS gives
+  the PNG semantic alpha
+- `Bgr` exchanges red and blue channels
+- selected operations always execute in frozen upstream order:
+  invert monochrome, invert alpha, BGR, then swap alpha
+
+`PngRgba8Rows` and `PngRgba16Rows` now report `PngRgbaLayout` as `RGBA`,
+`BGRA`, `ARGB`, or `ABGR`. Existing transform/decode calls select no channel
+operations and therefore remain `RGBA`. Explicit transform-array overloads
+apply operations while each already bounded output row is being created, so
+the packet does not add a second full transformed-image allocation.
+
+sBIT unshift, strip-alpha/filler, RGB-to-gray, gamma/background/alpha-mode,
+quantization, packing/packswap, byte swap, and user callbacks remain later
+LP-S004 work.

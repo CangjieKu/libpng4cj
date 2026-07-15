@@ -65,10 +65,14 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - explicit unknown-chunk policies for discard, retain ancillary, and retain
   all, preserving chunk type, payload, and after-IHDR/after-PLTE/after-IDAT
   location
+- explicit late channel transforms for invert-monochrome, invert-alpha, BGR,
+  and swap-alpha in frozen upstream order across RGBA8 and RGBA16 rows, with
+  final `RGBA`, `BGRA`, `ARGB`, or `ABGR` layout reported on the result
 
 ICC color application, gamma correction, background composition, remaining
-standard metadata, Adam7 execution, progressive reading, and all write/C ABI
-surfaces remain open work.
+standard metadata, sBIT shift, strip/filler and RGB-to-gray transforms,
+quantization, user callbacks, Adam7 execution, progressive reading, and all
+write/C ABI surfaces remain open work.
 
 ## Native Dependency
 
