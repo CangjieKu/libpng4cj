@@ -480,6 +480,28 @@ LP-S004U adds `png_expand16_transform.cj` as the direct translation of
 The direct body does not connect the initialized Expand16 stage, compose with
 Scale16/Strip16, or claim the complete row dispatcher.
 
+## Implemented Direct Quantize
+
+LP-S004V adds `png_quantize_transform.cj` as the direct translation of
+`png_do_quantize`:
+
+- 8-bit RGB and RGBA rows use the frozen 5/5/5 cell formula and an exact
+  32768-entry palette lookup
+- RGBA alpha is skipped during lookup exactly like upstream
+- RGB/RGBA rows shrink forward to one Indexed byte per pixel
+- output width and bit depth remain unchanged while color type becomes Indexed,
+  channels become one, pixel depth becomes eight, and row bytes become width
+- 8-bit Indexed rows remap every stored index through a complete 256-entry table
+- Indexed remapping preserves all row-info fields
+- empty lookups represent absent pointers; nonempty malformed lengths fail
+  before lookup
+- transformed and no-op rows are copy-owned, and malformed row lengths fail
+  before lookup validation
+
+The direct body does not translate `png_set_quantize`, build or reduce palettes,
+consume histograms, execute median-cut logic, mutate retained metadata, or claim
+the complete row dispatcher.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

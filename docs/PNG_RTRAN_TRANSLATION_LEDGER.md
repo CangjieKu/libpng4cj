@@ -66,7 +66,7 @@ Status meanings:
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | initializer adapter and complete dispatcher remain partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | initialized adapter and complete dispatcher remain partial |
-| 4783 | `png_do_quantize` | none | pending | palette lookup and dither state |
+| 4783 | `png_do_quantize` | `pngDoQuantize` | translated | setter, palette generation/mutation, and complete dispatcher remain partial |
 | 4880 | `png_do_read_transformations` | current ordered transform calls | partial | complete stateful dispatcher and pending bodies |
 
 ## Translation Rule
