@@ -109,19 +109,15 @@ public class PngQuantizeReductionTestSuite {
     }
 
     @TestCase
-    public func rejectsAbsentAndMalformedReductionHistograms(): Unit {
+    public func acceptsAbsentAndRejectsMalformedReductionHistograms(): Unit {
         let state = PngReadTransformState()
-        try {
-            state.setQuantize(reductionPalette(), 4, 2, false)
-            @Fail("quantize should reject reduction without a histogram")
-        } catch (error: PngFormatException) {
-            @Assert(error.kind.toString(), "UNSUPPORTED_TRANSFORM")
-        }
-        @Assert(state.quantizeEnabled(), false)
+        @Assert(state.setQuantize(reductionPalette(), 4, 2, false), true)
+        @Assert(state.quantizeEnabled(), true)
 
+        let malformedState = PngReadTransformState()
         let shortHistogram: Array<UInt16> = [1, 2, 3]
         try {
-            state.setQuantize(
+            malformedState.setQuantize(
                 reductionPalette(),
                 4,
                 2,
@@ -132,7 +128,7 @@ public class PngQuantizeReductionTestSuite {
         } catch (error: PngFormatException) {
             @Assert(error.kind.toString(), "INVALID_ARGUMENT")
         }
-        @Assert(state.quantizeEnabled(), false)
+        @Assert(malformedState.quantizeEnabled(), false)
     }
 
     @TestCase

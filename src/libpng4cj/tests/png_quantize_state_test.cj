@@ -82,7 +82,7 @@ public class PngQuantizeStateTestSuite {
     }
 
     @TestCase
-    public func rejectsInvalidAndReductionRequestsBeforeMutation(): Unit {
+    public func rejectsInvalidInputsAndAcceptsClosestPairReduction(): Unit {
         let state = PngReadTransformState()
 
         try {
@@ -93,12 +93,10 @@ public class PngQuantizeStateTestSuite {
         }
         @Assert(state.quantizeEnabled(), false)
 
-        try {
-            state.setQuantize(smallQuantizePalette(), 2, 1, false)
-            @Fail("quantize should reject untranslated palette reduction")
-        } catch (error: PngFormatException) {
-            @Assert(error.kind.toString(), "UNSUPPORTED_TRANSFORM")
-        }
-        @Assert(state.quantizeEnabled(), false)
+        @Assert(state.setQuantize(smallQuantizePalette(), 2, 1, false), true)
+        @Assert(state.quantizeEnabled(), true)
+        @Assert(state.quantizePaletteCount(), Int64(1))
+        @Assert(state.quantizeIndex()[0], UInt8(0))
+        @Assert(state.quantizeIndex()[1], UInt8(0))
     }
 }

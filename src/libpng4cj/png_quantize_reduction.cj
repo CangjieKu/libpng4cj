@@ -29,7 +29,7 @@ private func pngQuantizeIdentityIndex(): Array<Byte> {
     identity
 }
 
-private func pngQuantizeColorDistance(
+func pngQuantizeColorDistance(
     palette: Array<Byte>,
     left: Int64,
     right: Int64
@@ -51,7 +51,7 @@ private func pngQuantizeColorDistance(
     distance
 }
 
-private func pngCopyQuantizeColor(
+func pngCopyQuantizeColor(
     palette: Array<Byte>,
     destination: Int64,
     source: Int64
@@ -211,25 +211,35 @@ func pngPrepareQuantizeState(
     }
 
     let paletteCount = if (numPalette > maximumColors) {
-        let sorted = pngQuantizeHistogramSort(
-            histogram,
-            numPalette,
-            maximumColors
-        )
-        if (fullQuantize) {
-            pngReduceFullQuantizePalette(
-                ownedPalette,
-                sorted,
+        if (histogram.size > 0) {
+            let sorted = pngQuantizeHistogramSort(
+                histogram,
                 numPalette,
                 maximumColors
             )
+            if (fullQuantize) {
+                pngReduceFullQuantizePalette(
+                    ownedPalette,
+                    sorted,
+                    numPalette,
+                    maximumColors
+                )
+            } else {
+                pngReduceNonFullQuantizePalette(
+                    ownedPalette,
+                    quantizeIndex,
+                    sorted,
+                    numPalette,
+                    maximumColors
+                )
+            }
         } else {
-            pngReduceNonFullQuantizePalette(
+            pngReduceQuantizePaletteWithoutHistogram(
                 ownedPalette,
                 quantizeIndex,
-                sorted,
                 numPalette,
-                maximumColors
+                maximumColors,
+                fullQuantize
             )
         }
         maximumColors

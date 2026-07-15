@@ -558,8 +558,34 @@ overload for the `num_palette > maximum_colors` branch:
   palette and histogram arrays unchanged
 - malformed or absent reduction histograms fail before quantize state mutation
 
-The separate no-histogram median-cut/closest-pair branch, allocation-warning
-fallback, initialized dispatcher, and transformed-info projection remain open.
+The separate no-histogram closest-pair branch is described by the next bounded
+packet. Allocation-warning fallback, initialized dispatcher, and
+transformed-info projection remain open.
+
+## Implemented Closest-Pair Quantize Reduction
+
+LP-S004Z adds `png_quantize_closest_reduction.cj` for reduction without a
+histogram:
+
+- identity `index_to_palette` and `palette_to_index` maps track original
+  identities separately from current palette positions
+- active color pairs are bucketed by Manhattan RGB distance
+- each round starts with distance window 96 and widens it by 96 until useful
+  pairs are available
+- bucket lists are processed in reverse pair-enumeration order to preserve the
+  upstream linked-list head-insertion topology
+- pairs whose identities were eliminated earlier in the same pass are skipped
+- even active counts eliminate the right identity; odd counts eliminate the
+  left identity
+- the last active palette slot is copied into the eliminated position and both
+  direction maps are updated exactly
+- non-full mode rewrites every affected original-index remap before map updates;
+  full mode builds its lookup from the final reduced palette
+- caller palette ownership and failed setter lifecycle state remain unchanged
+
+The managed path assumes successful allocation. Native `png_malloc_warn` null
+fallback, initialized row dispatch, transformed-info projection, and C ABI
+remain open.
 
 ## Implemented Significant-Bit Unshift
 

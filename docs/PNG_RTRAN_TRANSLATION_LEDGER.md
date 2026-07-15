@@ -32,7 +32,7 @@ Status meanings:
 | 215 | `png_set_strip_alpha` | `PngReadTransformState.setStripAlpha` | translated | direct C ABI setter deferred |
 | 361 | `png_set_alpha_mode_fixed` | none | pending | alpha/background/gamma state |
 | 461 | `png_set_alpha_mode` | none | pending | floating-point facade |
-| 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | lifecycle, mode, owned palette, non-full remap, full lookup, and histogram reduction translated; no-histogram closest-pair branch, dispatcher, and C ABI deferred |
+| 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | normal lifecycle, both reduction branches, remap, and full lookup translated; allocation-warning fallback, dispatcher, and C ABI deferred |
 | 892 | `png_set_gamma_fixed` | retained gAMA only | pending | gamma transform state and tables |
 | 934 | `png_set_gamma` | none | pending | floating-point facade |
 | 948 | `png_set_expand` | `PngReadTransformState.setExpand` | translated | transformed IHDR projection deferred |
@@ -169,4 +169,13 @@ and first-closest Manhattan RGB mapping for discarded colors. Palette and
 histogram inputs remain caller-owned through an internal palette clone. The
 no-histogram closest-pair/median-cut branch, initialized dispatch,
 transformed-info projection, and C ABI remain open, so the ledger remains
+`24 translated / 7 partial / 14 pending`.
+
+LP-S004Z translates the successful-allocation path of the no-histogram
+closest-pair branch. It preserves 96-step distance windows, reverse bucket pair
+order, stale-pair rejection, odd/even elimination, last-slot compaction,
+bidirectional identity maps, and non-full remap updates before map mutation.
+Full mode builds the reduced lookup from the same compacted palette. Native
+allocation-warning fallback, initialized dispatch, transformed-info projection,
+and C ABI remain open, so the ledger remains
 `24 translated / 7 partial / 14 pending`.

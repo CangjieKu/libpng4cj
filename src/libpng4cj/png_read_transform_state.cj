@@ -283,14 +283,6 @@ public class PngReadTransformState {
                 "PNG quantize histogram must match the palette count"
             )
         }
-        if (numPalette > maximumColors && histogram.size == 0) {
-            throw PngFormatException(
-                UnsupportedTransform,
-                numPalette,
-                "PNG quantize reduction without a histogram is not translated yet"
-            )
-        }
-
         let prepared = pngPrepareQuantizeState(
             palette,
             numPalette,
