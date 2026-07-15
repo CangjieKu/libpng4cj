@@ -537,8 +537,29 @@ LP-S004X adds `png_quantize_lookup.cj` for the no-reduction full-color branch of
 - failed lifecycle and reduction calls preserve the prior generated lookup
 
 The lookup is available as explicit state but is not yet connected to the
-initialized row dispatcher or transformed-info projection. Histogram and
-median-cut palette reduction remain untranslated.
+initialized row dispatcher or transformed-info projection. Palette reduction
+is described by the next bounded branch.
+
+## Implemented Histogram Quantize Reduction
+
+LP-S004Y adds `png_quantize_reduction.cj` and a histogram-bearing `setQuantize`
+overload for the `num_palette > maximum_colors` branch:
+
+- palette indexes are bubble-sorted by descending UInt16 histogram count using
+  the frozen strict comparison and early-stop rule
+- equal-frequency entries retain their original order
+- full mode preserves the upstream palette relocation topology before building
+  the reduced 32768-entry lookup
+- non-full mode starts with all 256 identity entries, mirrors palette swaps in
+  the original-index remap, and then resolves every discarded entry
+- discarded colors use the frozen Manhattan RGB distance against retained
+  colors and keep retained index zero on equal-distance ties
+- the managed implementation mutates an owned palette clone, leaving caller
+  palette and histogram arrays unchanged
+- malformed or absent reduction histograms fail before quantize state mutation
+
+The separate no-histogram median-cut/closest-pair branch, allocation-warning
+fallback, initialized dispatcher, and transformed-info projection remain open.
 
 ## Implemented Significant-Bit Unshift
 

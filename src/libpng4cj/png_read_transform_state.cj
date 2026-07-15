@@ -236,6 +236,22 @@ public class PngReadTransformState {
         maximumColors: Int64,
         fullQuantize: Bool
     ): Bool {
+        setQuantize(
+            palette,
+            numPalette,
+            maximumColors,
+            Array<UInt16>(),
+            fullQuantize
+        )
+    }
+
+    public func setQuantize(
+        palette: Array<Byte>,
+        numPalette: Int64,
+        maximumColors: Int64,
+        histogram: Array<UInt16>,
+        fullQuantize: Bool
+    ): Bool {
         if (!pngRtranOk(false)) {
             return false
         }
@@ -260,38 +276,36 @@ public class PngReadTransformState {
                 "PNG quantize maximum colors must be in 1..256"
             )
         }
-        if (numPalette > maximumColors) {
+        if (histogram.size != 0 && histogram.size != numPalette) {
+            throw PngFormatException(
+                InvalidArgument,
+                histogram.size,
+                "PNG quantize histogram must match the palette count"
+            )
+        }
+        if (numPalette > maximumColors && histogram.size == 0) {
             throw PngFormatException(
                 UnsupportedTransform,
                 numPalette,
-                "PNG quantize palette reduction is not translated yet"
+                "PNG quantize reduction without a histogram is not translated yet"
             )
         }
 
-        let index = if (fullQuantize) {
-            Array<Byte>()
-        } else {
-            let identity = Array<Byte>(Int64(256), repeat: 0)
-            var indexValue: Int64 = 0
-            while (indexValue < identity.size) {
-                identity[indexValue] = UInt8(indexValue)
-                indexValue += 1
-            }
-            identity
-        }
-        let paletteLookup = if (fullQuantize) {
-            pngBuildQuantizePaletteLookup(palette, numPalette)
-        } else {
-            Array<Byte>()
-        }
+        let prepared = pngPrepareQuantizeState(
+            palette,
+            numPalette,
+            maximumColors,
+            histogram,
+            fullQuantize
+        )
 
         quantizeValue = true
         quantizeModeValue = if (fullQuantize) { FullColor } else { PaletteRemap }
-        quantizePaletteValue = palette.clone()
-        quantizePaletteCountValue = numPalette
+        quantizePaletteValue = prepared.palette
+        quantizePaletteCountValue = prepared.paletteCount
         quantizeMaximumColorsValue = maximumColors
-        quantizeIndexValue = index
-        quantizePaletteLookupValue = paletteLookup
+        quantizeIndexValue = prepared.index
+        quantizePaletteLookupValue = prepared.paletteLookup
         true
     }
 
