@@ -96,12 +96,14 @@ public class PngRgbToGrayTransformTestSuite {
             UInt32(2), UInt8(8), UInt8(2), [], GRAY_RGB8_ZLIB
         )
         let decoded = decodePngNonInterlaced(png)
-        let historical = transformPngRowsToGray8(decoded, PngRgbToGrayTransform())
+        let defaults = PngRgbToGrayTransform()
+        let historical = transformPngRowsToGray8(decoded, defaults)
         let historicalExpected: Array<Byte> = [18, 48]
         @Assert(historical.layout.toString(), "G")
         @Assert(historical.channelCount, UInt8(1))
         @Assert(historical.hadNonGrayPixels, true)
         @Assert(historical.row(0), historicalExpected)
+        @Assert(defaults.customCoefficientsAccepted, false)
 
         let redOnly = PngRgbToGrayTransform(Convert, UInt32(100000), UInt32(0))
         let custom = transformPngRowsToGray8(decoded, redOnly)
@@ -109,6 +111,7 @@ public class PngRgbToGrayTransformTestSuite {
         @Assert(redOnly.redCoefficient, UInt16(32768))
         @Assert(redOnly.greenCoefficient, UInt16(0))
         @Assert(redOnly.blueCoefficient, UInt16(0))
+        @Assert(redOnly.customCoefficientsAccepted, true)
         @Assert(custom.row(0), customExpected)
 
         let rec709Weights = PngRgbToGrayTransform(
@@ -117,6 +120,31 @@ public class PngRgbToGrayTransformTestSuite {
         @Assert(rec709Weights.redCoefficient, UInt16(6969))
         @Assert(rec709Weights.greenCoefficient, UInt16(23433))
         @Assert(rec709Weights.blueCoefficient, UInt16(2366))
+        @Assert(rec709Weights.customCoefficientsAccepted, true)
+    }
+
+    @TestCase
+    public func ignoresInvalidFixedCoefficientsLikeUpstreamSetter(): Unit {
+        let outOfRange = PngRgbToGrayTransform(
+            Convert, UInt32(70000), UInt32(30001)
+        )
+        @Assert(outOfRange.redCoefficient, UInt16(6968))
+        @Assert(outOfRange.greenCoefficient, UInt16(23434))
+        @Assert(outOfRange.blueCoefficient, UInt16(2366))
+        @Assert(outOfRange.customCoefficientsAccepted, false)
+
+        let negative = PngRgbToGrayTransform(Convert, Int64(-1), Int64(50000))
+        @Assert(negative.redCoefficient, UInt16(6968))
+        @Assert(negative.greenCoefficient, UInt16(23434))
+        @Assert(negative.blueCoefficient, UInt16(2366))
+        @Assert(negative.customCoefficientsAccepted, false)
+
+        let png = makeGrayPng(
+            UInt32(2), UInt8(8), UInt8(2), [], GRAY_RGB8_ZLIB
+        )
+        let rows = transformPngRowsToGray8(decodePngNonInterlaced(png), outOfRange)
+        let expected: Array<Byte> = [18, 48]
+        @Assert(rows.row(0), expected)
     }
 
     @TestCase
@@ -314,13 +342,6 @@ public class PngRgbToGrayTransformTestSuite {
         @Assert(PixelGrayx.ordinalValue(), Int64(13))
         @Assert(PixelXgray.ordinalValue(), Int64(14))
         @Assert(RgbToGrayMismatch.ordinalValue(), Int64(35))
-
-        try {
-            PngRgbToGrayTransform(Convert, UInt32(70000), UInt32(30001))
-            @Fail("RGB-to-gray custom weights above 100000 should fail")
-        } catch (e: PngFormatException) {
-            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
-        }
 
         let png = makeGrayPng(
             UInt32(2), UInt8(8), UInt8(2), [], GRAY_RGB8_ZLIB

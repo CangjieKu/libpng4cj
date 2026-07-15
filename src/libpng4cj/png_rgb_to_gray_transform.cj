@@ -27,17 +27,58 @@ public enum PngRgbToGrayPolicy <: Equatable<PngRgbToGrayPolicy> & ToString {
     }
 }
 
+private class PngSetRgbToGrayFixedResult {
+    let redCoefficient: UInt16
+    let greenCoefficient: UInt16
+    let blueCoefficient: UInt16
+    let accepted: Bool
+
+    init(
+        redCoefficient: UInt16,
+        greenCoefficient: UInt16,
+        blueCoefficient: UInt16,
+        accepted: Bool
+    ) {
+        this.redCoefficient = redCoefficient
+        this.greenCoefficient = greenCoefficient
+        this.blueCoefficient = blueCoefficient
+        this.accepted = accepted
+    }
+}
+
+// Fixed-coefficient branch of upstream png_set_rgb_to_gray_fixed.
+private func pngSetRgbToGrayFixed(
+    redWeight: Int64,
+    greenWeight: Int64
+): PngSetRgbToGrayFixedResult {
+    if (redWeight >= 0 && greenWeight >= 0 && redWeight + greenWeight <= 100000) {
+        let red = UInt16((UInt64(redWeight) * UInt64(32768)) / UInt64(100000))
+        let green = UInt16((UInt64(greenWeight) * UInt64(32768)) / UInt64(100000))
+        return PngSetRgbToGrayFixedResult(
+            red,
+            green,
+            UInt16(32768) - red - green,
+            true
+        )
+    }
+    PngSetRgbToGrayFixedResult(
+        UInt16(6968), UInt16(23434), UInt16(2366), false
+    )
+}
+
 public class PngRgbToGrayTransform {
     public let policy: PngRgbToGrayPolicy
     public let redCoefficient: UInt16
     public let greenCoefficient: UInt16
     public let blueCoefficient: UInt16
+    public let customCoefficientsAccepted: Bool
 
     public init() {
         policy = Convert
         redCoefficient = UInt16(6968)
         greenCoefficient = UInt16(23434)
         blueCoefficient = UInt16(2366)
+        customCoefficientsAccepted = false
     }
 
     public init(policy: PngRgbToGrayPolicy) {
@@ -45,6 +86,7 @@ public class PngRgbToGrayTransform {
         redCoefficient = UInt16(6968)
         greenCoefficient = UInt16(23434)
         blueCoefficient = UInt16(2366)
+        customCoefficientsAccepted = false
     }
 
     public init(
@@ -52,20 +94,25 @@ public class PngRgbToGrayTransform {
         redWeight: UInt32,
         greenWeight: UInt32
     ) {
-        let total = UInt64(redWeight) + UInt64(greenWeight)
-        if (total > UInt64(100000)) {
-            throw PngFormatException(
-                InvalidArgument,
-                -1,
-                "RGB-to-gray red and green weights must sum to at most 100000"
-            )
-        }
         this.policy = policy
-        let red = UInt16((UInt64(redWeight) * UInt64(32768)) / UInt64(100000))
-        let green = UInt16((UInt64(greenWeight) * UInt64(32768)) / UInt64(100000))
-        redCoefficient = red
-        greenCoefficient = green
-        blueCoefficient = UInt16(32768) - red - green
+        let fixed = pngSetRgbToGrayFixed(Int64(redWeight), Int64(greenWeight))
+        redCoefficient = fixed.redCoefficient
+        greenCoefficient = fixed.greenCoefficient
+        blueCoefficient = fixed.blueCoefficient
+        customCoefficientsAccepted = fixed.accepted
+    }
+
+    public init(
+        policy: PngRgbToGrayPolicy,
+        redWeight: Int64,
+        greenWeight: Int64
+    ) {
+        this.policy = policy
+        let fixed = pngSetRgbToGrayFixed(redWeight, greenWeight)
+        redCoefficient = fixed.redCoefficient
+        greenCoefficient = fixed.greenCoefficient
+        blueCoefficient = fixed.blueCoefficient
+        customCoefficientsAccepted = fixed.accepted
     }
 }
 
@@ -102,7 +149,7 @@ private class ResolvedPngGrayShape {
     }
 }
 
-private class ConvertedPngGray8 {
+private class PngDoRgbToGray8Result {
     let canonical: Array<Byte>
     let hadNonGrayPixels: Bool
 
@@ -112,7 +159,7 @@ private class ConvertedPngGray8 {
     }
 }
 
-private class ConvertedPngGray16 {
+private class PngDoRgbToGray16Result {
     let canonical: Array<UInt16>
     let hadNonGrayPixels: Bool
 
@@ -232,10 +279,11 @@ private func validateGrayOutputLimit(
     }
 }
 
-private func convertCanonicalRgbToGray8(
+// Fast no-gamma 8-bit branch of upstream png_do_rgb_to_gray.
+private func pngDoRgbToGray8(
     canonical: Array<Byte>,
     transform: PngRgbToGrayTransform
-): ConvertedPngGray8 {
+): PngDoRgbToGray8Result {
     var hadNonGrayPixels = false
     var offset: Int64 = 0
     while (offset < canonical.size) {
@@ -261,13 +309,14 @@ private func convertCanonicalRgbToGray8(
         }
         offset += 4
     }
-    ConvertedPngGray8(canonical, hadNonGrayPixels)
+    PngDoRgbToGray8Result(canonical, hadNonGrayPixels)
 }
 
-private func convertCanonicalRgbToGray16(
+// Fast no-gamma 16-bit branch of upstream png_do_rgb_to_gray.
+private func pngDoRgbToGray16(
     canonical: Array<UInt16>,
     transform: PngRgbToGrayTransform
-): ConvertedPngGray16 {
+): PngDoRgbToGray16Result {
     var hadNonGrayPixels = false
     var offset: Int64 = 0
     while (offset < canonical.size) {
@@ -293,7 +342,7 @@ private func convertCanonicalRgbToGray16(
         }
         offset += 4
     }
-    ConvertedPngGray16(canonical, hadNonGrayPixels)
+    PngDoRgbToGray16Result(canonical, hadNonGrayPixels)
 }
 
 private func shapeCanonicalGrayRow8(
@@ -397,7 +446,7 @@ public func transformPngRowsToGray8(
     var index: Int64 = 0
     while (index < rows.size) {
         let canonical = expandRowToRgba8(decoded.row(index), decoded.ihdr, decoded.metadata)
-        let converted = convertCanonicalRgbToGray8(canonical, rgbToGray)
+        let converted = pngDoRgbToGray8(canonical, rgbToGray)
         hadNonGrayPixels = hadNonGrayPixels || converted.hadNonGrayPixels
         rows[index] = shapeCanonicalGrayRow8(converted.canonical, resolved)
         index += 1
@@ -456,7 +505,7 @@ public func transformPngRowsToGray8(
     var index: Int64 = 0
     while (index < rows.size) {
         let canonical16 = expandRowToRgba16(decoded.row(index), decoded.ihdr, decoded.metadata)
-        let converted = convertCanonicalRgbToGray16(canonical16, rgbToGray)
+        let converted = pngDoRgbToGray16(canonical16, rgbToGray)
         hadNonGrayPixels = hadNonGrayPixels || converted.hadNonGrayPixels
         let canonical8 = reduceRgba16Row(converted.canonical, mode)
         rows[index] = shapeCanonicalGrayRow8(canonical8, resolved)
@@ -506,7 +555,7 @@ public func transformPngRowsToGray16(
     var index: Int64 = 0
     while (index < rows.size) {
         let canonical = expandRowToRgba16(decoded.row(index), decoded.ihdr, decoded.metadata)
-        let converted = convertCanonicalRgbToGray16(canonical, rgbToGray)
+        let converted = pngDoRgbToGray16(canonical, rgbToGray)
         hadNonGrayPixels = hadNonGrayPixels || converted.hadNonGrayPixels
         rows[index] = shapeCanonicalGrayRow16(converted.canonical, resolved)
         index += 1

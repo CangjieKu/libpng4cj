@@ -203,6 +203,10 @@ configuration behavior into `png_rgb_to_gray_transform.cj`:
   libpng's `32768` fixed-point scale
 - custom red and green weights use the public `100000` scale, truncate during
   conversion to the internal scale, and leave blue as the exact remainder
+- valid custom weights report `customCoefficientsAccepted = true`; negative or
+  over-sum weights retain the historical coefficients and report `false`,
+  matching the nonfatal ignore branch of `png_set_rgb_to_gray_fixed` while the
+  warning callback surface remains deferred
 - 8-bit nongray pixels truncate the weighted sum; UInt16 pixels add `16384`
   before the final shift and therefore match upstream rounding
 - equal RGB values are preserved exactly and do not set nongray status
@@ -221,6 +225,25 @@ cHRM-derived default coefficients, gamma linearization and lookup tables,
 background/alpha composition, warning callbacks, and transformed metadata
 projection remain later LP-S004 work, along with quantization, packing/packswap,
 byte swap, and user callbacks.
+
+## Translation-First Realignment
+
+LP-S004I adds `tools/update-pngrtran-inventory.sh`, the generated
+`libpng-1.6.58-pngrtran-functions.tsv`, and
+`PNG_RTRAN_TRANSLATION_LEDGER.md`. The inventory freezes 45 top-level
+`pngrtran.c` functions with source lines and fails if the count drifts.
+
+The first structural realignment covers:
+
+- `png_set_rgb_to_gray_fixed` as `pngSetRgbToGrayFixed`, including fixed-point
+  truncation and nonfatal ignore behavior for invalid custom coefficients
+- the non-gamma 8-bit and 16-bit branches of `png_do_rgb_to_gray` as
+  `pngDoRgbToGray8` and `pngDoRgbToGray16`
+- explicit separation between translated row behavior and still-partial
+  setter/state/metadata/compile-guard parity
+
+Future transform packets should advance entries in the translation ledger and
+prove them against the frozen source before Cangjie-specific optimization.
 
 ## Implemented Significant-Bit Unshift
 

@@ -81,7 +81,9 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   component depth present at that stage
 - explicit RGB-to-gray output with the historical libpng fixed coefficients or
   caller-supplied red/green weights on the 100000 scale, `Convert` and
-  `RequireGray` policy, and a result-level nongray status
+  `RequireGray` policy, a result-level nongray status, and explicit reporting of
+  whether custom coefficients were accepted; upstream-style out-of-range
+  custom weights retain the historical defaults
 - copy-owned `G`, `GA`, `AG`, `GX`, and `XG` rows across native 8-bit, native
   UInt16, and explicit Strip/Scale 16-to-8 output; conversion preserves alpha,
   equal RGB samples, frozen transform order, and final one/two-channel limits
@@ -90,6 +92,11 @@ ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining
 standard metadata, quantization, user callbacks, Adam7 execution, progressive
 reading, and all write/C ABI surfaces remain open work.
+
+The translation-first route is tracked in
+`docs/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
+asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
+behavior is marked separately from complete setter/state/metadata translation.
 
 ## Native Dependency
 

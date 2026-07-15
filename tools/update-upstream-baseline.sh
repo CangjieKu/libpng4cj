@@ -49,3 +49,5 @@ find "$UPSTREAM" -type f \( -name 'png*.c' -o -name 'png*.h' \) -print \
 
 printf 'libpng4cj baseline: symbols=%s\n' "$symbol_count"
 printf 'libpng4cj baseline: output=%s\n' "$OUTPUT"
+
+sh "$ROOT/tools/update-pngrtran-inventory.sh"
