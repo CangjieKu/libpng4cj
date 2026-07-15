@@ -168,3 +168,28 @@ the packet does not add a second full transformed-image allocation.
 sBIT unshift, strip-alpha/filler, RGB-to-gray, gamma/background/alpha-mode,
 quantization, packing/packswap, byte swap, and user callbacks remain later
 LP-S004 work.
+
+## Implemented Row Shapes
+
+LP-S004F adds a generalized copy-owned output surface in
+`png_row_shape_transform.cj` for the strip-alpha and filler stages of
+`png_do_read_transformations`:
+
+- opaque output is naturally three-channel `RGB` or `BGR`
+- source or tRNS-derived alpha is retained unless strip-alpha is selected
+- filler-before/filler-after adds a non-alpha `X` channel only after alpha has
+  been stripped or when no semantic alpha exists
+- add-alpha-before/add-alpha-after uses the same value position but records a
+  semantic alpha layout
+- invert-alpha precedes filler, so newly added alpha is not inverted; swap-alpha
+  follows filler, so newly added alpha participates while plain filler does not
+- UInt16 output uses the full filler value, while 8-bit and explicit 16-to-8
+  output use its low byte, matching the frozen upstream row depth at that stage
+
+The result reports an explicit `RGB`, `BGR`, `RGBA`, `BGRA`, `ARGB`, `ABGR`,
+`RGBX`, `BGRX`, `XRGB`, or `XBGR` layout and charges the transformed-output
+limit using the final three- or four-channel shape. Existing fixed RGBA8/RGBA16
+convenience APIs remain unchanged.
+
+sBIT unshift, RGB-to-gray, gamma/background/alpha-mode, quantization,
+packing/packswap, byte swap, and user callbacks remain later LP-S004 work.

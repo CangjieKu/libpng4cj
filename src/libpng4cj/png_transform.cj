@@ -203,7 +203,7 @@ private func putRgba16(
     output[offset + 3] = alpha
 }
 
-private func expandRowToRgba8(
+func expandRowToRgba8(
     row: Array<Byte>,
     ihdr: PngIhdr,
     metadata: PngReadMetadata
@@ -277,7 +277,7 @@ private func expandRowToRgba8(
     output
 }
 
-private func expandRowToRgba16(
+func expandRowToRgba16(
     row: Array<Byte>,
     ihdr: PngIhdr,
     metadata: PngReadMetadata
@@ -391,7 +391,7 @@ private func expandRowToRgba16(
     output
 }
 
-private func reduceRgba16Row(row: Array<UInt16>, mode: Png16To8Mode): Array<Byte> {
+func reduceRgba16Row(row: Array<UInt16>, mode: Png16To8Mode): Array<Byte> {
     let output = Array<Byte>(row.size, repeat: 0)
     var index: Int64 = 0
     while (index < row.size) {

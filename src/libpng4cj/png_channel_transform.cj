@@ -90,7 +90,7 @@ class ResolvedPngChannelTransforms {
     }
 }
 
-private func containsChannelTransform(
+func hasPngReadChannelTransform(
     transforms: Array<PngReadChannelTransform>,
     expected: PngReadChannelTransform
 ): Bool {
@@ -104,7 +104,7 @@ private func containsChannelTransform(
     false
 }
 
-private func hasSemanticAlpha(ihdr: PngIhdr, metadata: PngReadMetadata): Bool {
+func pngHasSemanticAlpha(ihdr: PngIhdr, metadata: PngReadMetadata): Bool {
     ihdr.colorType == GrayscaleAlpha || ihdr.colorType == TruecolorAlpha ||
         metadata.hasTransparency
 }
@@ -114,12 +114,12 @@ func resolvePngChannelTransforms(
     metadata: PngReadMetadata,
     transforms: Array<PngReadChannelTransform>
 ): ResolvedPngChannelTransforms {
-    let semanticAlpha = hasSemanticAlpha(ihdr, metadata)
-    let invertMonochrome = containsChannelTransform(transforms, InvertMonochrome) &&
+    let semanticAlpha = pngHasSemanticAlpha(ihdr, metadata)
+    let invertMonochrome = hasPngReadChannelTransform(transforms, InvertMonochrome) &&
         (ihdr.colorType == Grayscale || ihdr.colorType == GrayscaleAlpha)
-    let invertAlpha = semanticAlpha && containsChannelTransform(transforms, InvertAlpha)
-    let bgr = containsChannelTransform(transforms, Bgr)
-    let swapAlpha = semanticAlpha && containsChannelTransform(transforms, SwapAlpha)
+    let invertAlpha = semanticAlpha && hasPngReadChannelTransform(transforms, InvertAlpha)
+    let bgr = hasPngReadChannelTransform(transforms, Bgr)
+    let swapAlpha = semanticAlpha && hasPngReadChannelTransform(transforms, SwapAlpha)
     let layout = if (swapAlpha) {
         if (bgr) { Abgr } else { Argb }
     } else {
