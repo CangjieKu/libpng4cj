@@ -32,7 +32,7 @@ Status meanings:
 | 215 | `png_set_strip_alpha` | `PngReadTransformState.setStripAlpha` | translated | direct C ABI setter deferred |
 | 361 | `png_set_alpha_mode_fixed` | none | pending | alpha/background/gamma state |
 | 461 | `png_set_alpha_mode` | none | pending | floating-point facade |
-| 489 | `png_set_quantize` | none | pending | palette quantization state |
+| 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | lifecycle, mode, owned palette, and 256-entry non-full identity remap translated; palette reduction, histogram/median-cut, full lookup, and C ABI deferred |
 | 892 | `png_set_gamma_fixed` | retained gAMA only | pending | gamma transform state and tables |
 | 934 | `png_set_gamma` | none | pending | floating-point facade |
 | 948 | `png_set_expand` | `PngReadTransformState.setExpand` | translated | transformed IHDR projection deferred |
@@ -143,3 +143,12 @@ rows. `applyPngReadFillerTransform` maps the existing filler/add-alpha placement
 modes onto this row body without claiming preceding Strip Alpha execution or
 the separate transformed-info color-type update. The ledger remains
 `23 translated / 6 partial / 16 pending`.
+
+LP-S004W adds the bounded `png_set_quantize` state floor after the direct
+`png_do_quantize` row body landed in LP-S004V. `PngQuantizeMode` records
+palette-remap versus full-color intent, accepted calls retain copy-owned palette
+state, and every non-full call rebuilds the complete 256-entry identity remap
+required by the frozen safety fix. Palette reduction, histogram/median-cut,
+full 32768-entry lookup generation, initialized dispatch, transformed-info
+projection, and C ABI remain open. The current ledger is
+`24 translated / 7 partial / 14 pending`.

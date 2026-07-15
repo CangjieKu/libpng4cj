@@ -498,9 +498,29 @@ LP-S004V adds `png_quantize_transform.cj` as the direct translation of
 - transformed and no-op rows are copy-owned, and malformed row lengths fail
   before lookup validation
 
-The direct body does not translate `png_set_quantize`, build or reduce palettes,
-consume histograms, execute median-cut logic, mutate retained metadata, or claim
-the complete row dispatcher.
+The direct body does not consume setter state, build or reduce palettes, consume
+histograms, execute median-cut logic, mutate retained metadata, or claim the
+complete row dispatcher.
+
+## Implemented Quantize Setter State Floor
+
+LP-S004W extends `PngReadTransformState` with the bounded state topology of
+`png_set_quantize`:
+
+- `setQuantize` preserves the existing `png_rtran_ok(..., 0)` lifecycle gate
+- `PngQuantizeMode` distinguishes palette remapping from full-color lookup
+- accepted calls retain a copy-owned RGB byte palette, declared count, and
+  maximum-color limit
+- every non-full call constructs all 256 identity remap entries, including
+  index `255`, and replaces the prior managed remap state
+- full-color mode remains explicit while exposing no fabricated index remap or
+  32768-entry palette lookup
+- malformed palettes and requests that require palette reduction fail before
+  quantize state mutation
+
+This state floor does not translate histogram sorting, palette reduction or
+mutation, median-cut/closest-color selection, the 32768-entry full-color lookup,
+initialized row dispatch, or transformed-info projection.
 
 ## Implemented Significant-Bit Unshift
 
