@@ -441,6 +441,26 @@ The direct body does not translate non-palette `png_do_expand`, mutate the
 retained palette, use the upstream NEON riffled-palette path, execute Expand16,
 or claim the complete row dispatcher.
 
+## Implemented Direct Non-Palette Expansion
+
+LP-S004T adds `png_nonpalette_expand_transform.cj` as the direct translation of
+non-palette `png_do_expand`:
+
+- legal packed 1/2/4-bit Gray values replicate to exact 8-bit bit patterns
+- packed Gray transparency keys use the same source mask and replication factor
+- absent transparency is represented independently from a zero-valued key
+- Gray 8/16 rows grow to GA and RGB 8/16 rows grow to RGBA when a key exists
+- every growing branch walks source and destination from the row end
+- 16-bit comparisons and output remain in PNG network-byte order
+- transparent alpha is zero and opaque alpha is all-ones at the active depth
+- width remains unchanged while color type, channels, pixel depth, and row bytes
+  update exactly
+- transformed and no-op rows are copy-owned, and malformed row lengths fail
+  before component reads
+
+The direct body does not execute an initialized Expand stage, translate
+`png_do_expand_16`, mutate palette state, or claim the complete row dispatcher.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

@@ -64,7 +64,7 @@ Status meanings:
 | 4084 | `png_do_gamma` | none | pending | gamma tables |
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
-| 4523 | `png_do_expand` | gray/RGB/tRNS expansion | translated | row-info topology alignment |
+| 4523 | `png_do_expand` | `pngDoExpand` | translated | initializer adapter and complete dispatcher remain partial |
 | 4753 | `png_do_expand_16` | 8-to-16 channel replication | translated | row-info topology alignment |
 | 4783 | `png_do_quantize` | none | pending | palette lookup and dither state |
 | 4880 | `png_do_read_transformations` | current ordered transform calls | partial | complete stateful dispatcher and pending bodies |
