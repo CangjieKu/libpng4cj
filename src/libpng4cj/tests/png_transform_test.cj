@@ -33,6 +33,32 @@ private let GRAY16_ZLIB: Array<Byte> = [
     0x78, 0x9c, 0x63, 0x10, 0x32, 0x01, 0x00, 0x00, 0x5b, 0x00, 0x47
 ]
 
+private let GRAY16_TWO_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x10, 0x32, 0x59, 0x7d, 0x16,
+    0x00, 0x03, 0x0c, 0x01, 0xbf
+]
+
+private let RGB16_TWO_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x60, 0x64, 0x62, 0x66, 0x61,
+    0x65, 0x13, 0x14, 0x12, 0x16, 0x11, 0x15, 0x03,
+    0x00, 0x02, 0x4b, 0x00, 0x8b
+]
+
+private let GRAY_ALPHA16_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x10, 0x32, 0x09, 0xab, 0x00,
+    0x00, 0x02, 0x0d, 0x01, 0x15
+]
+
+private let RGBA16_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x60, 0x64, 0x62, 0x66, 0x61,
+    0x65, 0x63, 0xe7, 0x00, 0x00, 0x00, 0x81, 0x00, 0x25
+]
+
+private let REDUCE16_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x60, 0xf8, 0xff, 0x9f, 0x01,
+    0x00, 0x05, 0x00, 0x01, 0xff
+]
+
 private func joinTransformBytes(left: Array<Byte>, right: Array<Byte>): Array<Byte> {
     let out = Array<Byte>(left.size + right.size, repeat: 0)
     var index: Int64 = 0
@@ -343,6 +369,133 @@ public class PngTransformTestSuite {
                 )
             )
             @Fail("transformed-byte limit should reject RGBA8 rows")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "DECODE_LIMIT_EXCEEDED")
+        }
+    }
+
+    @TestCase
+    public func preservesGrayAndRgb16Transparency(): Unit {
+        let grayTransparency: Array<Byte> = [0x12, 0x34]
+        let gray16 = makeTransformImage(
+            UInt32(2),
+            UInt8(16),
+            UInt8(0),
+            [makeTransformChunk(PNG_CHUNK_tRNS, grayTransparency)],
+            GRAY16_TWO_ZLIB
+        )
+        let grayExpected: Array<UInt16> = [
+            0x1234, 0x1234, 0x1234, 0x0000,
+            0xabcd, 0xabcd, 0xabcd, 0xffff
+        ]
+        @Assert(decodePngRgba16NonInterlaced(gray16).row(0), grayExpected)
+
+        let rgbTransparency: Array<Byte> = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+        let rgb16 = makeTransformImage(
+            UInt32(2),
+            UInt8(16),
+            UInt8(2),
+            [makeTransformChunk(PNG_CHUNK_tRNS, rgbTransparency)],
+            RGB16_TWO_ZLIB
+        )
+        let rgbExpected: Array<UInt16> = [
+            0x0102, 0x0304, 0x0506, 0x0000,
+            0x1112, 0x1314, 0x1516, 0xffff
+        ]
+        @Assert(decodePngRgba16NonInterlaced(rgb16).row(0), rgbExpected)
+    }
+
+    @TestCase
+    public func preservesGrayAlphaAndRgba16Ownership(): Unit {
+        let grayAlpha16 = makeTransformImage(
+            UInt32(1), UInt8(16), UInt8(4), [], GRAY_ALPHA16_ZLIB
+        )
+        let grayAlphaExpected: Array<UInt16> = [0x1234, 0x1234, 0x1234, 0x5678]
+        @Assert(decodePngRgba16NonInterlaced(grayAlpha16).row(0), grayAlphaExpected)
+
+        let rgba16 = makeTransformImage(
+            UInt32(1), UInt8(16), UInt8(6), [], RGBA16_ZLIB
+        )
+        let rgbaExpected: Array<UInt16> = [0x0102, 0x0304, 0x0506, 0x0708]
+        let decoded = decodePngRgba16NonInterlaced(rgba16)
+        @Assert(decoded.row(0), rgbaExpected)
+        let mutableRow = decoded.row(0)
+        mutableRow[0] = UInt16(0)
+        @Assert(decoded.row(0), rgbaExpected)
+    }
+
+    @TestCase
+    public func expandsEightBitAndPaletteChannelsTo16(): Unit {
+        let rgb8 = makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        )
+        let rgbExpected: Array<UInt16> = [
+            0x0a0a, 0x1414, 0x1e1e, 0xffff,
+            0x2828, 0x3232, 0x3c3c, 0xffff
+        ]
+        @Assert(decodePngRgba16NonInterlaced(rgb8).row(0), rgbExpected)
+
+        let palette: Array<Byte> = [
+            0xff, 0x00, 0x00,
+            0x00, 0xff, 0x00,
+            0x00, 0x00, 0xff,
+            0xff, 0xff, 0xff
+        ]
+        let alpha: Array<Byte> = [0x00, 0x80]
+        let indexed = makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [
+                makeTransformChunk(PNG_CHUNK_PLTE, palette),
+                makeTransformChunk(PNG_CHUNK_tRNS, alpha)
+            ],
+            PALETTE_GRAY_ZLIB
+        )
+        let paletteExpected: Array<UInt16> = [
+            0xffff, 0x0000, 0x0000, 0x0000,
+            0x0000, 0xffff, 0x0000, 0x8080,
+            0x0000, 0x0000, 0xffff, 0xffff,
+            0xffff, 0xffff, 0xffff, 0xffff
+        ]
+        @Assert(decodePngRgba16NonInterlaced(indexed).row(0), paletteExpected)
+    }
+
+    @TestCase
+    public func appliesExplicitStripAndScale16To8(): Unit {
+        let gray16 = makeTransformImage(
+            UInt32(2), UInt8(16), UInt8(0), [], REDUCE16_ZLIB
+        )
+        let stripExpected: Array<Byte> = [
+            0, 0, 0, 0xff,
+            0xff, 0xff, 0xff, 0xff
+        ]
+        let scaleExpected: Array<Byte> = [
+            1, 1, 1, 0xff,
+            0xfe, 0xfe, 0xfe, 0xff
+        ]
+        @Assert(decodePngRgba8NonInterlaced(gray16, Strip).row(0), stripExpected)
+        @Assert(decodePngRgba8NonInterlaced(gray16, Scale).row(0), scaleExpected)
+    }
+
+    @TestCase
+    public func enforcesRgba16TransformedLimit(): Unit {
+        let gray16 = makeTransformImage(
+            UInt32(1), UInt8(16), UInt8(0), [], GRAY16_ZLIB
+        )
+        try {
+            decodePngRgba16NonInterlaced(
+                gray16,
+                PngReadLimits(
+                    UInt32(1024),
+                    UInt32(100),
+                    UInt32(100),
+                    UInt64(1024),
+                    UInt64(1024),
+                    UInt64(7)
+                )
+            )
+            @Fail("transformed-byte limit should reject RGBA16 rows")
         } catch (e: PngFormatException) {
             @Assert(e.kind.toString(), "DECODE_LIMIT_EXCEEDED")
         }

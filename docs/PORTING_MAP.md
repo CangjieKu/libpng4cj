@@ -75,7 +75,30 @@ tRNS color keys while preserving existing grayscale-alpha and truecolor-alpha
 values. A separate 256,000,000-byte transformed-output limit prevents packed
 inputs from expanding without a caller-visible bound.
 
-This is not the complete `pngrtran.c` surface. The 16-bit path,
-gamma/background/color-space handling, alpha composition, channel/filler and
+LP-S004A is not the complete `pngrtran.c` surface. At that checkpoint the
+16-bit path, gamma/background/color-space handling, alpha composition,
+channel/filler and user transforms, remaining standard metadata, unknown
+chunks, Adam7, and progressive reading remained later packets.
+
+## Implemented Bit-Depth Conversion
+
+LP-S004B extends `png_transform.cj` with a copy-owned RGBA16 surface and the
+three libpng-aligned bit-depth operations:
+
+- 8-to-16 expansion uses byte replication, exactly `value * 257`
+- 16-to-8 `Strip` retains the high byte and discards the low byte
+- 16-to-8 `Scale` uses the exact `(value * 255 + 32895) >> 16` formula
+
+`decodePngRgba16NonInterlaced` returns host-numeric `Array<UInt16>` channels;
+PNG network byte order is consumed only at the packed-row transform boundary.
+All source color types are supported, including exact 16-bit grayscale/RGB
+tRNS matching and 8-bit palette/alpha expansion to full UInt16 range.
+
+The overloads accepting `Png16To8Mode` make 16-bit reduction explicit. Existing
+RGBA8 overloads without a mode still reject 16-bit source images, so callers do
+not lose precision through an implicit default. RGBA16 output is charged at
+eight bytes per pixel against the transformed-output limit.
+
+Gamma/background/color-space handling, alpha composition, channel/filler and
 user transforms, remaining standard metadata, unknown chunks, Adam7, and
 progressive reading remain later packets.

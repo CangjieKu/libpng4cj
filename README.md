@@ -9,8 +9,8 @@ Cangjie. It targets two eventual surfaces:
 The current `0.1.0` development line contains PNG signature/endian/CRC32
 primitives, a bounded in-memory chunk reader, strictly validated IHDR/PLTE/tRNS
 handling, a non-interlaced raw-row decoder, and an RGBA8 expansion path for bit
-depths up to 8. It is not yet a complete PNG decoder or a replacement for
-libpng.
+depths up to 8 plus an RGBA16 preservation path. It is not yet a complete PNG
+decoder or a replacement for libpng.
 
 ## Build
 
@@ -51,10 +51,14 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   grayscale-alpha, and truecolor-alpha inputs at bit depths up to 8
 - palette alpha and grayscale/RGB color-key transparency expansion
 - separate configurable transformed-output byte limit
+- copy-owned `Array<UInt16>` RGBA16 rows for every PNG color type
+- libpng-aligned 8-to-16 channel expansion by `value * 257`
+- explicit `Strip` and `Scale` modes for 16-to-8 conversion; the original
+  no-policy RGBA8 entry still rejects 16-bit input
 
-The 16-bit transform path, gamma/background/color conversion, remaining
-standard metadata, unknown-chunk retention, Adam7 execution, progressive
-reading, and all write/C ABI surfaces remain open work.
+Gamma/background/color conversion, remaining standard metadata, unknown-chunk
+retention, Adam7 execution, progressive reading, and all write/C ABI surfaces
+remain open work.
 
 ## Native Dependency
 
