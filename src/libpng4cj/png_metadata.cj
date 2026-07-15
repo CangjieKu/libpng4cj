@@ -135,7 +135,7 @@ public class PngSignificantBits {
         alpha = UInt8(0)
     }
 
-    init(gray: UInt8, red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
+    public init(gray: UInt8, red: UInt8, green: UInt8, blue: UInt8, alpha: UInt8) {
         this.gray = gray
         this.red = red
         this.green = green

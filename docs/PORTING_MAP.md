@@ -417,5 +417,26 @@ with the `PNG_SHIFT` stage represented by explicit
 The fixed RGBA convenience results and generalized RGB/RGBA/X results share the
 same shift resolver. Retained sBIT metadata remains unchanged.
 
+LP-S004Q adds `png_unshift_transform.cj` as the direct source-row translation of
+`png_do_unshift`:
+
+- `PngSignificantBits` is converted into source-shaped G, GA, RGB, or RGBA
+  shift arrays from the current row color type
+- non-positive and at-least-bit-depth shifts normalize to zero exactly at the
+  row body boundary
+- packed 2-bit grayscale applies the upstream `>> 1` plus `0x55` byte mask
+- packed 4-bit grayscale applies the upstream shift-dependent repeated-nibble
+  mask across every row byte, including final padding bits
+- 8-bit components shift byte-by-byte with exact channel cycling
+- 16-bit components are reconstructed and written back in PNG network order
+- row information is unchanged, and transformed or no-op rows are copy-owned
+- palette, 1-bit, unsupported-depth, source-channel mismatch, and all-zero
+  shift plans safely no-op after row-length validation
+- `applySelectedPngUnshiftTransform` is a narrow adapter over the existing
+  `UnshiftSignificantBits` selection
+
+The direct adapter does not perform palette initialization mutation or compose
+BGR, byte swap, filler, and the complete `png_do_read_transformations` path.
+
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
 swap, and user callbacks remain later LP-S004 work.

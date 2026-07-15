@@ -79,6 +79,9 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   and surviving semantic-alpha channel after inversion and before BGR,
   filler/add-alpha, and alpha swap; palette, UInt16, and reduced output use the
   component depth present at that stage
+- direct `pngDoUnshift` source-row translation covers packed 2/4-bit grayscale,
+  8-bit and network-order 16-bit G/GA/RGB/RGBA channel cycling with unchanged
+  row information, copy ownership, and a narrow existing-selection adapter
 - explicit RGB-to-gray output with the historical libpng fixed coefficients or
   caller-supplied red/green weights on the 100000 scale, `Convert` and
   `RequireGray` policy, a result-level nongray status, and explicit reporting of
