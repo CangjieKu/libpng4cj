@@ -1305,4 +1305,212 @@ public class PngTransformTestSuite {
         @Assert(duplicate.info.pixelDepth, UInt16(32))
         @Assert(duplicate.info.rowBytes, UInt64(4))
     }
+
+    @TestCase
+    public func addsEightBitGrayFillerBeforeAndAfter(): Unit {
+        let input: Array<Byte> = [1, 2]
+        let rowInfo = PngReadRowInfo(UInt32(2), UInt8(8), Grayscale)
+        let after = pngDoReadFiller(
+            rowInfo, input, UInt32(0x12345678), true
+        )
+        let afterExpected: Array<Byte> = [1, 0x78, 2, 0x78]
+        @Assert(after.row(), afterExpected)
+        @Assert(after.info.width, UInt32(2))
+        @Assert(after.info.bitDepth, UInt8(8))
+        @Assert(after.info.colorType.toString(), "GRAYSCALE")
+        @Assert(after.info.channels, UInt8(2))
+        @Assert(after.info.pixelDepth, UInt16(16))
+        @Assert(after.info.rowBytes, UInt64(4))
+
+        let before = pngDoReadFiller(
+            rowInfo, input, UInt32(0x12345678), false
+        )
+        let beforeExpected: Array<Byte> = [0x78, 1, 0x78, 2]
+        @Assert(before.row(), beforeExpected)
+
+        input[0] = UInt8(9)
+        @Assert(after.row(), afterExpected)
+        let mutable = before.row()
+        mutable[0] = UInt8(9)
+        @Assert(before.row(), beforeExpected)
+    }
+
+    @TestCase
+    public func addsEightBitRgbFillerBeforeAndAfter(): Unit {
+        let rowInfo = PngReadRowInfo(UInt32(2), UInt8(8), Truecolor)
+        let input: Array<Byte> = [1, 2, 3, 4, 5, 6]
+        let after = pngDoReadFiller(
+            rowInfo, input, UInt32(0xab), true
+        )
+        let afterExpected: Array<Byte> = [1, 2, 3, 0xab, 4, 5, 6, 0xab]
+        @Assert(after.row(), afterExpected)
+        @Assert(after.info.colorType.toString(), "TRUECOLOR")
+        @Assert(after.info.channels, UInt8(4))
+        @Assert(after.info.pixelDepth, UInt16(32))
+        @Assert(after.info.rowBytes, UInt64(8))
+
+        let before = pngDoReadFiller(
+            rowInfo, input, UInt32(0xab), false
+        )
+        let beforeExpected: Array<Byte> = [0xab, 1, 2, 3, 0xab, 4, 5, 6]
+        @Assert(before.row(), beforeExpected)
+    }
+
+    @TestCase
+    public func addsSixteenBitGrayFillerInNetworkOrder(): Unit {
+        let rowInfo = PngReadRowInfo(UInt32(2), UInt8(16), Grayscale)
+        let input: Array<Byte> = [0x01, 0x02, 0x03, 0x04]
+        let after = pngDoReadFiller(
+            rowInfo, input, UInt32(0x12345678), true
+        )
+        let afterExpected: Array<Byte> = [
+            0x01, 0x02, 0x56, 0x78,
+            0x03, 0x04, 0x56, 0x78
+        ]
+        @Assert(after.row(), afterExpected)
+        @Assert(after.info.width, UInt32(2))
+        @Assert(after.info.bitDepth, UInt8(16))
+        @Assert(after.info.colorType.toString(), "GRAYSCALE")
+        @Assert(after.info.channels, UInt8(2))
+        @Assert(after.info.pixelDepth, UInt16(32))
+        @Assert(after.info.rowBytes, UInt64(8))
+
+        let before = pngDoReadFiller(
+            rowInfo, input, UInt32(0x12345678), false
+        )
+        let beforeExpected: Array<Byte> = [
+            0x56, 0x78, 0x01, 0x02,
+            0x56, 0x78, 0x03, 0x04
+        ]
+        @Assert(before.row(), beforeExpected)
+    }
+
+    @TestCase
+    public func addsSixteenBitRgbFillerInNetworkOrder(): Unit {
+        let rowInfo = PngReadRowInfo(UInt32(1), UInt8(16), Truecolor)
+        let input: Array<Byte> = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+        let after = pngDoReadFiller(
+            rowInfo, input, UInt32(0x12345678), true
+        )
+        let afterExpected: Array<Byte> = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x56, 0x78
+        ]
+        @Assert(after.row(), afterExpected)
+        @Assert(after.info.colorType.toString(), "TRUECOLOR")
+        @Assert(after.info.channels, UInt8(4))
+        @Assert(after.info.pixelDepth, UInt16(64))
+        @Assert(after.info.rowBytes, UInt64(8))
+
+        let before = pngDoReadFiller(
+            rowInfo, input, UInt32(0x12345678), false
+        )
+        let beforeExpected: Array<Byte> = [
+            0x56, 0x78, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+        ]
+        @Assert(before.row(), beforeExpected)
+    }
+
+    @TestCase
+    public func keepsUnsupportedAndAlreadyExpandedFillerRowsUnchanged(): Unit {
+        let alpha = pngDoReadFiller(
+            PngReadRowInfo(UInt32(1), UInt8(8), GrayscaleAlpha),
+            [1, 2],
+            UInt32(0xff),
+            true
+        )
+        let alphaExpected: Array<Byte> = [1, 2]
+        @Assert(alpha.row(), alphaExpected)
+        @Assert(alpha.info.channels, UInt8(2))
+
+        let indexed = pngDoReadFiller(
+            PngReadRowInfo(UInt32(2), UInt8(8), Indexed),
+            [1, 2],
+            UInt32(0xff),
+            true
+        )
+        let indexedExpected: Array<Byte> = [1, 2]
+        @Assert(indexed.row(), indexedExpected)
+
+        let packed = pngDoReadFiller(
+            PngReadRowInfo(UInt32(2), UInt8(4), Grayscale),
+            [0x12],
+            UInt32(0xff),
+            true
+        )
+        let packedExpected: Array<Byte> = [0x12]
+        @Assert(packed.row(), packedExpected)
+
+        let expandedInfo = PngReadRowInfo(
+            UInt32(1), UInt8(8), Truecolor, UInt8(4)
+        )
+        let expanded = pngDoReadFiller(
+            expandedInfo, [1, 2, 3, 4], UInt32(0xff), true
+        )
+        let expandedExpected: Array<Byte> = [1, 2, 3, 4]
+        @Assert(expanded.row(), expandedExpected)
+        @Assert(expanded.info.colorType.toString(), "TRUECOLOR")
+        @Assert(expanded.info.channels, UInt8(4))
+        @Assert(expanded.info.pixelDepth, UInt16(32))
+        @Assert(expanded.info.rowBytes, UInt64(4))
+
+        try {
+            pngDoReadFiller(
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+                [1, 2, 3, 4, 5],
+                UInt32(0xff),
+                true
+            )
+            @Fail("read filler should reject a row length mismatch")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
+
+    @TestCase
+    public func adaptsExistingFillerAndAddAlphaModesWithoutInfoOverclaim(): Unit {
+        let rowInfo = PngReadRowInfo(UInt32(1), UInt8(8), Truecolor)
+        let input: Array<Byte> = [1, 2, 3]
+
+        let none = applyPngReadFillerTransform(
+            PngRowShapeTransform(false), rowInfo, input
+        )
+        @Assert(none.row(), input)
+        @Assert(none.info.channels, UInt8(3))
+
+        let fillerBefore = applyPngReadFillerTransform(
+            PngRowShapeTransform(false, FillerBefore, UInt16(0x1234)),
+            rowInfo,
+            input
+        )
+        let beforeExpected: Array<Byte> = [0x34, 1, 2, 3]
+        @Assert(fillerBefore.row(), beforeExpected)
+
+        let fillerAfter = applyPngReadFillerTransform(
+            PngRowShapeTransform(false, FillerAfter, UInt16(0x1234)),
+            rowInfo,
+            input
+        )
+        let afterExpected: Array<Byte> = [1, 2, 3, 0x34]
+        @Assert(fillerAfter.row(), afterExpected)
+
+        let alphaBefore = applyPngReadFillerTransform(
+            PngRowShapeTransform(false, AlphaBefore, UInt16(0x1234)),
+            rowInfo,
+            input
+        )
+        @Assert(alphaBefore.row(), beforeExpected)
+        @Assert(alphaBefore.info.colorType.toString(), "TRUECOLOR")
+        @Assert(alphaBefore.info.channels, UInt8(4))
+
+        let alphaAfter = applyPngReadFillerTransform(
+            PngRowShapeTransform(false, AlphaAfter, UInt16(0x1234)),
+            rowInfo,
+            input
+        )
+        @Assert(alphaAfter.row(), afterExpected)
+        @Assert(alphaAfter.info.colorType.toString(), "TRUECOLOR")
+        @Assert(alphaAfter.info.channels, UInt8(4))
+        @Assert(alphaAfter.info.pixelDepth, UInt16(32))
+        @Assert(alphaAfter.info.rowBytes, UInt64(4))
+    }
 }

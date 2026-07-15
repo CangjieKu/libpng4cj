@@ -107,6 +107,11 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   or alpha-first rows with unchanged row info; `applySelectedPngAlphaTransforms`
   fixes the upstream relative order as Invert Alpha before Swap Alpha regardless
   of caller selection order
+- direct `pngDoReadFiller` translation grows 8/16-bit grayscale or truecolor
+  network-byte rows into GX/XG or RGBX/XRGB shapes, uses the low filler byte or
+  low 16 filler bits exactly, and updates channels, pixel depth, and row bytes
+  while retaining source color type; `PngReadRowInfo` can now represent explicit
+  transformed channel counts independently from source color type
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
   Strip Alpha, RGB/gray, 16-to-8, and Expand16 state into output color type,
   bit depth, channels, pixel depth, row bytes, and remaining tRNS state using

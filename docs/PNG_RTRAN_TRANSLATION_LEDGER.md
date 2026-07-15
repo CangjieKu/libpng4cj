@@ -57,7 +57,7 @@ Status meanings:
 | 2590 | `png_do_chop` | `pngDoChop` | translated | initialized adapter is narrow; complete dispatcher remains partial |
 | 2615 | `png_do_read_swap_alpha` | `pngDoReadSwapAlpha` | translated | selected adapter is narrow; setter state and complete dispatcher remain partial |
 | 2711 | `png_do_read_invert_alpha` | `pngDoReadInvertAlpha` | translated | selected adapter is narrow; setter state and complete dispatcher remain partial |
-| 2813 | `png_do_read_filler` | `PngRowShapeTransform` filler modes | translated | row-info topology alignment |
+| 2813 | `png_do_read_filler` | `pngDoReadFiller` | translated | selected adapter is narrow; setter state and transformed-info color-type projection remain partial |
 | 3000 | `png_do_gray_to_rgb` | `pngDoGrayToRgb` | translated | initialized stage adapter is narrow; complete dispatcher remains partial |
 | 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray8/16` | translated | gamma-table branches deferred |
 | 3340 | `png_do_compose` | none | pending | background/alpha/gamma composition |
@@ -132,3 +132,14 @@ independent of caller array order or duplicates. The ledger remains
 `23 translated / 6 partial / 16 pending`; `pngtrans.c` setter state,
 intermediate unshift/BGR/filler stages, and the complete dispatcher remain
 separate work.
+
+LP-S004P replaces the generalized row-shape convenience anchor for filler with
+the direct source-shaped byte-row body. `PngReadRowInfo` now supports an
+explicit transformed channel count, because `png_do_read_filler` increases
+channels, pixel depth, and row bytes while retaining the source Gray/RGB color
+type. `pngDoReadFiller` preserves 8/16-bit network byte order, uses the low
+filler byte or low 16 filler bits, and returns copy-owned GX/XG or RGBX/XRGB
+rows. `applyPngReadFillerTransform` maps the existing filler/add-alpha placement
+modes onto this row body without claiming preceding Strip Alpha execution or
+the separate transformed-info color-type update. The ledger remains
+`23 translated / 6 partial / 16 pending`.

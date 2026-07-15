@@ -372,6 +372,31 @@ The narrow adapter deliberately skips the intervening unshift, BGR, and filler
 stages. It does not translate the corresponding `pngtrans.c` setter state or
 claim the complete `png_do_read_transformations` dispatcher.
 
+## Implemented Direct Read Filler Row Body
+
+LP-S004P adds `png_filler_transform.cj` as the direct translation of
+`png_do_read_filler` and extends `PngReadRowInfo` with an explicit transformed
+channel-count constructor:
+
+- source Gray/RGB color type remains unchanged while runtime channels expand
+  from 1 to 2 or 3 to 4
+- 8-bit rows become `G -> GX/XG` and `RGB -> RGBX/XRGB`
+- 16-bit network-byte rows become `GG -> GGXX/XXGG` and
+  `RRGGBB -> RRGGBBXX/XXRRGGBB`
+- 8-bit filler uses only the low UInt32 byte; 16-bit filler uses the low
+  16 bits in high-byte/low-byte network order
+- output width and bit depth remain unchanged while channels, pixel depth, and
+  row bytes increase exactly
+- output is copy-owned because Cangjie arrays cannot grow in place
+- alpha-bearing, indexed, packed-depth, and already-expanded rows safely no-op
+- malformed row lengths fail before source bytes are read
+- `applyPngReadFillerTransform` maps `FillerBefore`, `FillerAfter`,
+  `AlphaBefore`, and `AlphaAfter` to the direct row body
+
+The narrow adapter does not execute an earlier Strip Alpha stage. Add-alpha
+color-type projection remains a separate `png_read_transform_info` concern;
+setter state, BGR/swap-alpha composition, and complete dispatch are deferred.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

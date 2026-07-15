@@ -17,6 +17,20 @@ public class PngReadRowInfo {
         rowBytes = (UInt64(width) * UInt64(pixelDepth) + UInt64(7)) / UInt64(8)
     }
 
+    public init(
+        width: UInt32,
+        bitDepth: UInt8,
+        colorType: PngColorType,
+        channels: UInt8
+    ) {
+        this.width = width
+        this.bitDepth = bitDepth
+        this.colorType = colorType
+        this.channels = channels
+        pixelDepth = UInt16(bitDepth) * UInt16(channels)
+        rowBytes = (UInt64(width) * UInt64(pixelDepth) + UInt64(7)) / UInt64(8)
+    }
+
     public init(ihdr: PngIhdr) {
         width = ihdr.width
         bitDepth = ihdr.bitDepth
