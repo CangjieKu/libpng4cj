@@ -194,6 +194,34 @@ convenience APIs remain unchanged.
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
 swap, and user callbacks remain later LP-S004 work.
 
+## Implemented RGB-to-Gray Fixed Core
+
+LP-S004H maps the fixed-coefficient core of `png_do_rgb_to_gray` and its public
+configuration behavior into `png_rgb_to_gray_transform.cj`:
+
+- the historical default uses red `6968`, green `23434`, and blue `2366` on
+  libpng's `32768` fixed-point scale
+- custom red and green weights use the public `100000` scale, truncate during
+  conversion to the internal scale, and leave blue as the exact remainder
+- 8-bit nongray pixels truncate the weighted sum; UInt16 pixels add `16384`
+  before the final shift and therefore match upstream rounding
+- equal RGB values are preserved exactly and do not set nongray status
+- `Convert` returns transformed rows with `hadNonGrayPixels`; `RequireGray`
+  rejects nongray input with `RgbToGrayMismatch`
+- source and tRNS-derived alpha survive unless strip-alpha removes them
+- generalized output reports `G`, `GA`, `AG`, `GX`, or `XG`, with final limits
+  charged against the actual one- or two-channel shape
+- conversion executes before explicit 16-to-8 reduction, inversion, sBIT
+  unshift, filler/add-alpha, and alpha swap; BGR is a grayscale no-op
+
+Palette, grayscale-family, native 8-bit, native UInt16, and explicit Strip/Scale
+inputs share the same output contract. Retained metadata remains unchanged.
+
+cHRM-derived default coefficients, gamma linearization and lookup tables,
+background/alpha composition, warning callbacks, and transformed metadata
+projection remain later LP-S004 work, along with quantization, packing/packswap,
+byte swap, and user callbacks.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

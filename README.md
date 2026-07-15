@@ -79,10 +79,17 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   and surviving semantic-alpha channel after inversion and before BGR,
   filler/add-alpha, and alpha swap; palette, UInt16, and reduced output use the
   component depth present at that stage
+- explicit RGB-to-gray output with the historical libpng fixed coefficients or
+  caller-supplied red/green weights on the 100000 scale, `Convert` and
+  `RequireGray` policy, and a result-level nongray status
+- copy-owned `G`, `GA`, `AG`, `GX`, and `XG` rows across native 8-bit, native
+  UInt16, and explicit Strip/Scale 16-to-8 output; conversion preserves alpha,
+  equal RGB samples, frozen transform order, and final one/two-channel limits
 
-ICC color application, gamma correction, background composition, remaining
-standard metadata, RGB-to-gray transforms, quantization, user callbacks, Adam7
-execution, progressive reading, and all write/C ABI surfaces remain open work.
+ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
+RGB-to-gray and general gamma correction, background composition, remaining
+standard metadata, quantization, user callbacks, Adam7 execution, progressive
+reading, and all write/C ABI surfaces remain open work.
 
 ## Native Dependency
 

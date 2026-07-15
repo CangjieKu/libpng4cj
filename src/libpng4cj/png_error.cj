@@ -36,6 +36,7 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
     | InvalidIccProfile
     | InvalidTextMetadata
     | InvalidTimeMetadata
+    | RgbToGrayMismatch
 
     public operator func ==(right: PngErrorKind): Bool {
         ordinalValue() == right.ordinalValue()
@@ -82,6 +83,7 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case InvalidIccProfile => 32
             case InvalidTextMetadata => 33
             case InvalidTimeMetadata => 34
+            case RgbToGrayMismatch => 35
         }
     }
 
@@ -122,6 +124,7 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case InvalidIccProfile => "INVALID_ICC_PROFILE"
             case InvalidTextMetadata => "INVALID_TEXT_METADATA"
             case InvalidTimeMetadata => "INVALID_TIME_METADATA"
+            case RgbToGrayMismatch => "RGB_TO_GRAY_MISMATCH"
         }
     }
 }

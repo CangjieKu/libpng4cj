@@ -65,6 +65,11 @@ public enum PngPixelLayout <: Equatable<PngPixelLayout> & ToString {
     | PixelBgrx
     | PixelXrgb
     | PixelXbgr
+    | PixelGray
+    | PixelGrayAlpha
+    | PixelAlphaGray
+    | PixelGrayx
+    | PixelXgray
 
     public operator func ==(right: PngPixelLayout): Bool {
         ordinalValue() == right.ordinalValue()
@@ -86,6 +91,11 @@ public enum PngPixelLayout <: Equatable<PngPixelLayout> & ToString {
             case PixelBgrx => 7
             case PixelXrgb => 8
             case PixelXbgr => 9
+            case PixelGray => 10
+            case PixelGrayAlpha => 11
+            case PixelAlphaGray => 12
+            case PixelGrayx => 13
+            case PixelXgray => 14
         }
     }
 
@@ -101,11 +111,18 @@ public enum PngPixelLayout <: Equatable<PngPixelLayout> & ToString {
             case PixelBgrx => "BGRX"
             case PixelXrgb => "XRGB"
             case PixelXbgr => "XBGR"
+            case PixelGray => "G"
+            case PixelGrayAlpha => "GA"
+            case PixelAlphaGray => "AG"
+            case PixelGrayx => "GX"
+            case PixelXgray => "XG"
         }
     }
 
     public func channelCount(): UInt8 {
         match (this) {
+            case PixelGray => UInt8(1)
+            case PixelGrayAlpha | PixelAlphaGray | PixelGrayx | PixelXgray => UInt8(2)
             case PixelRgb | PixelBgr => UInt8(3)
             case _ => UInt8(4)
         }
@@ -117,6 +134,7 @@ public class PngPixelRows8 {
     public let metadata: PngReadMetadata
     public let layout: PngPixelLayout
     public let channelCount: UInt8
+    public let hadNonGrayPixels: Bool
     private let ownedRows: Array<Array<Byte>>
 
     init(
@@ -129,6 +147,22 @@ public class PngPixelRows8 {
         this.metadata = metadata
         this.layout = layout
         channelCount = layout.channelCount()
+        hadNonGrayPixels = false
+        ownedRows = rows
+    }
+
+    init(
+        ihdr: PngIhdr,
+        metadata: PngReadMetadata,
+        layout: PngPixelLayout,
+        rows: Array<Array<Byte>>,
+        hadNonGrayPixels: Bool
+    ) {
+        this.ihdr = ihdr
+        this.metadata = metadata
+        this.layout = layout
+        channelCount = layout.channelCount()
+        this.hadNonGrayPixels = hadNonGrayPixels
         ownedRows = rows
     }
 
@@ -159,6 +193,7 @@ public class PngPixelRows16 {
     public let metadata: PngReadMetadata
     public let layout: PngPixelLayout
     public let channelCount: UInt8
+    public let hadNonGrayPixels: Bool
     private let ownedRows: Array<Array<UInt16>>
 
     init(
@@ -171,6 +206,22 @@ public class PngPixelRows16 {
         this.metadata = metadata
         this.layout = layout
         channelCount = layout.channelCount()
+        hadNonGrayPixels = false
+        ownedRows = rows
+    }
+
+    init(
+        ihdr: PngIhdr,
+        metadata: PngReadMetadata,
+        layout: PngPixelLayout,
+        rows: Array<Array<UInt16>>,
+        hadNonGrayPixels: Bool
+    ) {
+        this.ihdr = ihdr
+        this.metadata = metadata
+        this.layout = layout
+        channelCount = layout.channelCount()
+        this.hadNonGrayPixels = hadNonGrayPixels
         ownedRows = rows
     }
 
