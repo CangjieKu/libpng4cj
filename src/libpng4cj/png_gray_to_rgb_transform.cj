@@ -41,7 +41,7 @@ public class PngReadTransformRow {
     }
 }
 
-private func validatePngTransformRowLength(
+func validatePngTransformRowLength(
     rowInfo: PngReadRowInfo,
     row: Array<Byte>
 ): Unit {

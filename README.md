@@ -97,6 +97,11 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   `G -> RGB`, `GA -> RGBA`, `GG -> RRGGBB`, and `GGAA -> RRGGBBAA` byte
   topology with exact row-info updates and copy-owned output; a narrow adapter
   applies it only when initialization contains the `GrayToRgb` stage
+- direct `pngDoScale16To8` and `pngDoChop` row translations reduce network-byte
+  G/GA/RGB/RGBA components into copy-owned 8-bit rows, update bit depth, pixel
+  depth, and row bytes exactly, and retain copy-owned no-op behavior outside
+  16-bit input; `applyInitializedPng16To8Stages` preserves Scale-before-Strip
+  precedence when both stage bits are present
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
   Strip Alpha, RGB/gray, 16-to-8, and Expand16 state into output color type,
   bit depth, channels, pixel depth, row bytes, and remaining tRNS state using

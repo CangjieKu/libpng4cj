@@ -53,8 +53,8 @@ Status meanings:
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | gamma/background, palette sync, filler, quantize, pack, user-transform, and full metadata projection |
 | 2292 | `png_do_unpack` | `packedSample`, gray/index expansion | translated | direct packed-row public surface unchanged |
 | 2390 | `png_do_unshift` | significant-bit shift resolver | translated | row-info topology alignment |
-| 2529 | `png_do_scale_16_to_8` | `Png16To8Mode.Scale` | translated | row-info topology alignment |
-| 2590 | `png_do_chop` | `Png16To8Mode.Strip` | translated | row-info topology alignment |
+| 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
+| 2590 | `png_do_chop` | `pngDoChop` | translated | initialized adapter is narrow; complete dispatcher remains partial |
 | 2615 | `png_do_read_swap_alpha` | `SwapAlpha` | translated | row-info topology alignment |
 | 2711 | `png_do_read_invert_alpha` | `InvertAlpha` | translated | row-info topology alignment |
 | 2813 | `png_do_read_filler` | `PngRowShapeTransform` filler modes | translated | row-info topology alignment |
@@ -110,3 +110,13 @@ RGB-to-gray, instead of iterating runtime row stages. The ledger remains
 `23 translated / 6 partial / 16 pending` because palette synchronization,
 gamma/background, filler, quantize, pack, user transforms, and complete
 metadata projection remain absent.
+
+LP-S004N replaces the convenience-only Scale/Strip anchors with direct
+network-byte row bodies. `pngDoScale16To8` applies the exact
+`(V * 255 + 32895) >> 16` arithmetic, while `pngDoChop` retains each high byte;
+both return copy-owned rows and update bit depth, pixel depth, and row bytes
+through `PngReadRowInfo`. `applyInitializedPng16To8Stages` executes Scale before
+Strip, so a simultaneous Strip stage becomes a no-op after Scale has already
+changed the row to 8-bit depth. The ledger remains
+`23 translated / 6 partial / 16 pending`; Expand16 and the complete dispatcher
+remain separate work.

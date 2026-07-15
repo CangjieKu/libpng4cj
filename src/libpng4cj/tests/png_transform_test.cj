@@ -918,4 +918,206 @@ public class PngTransformTestSuite {
         @Assert(grayToRgb.channels, UInt8(4))
         @Assert(grayToRgb.rowBytes, UInt64(8))
     }
+
+    @TestCase
+    public func scalesDirectSixteenBitRowsAcrossChannelTopologies(): Unit {
+        let grayInput: Array<Byte> = [
+            0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff
+        ]
+        let gray = pngDoScale16To8(
+            PngReadRowInfo(UInt32(4), UInt8(16), Grayscale), grayInput
+        )
+        let grayExpected: Array<Byte> = [0x00, 0x01, 0xfe, 0xff]
+        @Assert(gray.row(), grayExpected)
+        @Assert(gray.info.width, UInt32(4))
+        @Assert(gray.info.bitDepth, UInt8(8))
+        @Assert(gray.info.colorType.toString(), "GRAYSCALE")
+        @Assert(gray.info.channels, UInt8(1))
+        @Assert(gray.info.pixelDepth, UInt16(8))
+        @Assert(gray.info.rowBytes, UInt64(4))
+
+        let grayAlphaInput: Array<Byte> = [0x00, 0x80, 0x00, 0x81]
+        let grayAlpha = pngDoScale16To8(
+            PngReadRowInfo(UInt32(1), UInt8(16), GrayscaleAlpha),
+            grayAlphaInput
+        )
+        let grayAlphaExpected: Array<Byte> = [0x00, 0x01]
+        @Assert(grayAlpha.row(), grayAlphaExpected)
+        @Assert(grayAlpha.info.channels, UInt8(2))
+        @Assert(grayAlpha.info.pixelDepth, UInt16(16))
+        @Assert(grayAlpha.info.rowBytes, UInt64(2))
+
+        let rgbInput: Array<Byte> = [0x00, 0xff, 0xff, 0x00, 0xff, 0xff]
+        let rgb = pngDoScale16To8(
+            PngReadRowInfo(UInt32(1), UInt8(16), Truecolor), rgbInput
+        )
+        let rgbExpected: Array<Byte> = [0x01, 0xfe, 0xff]
+        @Assert(rgb.row(), rgbExpected)
+        @Assert(rgb.info.channels, UInt8(3))
+        @Assert(rgb.info.pixelDepth, UInt16(24))
+        @Assert(rgb.info.rowBytes, UInt64(3))
+
+        let rgbaInput: Array<Byte> = [
+            0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff
+        ]
+        let rgba = pngDoScale16To8(
+            PngReadRowInfo(UInt32(1), UInt8(16), TruecolorAlpha), rgbaInput
+        )
+        let rgbaExpected: Array<Byte> = [0x00, 0x01, 0xfe, 0xff]
+        @Assert(rgba.row(), rgbaExpected)
+        @Assert(rgba.info.channels, UInt8(4))
+        @Assert(rgba.info.pixelDepth, UInt16(32))
+        @Assert(rgba.info.rowBytes, UInt64(4))
+    }
+
+    @TestCase
+    public func exhaustivelyMatchesDirectSixteenBitScaleArithmetic(): Unit {
+        let width = UInt32(65536)
+        let input = Array<Byte>(Int64(width) * 2, repeat: 0)
+        var value: UInt32 = 0
+        while (value <= UInt32(0xffff)) {
+            let offset = Int64(value) * 2
+            input[offset] = UInt8(value >> 8)
+            input[offset + 1] = UInt8(value & UInt32(0xff))
+            value += 1
+        }
+
+        let scaled = pngDoScale16To8(
+            PngReadRowInfo(width, UInt8(16), Grayscale), input
+        )
+        let row = scaled.row()
+        value = 0
+        while (value <= UInt32(0xffff)) {
+            @Assert(
+                row[Int64(value)],
+                UInt8((value + UInt32(128)) / UInt32(257))
+            )
+            value += 1
+        }
+    }
+
+    @TestCase
+    public func chopsDirectSixteenBitRowsAcrossChannelTopologies(): Unit {
+        let gray = pngDoChop(
+            PngReadRowInfo(UInt32(2), UInt8(16), Grayscale),
+            [0x12, 0x34, 0xab, 0xcd]
+        )
+        let grayExpected: Array<Byte> = [0x12, 0xab]
+        @Assert(gray.row(), grayExpected)
+        @Assert(gray.info.rowBytes, UInt64(2))
+
+        let grayAlpha = pngDoChop(
+            PngReadRowInfo(UInt32(1), UInt8(16), GrayscaleAlpha),
+            [0x12, 0x34, 0x56, 0x78]
+        )
+        let grayAlphaExpected: Array<Byte> = [0x12, 0x56]
+        @Assert(grayAlpha.row(), grayAlphaExpected)
+        @Assert(grayAlpha.info.pixelDepth, UInt16(16))
+
+        let rgb = pngDoChop(
+            PngReadRowInfo(UInt32(1), UInt8(16), Truecolor),
+            [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]
+        )
+        let rgbExpected: Array<Byte> = [0x12, 0x56, 0x9a]
+        @Assert(rgb.row(), rgbExpected)
+        @Assert(rgb.info.pixelDepth, UInt16(24))
+
+        let rgba = pngDoChop(
+            PngReadRowInfo(UInt32(1), UInt8(16), TruecolorAlpha),
+            [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0]
+        )
+        let rgbaExpected: Array<Byte> = [0x12, 0x56, 0x9a, 0xde]
+        @Assert(rgba.row(), rgbaExpected)
+        @Assert(rgba.info.bitDepth, UInt8(8))
+        @Assert(rgba.info.channels, UInt8(4))
+        @Assert(rgba.info.pixelDepth, UInt16(32))
+        @Assert(rgba.info.rowBytes, UInt64(4))
+    }
+
+    @TestCase
+    public func keepsNonSixteenBitRowsCopyOwnedAndRejectsBadLengths(): Unit {
+        let input: Array<Byte> = [1, 2, 3, 4]
+        let scaled = pngDoScale16To8(
+            PngReadRowInfo(UInt32(1), UInt8(8), TruecolorAlpha), input
+        )
+        let expected: Array<Byte> = [1, 2, 3, 4]
+        input[0] = UInt8(9)
+        @Assert(scaled.row(), expected)
+        let mutable = scaled.row()
+        mutable[1] = UInt8(9)
+        @Assert(scaled.row(), expected)
+        @Assert(scaled.info.bitDepth, UInt8(8))
+        @Assert(scaled.info.rowBytes, UInt64(4))
+
+        let packed = pngDoChop(
+            PngReadRowInfo(UInt32(4), UInt8(2), Grayscale), [0x1b]
+        )
+        let packedExpected: Array<Byte> = [0x1b]
+        @Assert(packed.row(), packedExpected)
+        @Assert(packed.info.bitDepth, UInt8(2))
+        @Assert(packed.info.rowBytes, UInt64(1))
+
+        try {
+            pngDoScale16To8(
+                PngReadRowInfo(UInt32(2), UInt8(16), Grayscale), [0, 1, 2]
+            )
+            @Fail("scale16 should reject a 16-bit row length mismatch")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+
+        try {
+            pngDoChop(
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor), [0, 1, 2]
+            )
+            @Fail("chop should reject a non-16-bit row length mismatch")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
+
+    @TestCase
+    public func appliesInitializedSixteenBitStagesWithScalePrecedence(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB
+        ))
+        let rowInfo = PngReadRowInfo(UInt32(1), UInt8(16), Truecolor)
+        let input: Array<Byte> = [0x00, 0xff, 0xff, 0x00, 0xff, 0xff]
+
+        let disabled = initializePngReadTransformations(
+            PngReadTransformState(), decoded
+        )
+        let unchanged = applyInitializedPng16To8Stages(disabled, rowInfo, input)
+        @Assert(unchanged.row(), input)
+        @Assert(unchanged.info.bitDepth, UInt8(16))
+
+        let scaleState = PngReadTransformState()
+        @Assert(scaleState.setScale16(), true)
+        let scale = applyInitializedPng16To8Stages(
+            initializePngReadTransformations(scaleState, decoded), rowInfo, input
+        )
+        let scaleExpected: Array<Byte> = [0x01, 0xfe, 0xff]
+        @Assert(scale.row(), scaleExpected)
+        @Assert(scale.info.bitDepth, UInt8(8))
+
+        let stripState = PngReadTransformState()
+        @Assert(stripState.setStrip16(), true)
+        let strip = applyInitializedPng16To8Stages(
+            initializePngReadTransformations(stripState, decoded), rowInfo, input
+        )
+        let stripExpected: Array<Byte> = [0x00, 0xff, 0xff]
+        @Assert(strip.row(), stripExpected)
+        @Assert(strip.info.bitDepth, UInt8(8))
+
+        let bothState = PngReadTransformState()
+        @Assert(bothState.setStrip16(), true)
+        @Assert(bothState.setScale16(), true)
+        let both = applyInitializedPng16To8Stages(
+            initializePngReadTransformations(bothState, decoded), rowInfo, input
+        )
+        @Assert(both.row(), scaleExpected)
+        @Assert(both.info.bitDepth, UInt8(8))
+        @Assert(both.info.pixelDepth, UInt16(24))
+        @Assert(both.info.rowBytes, UInt64(3))
+    }
 }

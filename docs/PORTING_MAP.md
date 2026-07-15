@@ -329,6 +329,27 @@ The ledger entry remains partial. Palette byte synchronization,
 gamma/file-gamma, background, filler/add-alpha, quantize, pack, user-transform,
 and complete metadata projection are still deferred.
 
+## Implemented Direct Scale16 And Strip16 Row Bodies
+
+LP-S004N adds `png_16_to_8_transform.cj` as the direct translation of
+`png_do_scale_16_to_8` and `png_do_chop`:
+
+- input rows retain PNG network-byte component order and are validated against
+  the current `PngReadRowInfo` before any pair is read
+- `pngDoScale16To8` applies `(V * 255 + 32895) >> 16` to every G, GA, RGB, or
+  RGBA component
+- `pngDoChop` retains every component high byte and discards the low byte
+- both bodies return copy-owned rows because Cangjie arrays cannot shrink in
+  place and preserve copy-owned no-op behavior when bit depth is not 16
+- output row info retains width and color type while setting bit depth to 8,
+  pixel depth to `8 * channels`, and row bytes to `width * channels`
+- `applyInitializedPng16To8Stages` executes Scale before Strip; when both are
+  selected, Scale changes bit depth to 8 and the following Chop is a no-op,
+  matching the frozen dispatcher precedence
+
+The direct bodies do not implement Expand16, gamma/background, quantize, byte
+swap, user transforms, or the complete stateful row dispatcher.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path
