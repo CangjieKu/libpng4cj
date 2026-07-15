@@ -13,6 +13,19 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
     | DuplicateIhdr
     | IhdrOutOfOrder
     | InvalidIhdr
+    | DecodeLimitExceeded
+    | ZlibFailure
+    | InflatedSizeMismatch
+    | TrailingCompressedData
+    | MissingIdat
+    | NonConsecutiveIdat
+    | MissingIend
+    | InvalidIend
+    | TrailingData
+    | UnsupportedCriticalChunk
+    | InvalidPalette
+    | UnsupportedInterlace
+    | InvalidFilter
     | InvalidData
 
     public operator func ==(right: PngErrorKind): Bool {
@@ -37,7 +50,20 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case DuplicateIhdr => 9
             case IhdrOutOfOrder => 10
             case InvalidIhdr => 11
-            case InvalidData => 12
+            case DecodeLimitExceeded => 12
+            case ZlibFailure => 13
+            case InflatedSizeMismatch => 14
+            case TrailingCompressedData => 15
+            case MissingIdat => 16
+            case NonConsecutiveIdat => 17
+            case MissingIend => 18
+            case InvalidIend => 19
+            case TrailingData => 20
+            case UnsupportedCriticalChunk => 21
+            case InvalidPalette => 22
+            case UnsupportedInterlace => 23
+            case InvalidFilter => 24
+            case InvalidData => 25
         }
     }
 
@@ -55,6 +81,19 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case DuplicateIhdr => "DUPLICATE_IHDR"
             case IhdrOutOfOrder => "IHDR_OUT_OF_ORDER"
             case InvalidIhdr => "INVALID_IHDR"
+            case DecodeLimitExceeded => "DECODE_LIMIT_EXCEEDED"
+            case ZlibFailure => "ZLIB_FAILURE"
+            case InflatedSizeMismatch => "INFLATED_SIZE_MISMATCH"
+            case TrailingCompressedData => "TRAILING_COMPRESSED_DATA"
+            case MissingIdat => "MISSING_IDAT"
+            case NonConsecutiveIdat => "NON_CONSECUTIVE_IDAT"
+            case MissingIend => "MISSING_IEND"
+            case InvalidIend => "INVALID_IEND"
+            case TrailingData => "TRAILING_DATA"
+            case UnsupportedCriticalChunk => "UNSUPPORTED_CRITICAL_CHUNK"
+            case InvalidPalette => "INVALID_PALETTE"
+            case UnsupportedInterlace => "UNSUPPORTED_INTERLACE"
+            case InvalidFilter => "INVALID_FILTER"
             case InvalidData => "INVALID_DATA"
         }
     }

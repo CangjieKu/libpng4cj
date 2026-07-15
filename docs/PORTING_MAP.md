@@ -40,5 +40,20 @@ LP-S002 maps the first parts of `png.c`, `pngerror.c`, and `pngrutil.c` into:
 
 The default limits currently match the vendored prebuilt libpng configuration:
 8,000,000 bytes per chunk and 1,000,000 pixels per image dimension. The
-architecture-specific transformed-row allocation gate belongs to the IDAT/read
-packet because this layer does not allocate pixel rows.
+architecture-specific transformed-row allocation gate remains later work.
+
+## Implemented Non-Interlaced Rows
+
+LP-S003 extends the first parts of `pngread.c`, `pngrutil.c`, and `pngrtran.c`
+through these Cangjie-owned files:
+
+- `png_zlib.cj`: direct FFI to external zlib `uncompress2`, with exact output
+  length and consumed-input checks
+- `png_filter.cj`: None, Sub, Up, Average, and Paeth reversal
+- `png_decode.cj`: PLTE ordering checks, consecutive IDAT collection, IEND
+  finalization, bounded inflate, and copy-owned non-interlaced raw rows
+
+The decoder returns packed file-format rows. It does not yet expand palettes or
+sub-byte samples, swap 16-bit channels, apply transparency/background/gamma
+transforms, execute Adam7, expose progressive IO, or claim full read parity.
+Compressed and inflated data default to separate 256,000,000-byte limits.

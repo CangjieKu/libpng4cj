@@ -1,11 +1,29 @@
 package libpng4cj
 
 public let PNG_CHUNK_IHDR: Array<Byte> = [0x49, 0x48, 0x44, 0x52]
+public let PNG_CHUNK_PLTE: Array<Byte> = [0x50, 0x4c, 0x54, 0x45]
+public let PNG_CHUNK_IDAT: Array<Byte> = [0x49, 0x44, 0x41, 0x54]
+public let PNG_CHUNK_IEND: Array<Byte> = [0x49, 0x45, 0x4e, 0x44]
+
+public let PNG_DEFAULT_MAX_COMPRESSED_BYTES: UInt64 = UInt64(256_000_000)
+public let PNG_DEFAULT_MAX_INFLATED_BYTES: UInt64 = UInt64(256_000_000)
+
+private func validateDecodeByteLimit(value: UInt64, label: String): Unit {
+    if (value == UInt64(0) || value > UInt64(Int64.Max)) {
+        throw PngFormatException(
+            InvalidArgument,
+            -1,
+            "${label} must be in 1..Int64.Max"
+        )
+    }
+}
 
 public class PngReadLimits {
     public let maxChunkBytes: UInt32
     public let maxWidth: UInt32
     public let maxHeight: UInt32
+    public let maxCompressedBytes: UInt64
+    public let maxInflatedBytes: UInt64
 
     public init(maxChunkBytes: UInt32, maxWidth: UInt32, maxHeight: UInt32) {
         if (maxChunkBytes == UInt32(0) || maxChunkBytes > PNG_UINT_31_MAX) {
@@ -26,12 +44,47 @@ public class PngReadLimits {
         this.maxChunkBytes = maxChunkBytes
         this.maxWidth = maxWidth
         this.maxHeight = maxHeight
+        maxCompressedBytes = PNG_DEFAULT_MAX_COMPRESSED_BYTES
+        maxInflatedBytes = PNG_DEFAULT_MAX_INFLATED_BYTES
+    }
+
+    public init(
+        maxChunkBytes: UInt32,
+        maxWidth: UInt32,
+        maxHeight: UInt32,
+        maxCompressedBytes: UInt64,
+        maxInflatedBytes: UInt64
+    ) {
+        if (maxChunkBytes == UInt32(0) || maxChunkBytes > PNG_UINT_31_MAX) {
+            throw PngFormatException(
+                InvalidArgument,
+                -1,
+                "maximum chunk size must be in 1..PNG_UINT_31_MAX"
+            )
+        }
+        if (maxWidth == UInt32(0) || maxWidth > PNG_UINT_31_MAX ||
+            maxHeight == UInt32(0) || maxHeight > PNG_UINT_31_MAX) {
+            throw PngFormatException(
+                InvalidArgument,
+                -1,
+                "maximum image dimensions must be in 1..PNG_UINT_31_MAX"
+            )
+        }
+        validateDecodeByteLimit(maxCompressedBytes, "maximum compressed size")
+        validateDecodeByteLimit(maxInflatedBytes, "maximum inflated size")
+        this.maxChunkBytes = maxChunkBytes
+        this.maxWidth = maxWidth
+        this.maxHeight = maxHeight
+        this.maxCompressedBytes = maxCompressedBytes
+        this.maxInflatedBytes = maxInflatedBytes
     }
 
     public init() {
         maxChunkBytes = UInt32(8_000_000)
         maxWidth = UInt32(1_000_000)
         maxHeight = UInt32(1_000_000)
+        maxCompressedBytes = PNG_DEFAULT_MAX_COMPRESSED_BYTES
+        maxInflatedBytes = PNG_DEFAULT_MAX_INFLATED_BYTES
     }
 }
 

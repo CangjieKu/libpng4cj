@@ -7,8 +7,9 @@ Cangjie. It targets two eventual surfaces:
 - a compatible `libpng16` artifact for existing C and C++ consumers
 
 The current `0.1.0` development line contains PNG signature/endian/CRC32
-primitives plus a bounded in-memory chunk reader and strictly validated IHDR
-model. It is not yet a PNG decoder or a replacement for libpng.
+primitives, a bounded in-memory chunk reader, strictly validated IHDR and PLTE
+handling, and the first non-interlaced raw-row decoder. It is not yet a complete
+PNG decoder or a replacement for libpng.
 
 ## Build
 
@@ -37,9 +38,23 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - libpng-aligned color type, bit depth, compression, filter, interlace, and
   default dimension-limit validation
 - channel, pixel-depth, and packed row-byte derivation without pixel allocation
+- consecutive IDAT collection with configurable compressed and inflated limits
+- direct Cangjie FFI to the external zlib `uncompress2` API with exact output
+  and consumed-input validation
+- reversal of all five PNG adaptive row filters
+- copy-owned raw rows for non-interlaced grayscale, truecolor, indexed,
+  grayscale-alpha, and truecolor-alpha inputs, including packed bit depths
 
-IDAT inflation, scanline filtering, pixel decoding, metadata, progressive
-reading, and all write/C ABI surfaces remain open work.
+Adam7 execution, palette/sample expansion, the complete transform matrix,
+metadata materialization, progressive reading, and all write/C ABI surfaces
+remain open work.
+
+## Native Dependency
+
+The current host build links the system zlib library with `-lz`. zlib remains
+external by design, matching upstream libpng. The verified LP-S003 receipt is
+for Cangjie `1.1.0` on macOS arm64; other hosts still require native build and
+runtime receipts.
 
 ## Port Boundary
 
