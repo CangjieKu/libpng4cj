@@ -513,14 +513,32 @@ LP-S004W extends `PngReadTransformState` with the bounded state topology of
   maximum-color limit
 - every non-full call constructs all 256 identity remap entries, including
   index `255`, and replaces the prior managed remap state
-- full-color mode remains explicit while exposing no fabricated index remap or
-  32768-entry palette lookup
+- full-color mode remains explicit while exposing no fabricated index remap
 - malformed palettes and requests that require palette reduction fail before
   quantize state mutation
 
 This state floor does not translate histogram sorting, palette reduction or
-mutation, median-cut/closest-color selection, the 32768-entry full-color lookup,
-initialized row dispatch, or transformed-info projection.
+mutation, median-cut/closest-color selection, initialized row dispatch, or
+transformed-info projection.
+
+## Implemented Full Quantize Palette Lookup
+
+LP-S004X adds `png_quantize_lookup.cj` for the no-reduction full-color branch of
+`png_set_quantize`:
+
+- accepted full calls generate exactly 32768 5/5/5 RGB cells
+- palette components are reduced to their high five bits before distance work
+- each cell uses the frozen `dmax + dr + dg + db` distance formula
+- lookup entries change only for a strictly smaller distance, preserving the
+  first palette entry on equal-distance ties
+- generated lookup results are copy-owned and replaced by later full calls
+- switching to non-full mode clears the full lookup and installs the complete
+  256-entry identity remap instead
+- failed lifecycle and reduction calls preserve the prior generated lookup
+
+The lookup is available as explicit state but is not yet connected to the
+initialized row dispatcher or transformed-info projection. Histogram and
+median-cut palette reduction remain untranslated.
 
 ## Implemented Significant-Bit Unshift
 

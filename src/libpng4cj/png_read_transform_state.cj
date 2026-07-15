@@ -81,6 +81,7 @@ public class PngReadTransformState {
     private var quantizePaletteCountValue: Int64 = 0
     private var quantizeMaximumColorsValue: Int64 = 0
     private var quantizeIndexValue: Array<Byte> = Array<Byte>()
+    private var quantizePaletteLookupValue: Array<Byte> = Array<Byte>()
 
     public init() {}
 
@@ -278,6 +279,11 @@ public class PngReadTransformState {
             }
             identity
         }
+        let paletteLookup = if (fullQuantize) {
+            pngBuildQuantizePaletteLookup(palette, numPalette)
+        } else {
+            Array<Byte>()
+        }
 
         quantizeValue = true
         quantizeModeValue = if (fullQuantize) { FullColor } else { PaletteRemap }
@@ -285,6 +291,7 @@ public class PngReadTransformState {
         quantizePaletteCountValue = numPalette
         quantizeMaximumColorsValue = maximumColors
         quantizeIndexValue = index
+        quantizePaletteLookupValue = paletteLookup
         true
     }
 
@@ -349,6 +356,10 @@ public class PngReadTransformState {
 
     public func quantizeIndex(): Array<Byte> {
         quantizeIndexValue.clone()
+    }
+
+    public func quantizePaletteLookup(): Array<Byte> {
+        quantizePaletteLookupValue.clone()
     }
 
     func cancelTransparencyExpansionForInitialization(): Unit {

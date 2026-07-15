@@ -111,6 +111,9 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - bounded `PngReadTransformState.setQuantize` state translation with explicit
   palette-remap/full-color modes, copy-owned palette/count limits, and a fresh
   complete 256-entry identity remap on every accepted non-full setter call
+- full-color quantize state now materializes the frozen 32768-entry 5/5/5
+  palette lookup with exact distance ordering, deterministic first-entry tie
+  retention, copy ownership, repeated-call replacement, and non-full clearing
 - one-shot `PngReadTransformInitialization` classifies palette partial alpha,
   binary transparency, inherent source alpha, and effective tRNS after Strip
   Alpha, then exposes the translated read stages in frozen upstream order
@@ -140,7 +143,7 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining
-standard metadata, quantize palette reduction/full lookup generation, user
+standard metadata, quantize palette reduction and dispatcher integration, user
 callbacks, Adam7 execution, progressive
 reading, and all write/C ABI surfaces remain open work.
 
