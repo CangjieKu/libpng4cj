@@ -500,4 +500,154 @@ public class PngTransformTestSuite {
             @Assert(e.kind.toString(), "DECODE_LIMIT_EXCEEDED")
         }
     }
+
+    @TestCase
+    public func classifiesPaletteTransparencyDuringReadInitialization(): Unit {
+        let palette: Array<Byte> = [
+            0xff, 0x00, 0x00,
+            0x00, 0xff, 0x00,
+            0x00, 0x00, 0xff,
+            0xff, 0xff, 0xff
+        ]
+
+        let opaque = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [
+                makeTransformChunk(PNG_CHUNK_PLTE, palette),
+                makeTransformChunk(PNG_CHUNK_tRNS, [0xff, 0xff])
+            ],
+            PALETTE_GRAY_ZLIB
+        ))
+        let opaqueState = PngReadTransformState()
+        @Assert(opaqueState.setTransparencyToAlpha(), true)
+        let opaqueInit = initializePngReadTransformations(opaqueState, opaque)
+        @Assert(opaqueInit.usesPaletteInitializer, true)
+        @Assert(opaqueInit.sourceHasTransparency, true)
+        @Assert(opaqueInit.inputHasTransparency, false)
+        @Assert(opaqueInit.inputHasAlpha, false)
+        @Assert(opaqueInit.effectiveOutputHasAlpha, false)
+
+        let binary = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [
+                makeTransformChunk(PNG_CHUNK_PLTE, palette),
+                makeTransformChunk(PNG_CHUNK_tRNS, [0x00, 0xff])
+            ],
+            PALETTE_GRAY_ZLIB
+        ))
+        let binaryState = PngReadTransformState()
+        @Assert(binaryState.setTransparencyToAlpha(), true)
+        let binaryInit = initializePngReadTransformations(binaryState, binary)
+        @Assert(binaryInit.inputHasTransparency, true)
+        @Assert(binaryInit.inputHasAlpha, false)
+        @Assert(binaryInit.effectiveOutputHasAlpha, true)
+
+        let partial = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [
+                makeTransformChunk(PNG_CHUNK_PLTE, palette),
+                makeTransformChunk(PNG_CHUNK_tRNS, [0x80])
+            ],
+            PALETTE_GRAY_ZLIB
+        ))
+        let partialState = PngReadTransformState()
+        @Assert(partialState.setTransparencyToAlpha(), true)
+        let partialInit = initializePngReadTransformations(partialState, partial)
+        @Assert(partialInit.inputHasTransparency, true)
+        @Assert(partialInit.inputHasAlpha, true)
+        @Assert(partialInit.effectiveOutputHasAlpha, true)
+    }
+
+    @TestCase
+    public func stripsEffectiveTrnsButRetainsInherentInputAlphaClassification(): Unit {
+        let rgbTransparency: Array<Byte> = [0x00, 0x0a, 0x00, 0x14, 0x00, 0x1e]
+        let rgb = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [makeTransformChunk(PNG_CHUNK_tRNS, rgbTransparency)],
+            RGB8_ZLIB
+        ))
+        let rgbState = PngReadTransformState()
+        @Assert(rgbState.setTransparencyToAlpha(), true)
+        @Assert(rgbState.setStripAlpha(), true)
+        let rgbInit = initializePngReadTransformations(rgbState, rgb)
+        @Assert(rgbInit.usesPaletteInitializer, false)
+        @Assert(rgbInit.sourceHasTransparency, true)
+        @Assert(rgbInit.transparencyStripped, true)
+        @Assert(rgbInit.inputHasTransparency, false)
+        @Assert(rgbInit.inputHasAlpha, false)
+        @Assert(rgbInit.effectiveTransparencyExpansion, false)
+        @Assert(rgbInit.effectiveOutputHasAlpha, false)
+
+        let rgba = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(6), [], RGBA8_ZLIB
+        ))
+        let rgbaState = PngReadTransformState()
+        @Assert(rgbaState.setStripAlpha(), true)
+        let rgbaInit = initializePngReadTransformations(rgbaState, rgba)
+        @Assert(rgbaInit.sourceHasTransparency, false)
+        @Assert(rgbaInit.inputHasTransparency, false)
+        @Assert(rgbaInit.inputHasAlpha, true)
+        @Assert(rgbaInit.effectiveOutputHasAlpha, false)
+    }
+
+    @TestCase
+    public func freezesTranslatedReadStageOrderAndOneShotLifecycle(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB
+        ))
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(state.setExpand(), true)
+        @Assert(state.setStripAlpha(), true)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(state.setGrayToRgb(), true)
+        @Assert(state.setScale16(), true)
+        @Assert(state.setStrip16(), true)
+        @Assert(state.setExpand16(), true)
+
+        let initialized = initializePngReadTransformations(state, decoded)
+        let expectedStages: Array<String> = [
+            "EXPAND",
+            "STRIP_ALPHA",
+            "RGB_TO_GRAY",
+            "GRAY_TO_RGB",
+            "SCALE_16_TO_8",
+            "STRIP_16_TO_8",
+            "EXPAND_16"
+        ]
+        @Assert(initialized.stageCount(), Int64(expectedStages.size))
+        var index: Int64 = 0
+        while (index < expectedStages.size) {
+            @Assert(initialized.stage(index).toString(), expectedStages[index])
+            index += 1
+        }
+        let mutableStages = initialized.stages()
+        mutableStages[0] = ReadStageExpand16
+        @Assert(initialized.stage(0).toString(), "EXPAND")
+        @Assert(state.rowInitialized(), true)
+        @Assert(state.sixteenToEightMode().toString(), "SCALE")
+        @Assert(state.setExpand(), false)
+        @Assert(
+            state.lastApplicationError().toString(),
+            "INVALID_AFTER_ROW_INITIALIZATION"
+        )
+
+        try {
+            initializePngReadTransformations(state, decoded)
+            @Fail("read transform initialization should be one-shot")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
 }

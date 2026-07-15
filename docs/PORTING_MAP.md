@@ -265,6 +265,26 @@ Application error/warning callbacks, transformed IHDR projection, direct C ABI
 setters, and the complete stateful `png_do_read_transformations` dispatcher
 remain later translation work.
 
+## Implemented Non-Gamma Read Initialization
+
+LP-S004K adds `png_read_transform_init.cj` as the bounded stateful anchor for
+the non-gamma portions of the three read initializer functions:
+
+- palette initialization ignores all-opaque tRNS entries, distinguishes binary
+  transparency from partial alpha, and follows the post-Strip-Alpha effective
+  tRNS state
+- RGB initialization separates inherent GA/RGBA alpha from grayscale/RGB tRNS
+- pre-compose Strip Alpha cancels `PNG_EXPAND_tRNS` and effective tRNS input
+  without rewriting the source color-type classification
+- the initialization result exposes expand, strip-alpha, RGB-to-gray,
+  gray-to-RGB, scale16, strip16, and expand16 in frozen execution order
+- initialization is one-shot, marks row state initialized, and therefore makes
+  subsequent setters fail through the translated `png_rtran_ok` lifecycle
+
+The initializer ledger entries remain partial: background and alpha-mode
+optimization, palette mutation, gamma, cHRM-derived RGB coefficients,
+transformed info projection, and complete row dispatch are still absent.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

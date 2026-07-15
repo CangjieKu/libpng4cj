@@ -228,6 +228,10 @@ public class PngReadTransformState {
         rgbToGrayValue
     }
 
+    func cancelTransparencyExpansionForInitialization(): Unit {
+        expandTransparencyValue = false
+    }
+
     public func has16To8Mode(): Bool {
         scale16Value || strip16Value
     }

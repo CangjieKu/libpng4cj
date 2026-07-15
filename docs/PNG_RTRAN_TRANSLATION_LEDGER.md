@@ -45,11 +45,11 @@ Status meanings:
 | 1118 | `png_set_rgb_to_gray` | none | pending | floating-point fixed conversion facade |
 | 1132 | `png_set_read_user_transform_fn` | none | pending | callback ABI and row hook |
 | 1151 | `png_gamma_threshold` | none | pending | gamma fixed-point substrate |
-| 1176 | `png_init_palette_transformations` | palette expansion setup | partial | transform-state initialization |
-| 1265 | `png_init_rgb_transformations` | RGB transform resolution | partial | cHRM/gamma/default coefficient rules |
+| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
+| 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | retained gAMA/sRGB/cHRM | pending | precedence and fixed-point resolution |
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
-| 1424 | `png_init_read_transformations` | per-call resolver functions | partial | one translated stateful initializer |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | gamma/background, coefficient defaulting, palette mutation, and complete dispatcher state |
 | 2069 | `png_read_transform_info` | explicit result layouts | partial | transformed IHDR/metadata projection |
 | 2292 | `png_do_unpack` | `packedSample`, gray/index expansion | translated | direct packed-row public surface unchanged |
 | 2390 | `png_do_unshift` | significant-bit shift resolver | translated | row-info topology alignment |
@@ -83,3 +83,10 @@ LP-S004J keeps the frozen state aliasing intact: `png_set_expand`,
 `PNG_EXPAND | PNG_EXPAND_tRNS` bits in libpng `1.6.58`; the Cangjie state does
 not invent distinct persistent flags merely because the public setter names
 differ.
+
+LP-S004K adds the first stateful initialization anchor without hiding the
+remaining branches. It distinguishes palette partial alpha from binary
+transparency, preserves inherent RGB/gray alpha classification, cancels tRNS
+expansion when Strip Alpha precedes composition, and freezes the translated
+stage order. The three initializer rows remain `partial` until background,
+encode/optimize-alpha, palette mutation, gamma, and full dispatcher state land.
