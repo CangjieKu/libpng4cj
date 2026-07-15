@@ -75,6 +75,9 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - final transformed-output limiting based on the selected three- or
   four-channel row shape; 8-bit filler uses the low byte of its UInt16 value,
   matching the frozen upstream transform order
+- direct `pngDoUnpack` source-row translation expands legal 1/2/4-bit
+  grayscale and palette values to one byte each with exact reverse traversal,
+  partial-byte alignment, copy ownership, and row-info growth to 8-bit samples
 - explicit `UnshiftSignificantBits` applies retained sBIT precision per color
   and surviving semantic-alpha channel after inversion and before BGR,
   filler/add-alpha, and alpha swap; palette, UInt16, and reduced output use the

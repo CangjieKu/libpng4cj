@@ -397,6 +397,27 @@ The narrow adapter does not execute an earlier Strip Alpha stage. Add-alpha
 color-type projection remains a separate `png_read_transform_info` concern;
 setter state, BGR/swap-alpha composition, and complete dispatch are deferred.
 
+## Implemented Direct Packed-Row Unpack
+
+LP-S004R adds `png_unpack_transform.cj` as the direct translation of
+`png_do_unpack`:
+
+- legal 1/2/4-bit grayscale and palette rows expand to one byte per stored
+  sample without scaling the sample value
+- each branch computes the same final source byte and initial bit shift as the
+  frozen C body, then reads and writes from the row end toward the start
+- partial final packed bytes therefore preserve the exact upstream alignment
+- width and color type remain unchanged, channels remain one, bit depth becomes
+  8, pixel depth becomes 8, and row bytes become width
+- output is copy-owned because Cangjie arrays cannot grow in place
+- bit depth at least 8, unsupported packed color/depth shapes, source-channel
+  mismatch, and zero-width rows safely no-op after row-length validation
+- malformed packed row lengths fail before source bytes are read
+
+The direct body does not scale grayscale values, expand palette entries to RGB,
+translate `png_set_packing`, execute packswap, or claim the complete row
+dispatcher.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

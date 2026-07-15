@@ -51,7 +51,7 @@ Status meanings:
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
 | 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | gamma/background, coefficient defaulting, palette mutation, and complete dispatcher state |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | gamma/background, palette sync, filler, quantize, pack, user-transform, and full metadata projection |
-| 2292 | `png_do_unpack` | `packedSample`, gray/index expansion | translated | direct packed-row public surface unchanged |
+| 2292 | `png_do_unpack` | `pngDoUnpack` | translated | packing setter state and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
 | 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
 | 2590 | `png_do_chop` | `pngDoChop` | translated | initialized adapter is narrow; complete dispatcher remains partial |
