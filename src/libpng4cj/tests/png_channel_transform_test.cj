@@ -22,6 +22,14 @@ private let CHANNEL_RGBA16_ZLIB: Array<Byte> = [
     0x65, 0x63, 0xe7, 0x00, 0x00, 0x00, 0x81, 0x00, 0x25
 ]
 
+private let CHANNEL_INDEXED1_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x70, 0x00, 0x00, 0x00, 0x42, 0x00, 0x41
+]
+
+private let CHANNEL_GRAY1_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x88, 0x02, 0x00, 0x00, 0x5c, 0x00, 0x5b
+]
+
 private func joinChannelBytes(left: Array<Byte>, right: Array<Byte>): Array<Byte> {
     let out = Array<Byte>(left.size + right.size, repeat: 0)
     var index: Int64 = 0
@@ -195,5 +203,150 @@ public class PngChannelTransformTestSuite {
         let mutableRow = transformed16.row(0)
         mutableRow[0] = UInt16(0)
         @Assert(transformed16.row(0), expected16)
+    }
+
+    @TestCase
+    public func treatsMissingAndFullDepthSignificanceAsNoOp(): Unit {
+        @Assert(Bgr.ordinalValue(), Int64(2))
+        @Assert(SwapAlpha.ordinalValue(), Int64(3))
+        @Assert(UnshiftSignificantBits.ordinalValue(), Int64(4))
+
+        let plain = makeChannelPng(
+            UInt32(2), UInt8(8), UInt8(6), [], CHANNEL_RGBA8_ZLIB
+        )
+        let transforms: Array<PngReadChannelTransform> = [UnshiftSignificantBits]
+        let expected: Array<Byte> = [1, 2, 3, 4, 5, 6, 7, 8]
+        @Assert(
+            transformPngRowsToRgba8(decodePngNonInterlaced(plain), transforms).row(0),
+            expected
+        )
+
+        let fullDepth = makeChannelPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(6),
+            [makeChannelChunk(PNG_CHUNK_sBIT, [8, 8, 8, 8])],
+            CHANNEL_RGBA8_ZLIB
+        )
+        @Assert(
+            transformPngRowsToRgba8(decodePngNonInterlaced(fullDepth), transforms).row(0),
+            expected
+        )
+    }
+
+    @TestCase
+    public func unshiftsBeforeBgrAndAlphaSwap(): Unit {
+        let transparency: Array<Byte> = [0x00, 0x0a, 0x00, 0x14, 0x00, 0x1e]
+        let png = makeChannelPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [
+                makeChannelChunk(PNG_CHUNK_sBIT, [5, 6, 7]),
+                makeChannelChunk(PNG_CHUNK_tRNS, transparency)
+            ],
+            CHANNEL_RGB8_ZLIB
+        )
+        let transforms: Array<PngReadChannelTransform> = [
+            SwapAlpha, Bgr, UnshiftSignificantBits
+        ]
+        let expected: Array<Byte> = [
+            0, 15, 5, 1,
+            0xff, 30, 12, 5
+        ]
+        let transformed = transformPngRowsToRgba8(
+            decodePngNonInterlaced(png), transforms
+        )
+        @Assert(transformed.layout.toString(), "ABGR")
+        @Assert(transformed.row(0), expected)
+    }
+
+    @TestCase
+    public func unshiftsAfterMonochromeAndAlphaInversion(): Unit {
+        let png = makeChannelPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(4),
+            [makeChannelChunk(PNG_CHUNK_sBIT, [4, 3])],
+            CHANNEL_GRAY_ALPHA8_ZLIB
+        )
+        let transforms: Array<PngReadChannelTransform> = [
+            UnshiftSignificantBits, InvertAlpha, InvertMonochrome
+        ]
+        let expected: Array<Byte> = [
+            15, 15, 15, 7,
+            15, 15, 15, 7
+        ]
+        @Assert(
+            transformPngRowsToRgba8(decodePngNonInterlaced(png), transforms).row(0),
+            expected
+        )
+    }
+
+    @TestCase
+    public func unshiftsExpandedPaletteColors(): Unit {
+        let png = makeChannelPng(
+            UInt32(2),
+            UInt8(1),
+            UInt8(3),
+            [
+                makeChannelChunk(PNG_CHUNK_sBIT, [4, 5, 6]),
+                makeChannelChunk(PNG_CHUNK_PLTE, [10, 20, 30, 40, 50, 60])
+            ],
+            CHANNEL_INDEXED1_ZLIB
+        )
+        let transforms: Array<PngReadChannelTransform> = [UnshiftSignificantBits]
+        let expected: Array<Byte> = [
+            0, 2, 7, 0xff,
+            2, 6, 15, 0xff
+        ]
+        @Assert(
+            transformPngRowsToRgba8(decodePngNonInterlaced(png), transforms).row(0),
+            expected
+        )
+
+        let gray = makeChannelPng(
+            UInt32(8),
+            UInt8(1),
+            UInt8(0),
+            [makeChannelChunk(PNG_CHUNK_sBIT, [1])],
+            CHANNEL_GRAY1_ZLIB
+        )
+        let expectedGray: Array<Byte> = [
+            0, 0, 0, 0xff,
+            1, 1, 1, 0xff,
+            0, 0, 0, 0xff,
+            1, 1, 1, 0xff,
+            1, 1, 1, 0xff,
+            0, 0, 0, 0xff,
+            1, 1, 1, 0xff,
+            0, 0, 0, 0xff
+        ]
+        @Assert(
+            transformPngRowsToRgba8(decodePngNonInterlaced(gray), transforms).row(0),
+            expectedGray
+        )
+    }
+
+    @TestCase
+    public func usesActualOutputDepthForNativeAndReducedRows(): Unit {
+        let png = makeChannelPng(
+            UInt32(1),
+            UInt8(16),
+            UInt8(6),
+            [makeChannelChunk(PNG_CHUNK_sBIT, [12, 10, 8, 4])],
+            CHANNEL_RGBA16_ZLIB
+        )
+        let decoded = decodePngNonInterlaced(png)
+        let transforms: Array<PngReadChannelTransform> = [UnshiftSignificantBits]
+
+        let expected16: Array<UInt16> = [0x0010, 0x000c, 0x0005, 0x0000]
+        let transformed16 = transformPngRowsToRgba16(decoded, transforms)
+        @Assert(transformed16.row(0), expected16)
+        @Assert(transformed16.metadata.significantBits.red, UInt8(12))
+
+        let expected8: Array<Byte> = [0x01, 0x03, 0x05, 0x00]
+        @Assert(transformPngRowsToRgba8(decoded, Strip, transforms).row(0), expected8)
+        @Assert(transformPngRowsToRgba8(decoded, Scale, transforms).row(0), expected8)
     }
 }

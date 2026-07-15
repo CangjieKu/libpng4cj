@@ -421,7 +421,9 @@ public func transformPngRowsToRgba8(
         )
     }
     transformedRgba8Size(decoded.ihdr, limits)
-    let resolved = resolvePngChannelTransforms(decoded.ihdr, decoded.metadata, transforms)
+    let resolved = resolvePngChannelTransforms(
+        decoded.ihdr, decoded.metadata, transforms, UInt8(8)
+    )
     let outputRows = Array<Array<Byte>>(decoded.rowCount(), repeat: Array<Byte>())
     var index: Int64 = 0
     while (index < outputRows.size) {
@@ -458,7 +460,9 @@ public func transformPngRowsToRgba8(
     transforms: Array<PngReadChannelTransform>
 ): PngRgba8Rows {
     transformedRgba8Size(decoded.ihdr, limits)
-    let resolved = resolvePngChannelTransforms(decoded.ihdr, decoded.metadata, transforms)
+    let resolved = resolvePngChannelTransforms(
+        decoded.ihdr, decoded.metadata, transforms, UInt8(8)
+    )
     let outputRows = Array<Array<Byte>>(decoded.rowCount(), repeat: Array<Byte>())
     var index: Int64 = 0
     while (index < outputRows.size) {
@@ -498,7 +502,9 @@ public func transformPngRowsToRgba16(
     transforms: Array<PngReadChannelTransform>
 ): PngRgba16Rows {
     transformedRgba16Size(decoded.ihdr, limits)
-    let resolved = resolvePngChannelTransforms(decoded.ihdr, decoded.metadata, transforms)
+    let resolved = resolvePngChannelTransforms(
+        decoded.ihdr, decoded.metadata, transforms, UInt8(16)
+    )
     let outputRows = Array<Array<UInt16>>(decoded.rowCount(), repeat: Array<UInt16>())
     var index: Int64 = 0
     while (index < outputRows.size) {

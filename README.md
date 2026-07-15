@@ -66,19 +66,23 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   all, preserving chunk type, payload, and after-IHDR/after-PLTE/after-IDAT
   location
 - explicit late channel transforms for invert-monochrome, invert-alpha, BGR,
-  and swap-alpha in frozen upstream order across RGBA8 and RGBA16 rows, with
-  final `RGBA`, `BGRA`, `ARGB`, or `ABGR` layout reported on the result
+  sBIT unshift, and swap-alpha in frozen upstream order across RGBA8 and RGBA16
+  rows, with final `RGBA`, `BGRA`, `ARGB`, or `ABGR` layout reported on the
+  result
 - generalized copy-owned pixel rows with natural `RGB`/`BGR` or alpha-bearing
   layouts, explicit strip-alpha, and filler/add-alpha before or after color
   channels across 8-bit, 16-bit, and explicit 16-to-8 output
 - final transformed-output limiting based on the selected three- or
   four-channel row shape; 8-bit filler uses the low byte of its UInt16 value,
   matching the frozen upstream transform order
+- explicit `UnshiftSignificantBits` applies retained sBIT precision per color
+  and surviving semantic-alpha channel after inversion and before BGR,
+  filler/add-alpha, and alpha swap; palette, UInt16, and reduced output use the
+  component depth present at that stage
 
 ICC color application, gamma correction, background composition, remaining
-standard metadata, sBIT shift, RGB-to-gray transforms, quantization, user
-callbacks, Adam7 execution, progressive reading, and all write/C ABI surfaces
-remain open work.
+standard metadata, RGB-to-gray transforms, quantization, user callbacks, Adam7
+execution, progressive reading, and all write/C ABI surfaces remain open work.
 
 ## Native Dependency
 

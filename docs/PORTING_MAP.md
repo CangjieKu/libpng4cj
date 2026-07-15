@@ -191,5 +191,28 @@ The result reports an explicit `RGB`, `BGR`, `RGBA`, `BGRA`, `ARGB`, `ABGR`,
 limit using the final three- or four-channel shape. Existing fixed RGBA8/RGBA16
 convenience APIs remain unchanged.
 
-sBIT unshift, RGB-to-gray, gamma/background/alpha-mode, quantization,
-packing/packswap, byte swap, and user callbacks remain later LP-S004 work.
+RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
+swap, and user callbacks remain later LP-S004 work.
+
+## Implemented Significant-Bit Unshift
+
+LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path
+with the `PNG_SHIFT` stage represented by explicit
+`UnshiftSignificantBits` selection:
+
+- retained sBIT values right-shift each color channel independently
+- absent sBIT and values equal to or wider than the current component depth are
+  no-ops, matching `png_do_unshift`
+- source or tRNS-derived alpha shifts only while it remains semantic output;
+  stripped alpha, plain filler, and newly added alpha do not shift
+- the frozen order is invert monochrome, invert alpha, sBIT unshift, BGR,
+  filler/add-alpha, then alpha swap
+- expanded palette colors use palette sBIT values
+- UInt16 output applies the shift at 16-bit depth, while explicit Strip/Scale
+  output reduces to 8 bits before applying the 8-bit shift
+
+The fixed RGBA convenience results and generalized RGB/RGBA/X results share the
+same shift resolver. Retained sBIT metadata remains unchanged.
+
+RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
+swap, and user callbacks remain later LP-S004 work.

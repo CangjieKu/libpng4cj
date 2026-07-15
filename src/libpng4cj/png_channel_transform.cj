@@ -5,6 +5,7 @@ public enum PngReadChannelTransform <: Equatable<PngReadChannelTransform> & ToSt
     | InvertAlpha
     | Bgr
     | SwapAlpha
+    | UnshiftSignificantBits
 
     public operator func ==(right: PngReadChannelTransform): Bool {
         ordinalValue() == right.ordinalValue()
@@ -20,6 +21,7 @@ public enum PngReadChannelTransform <: Equatable<PngReadChannelTransform> & ToSt
             case InvertAlpha => 1
             case Bgr => 2
             case SwapAlpha => 3
+            case UnshiftSignificantBits => 4
         }
     }
 
@@ -29,6 +31,7 @@ public enum PngReadChannelTransform <: Equatable<PngReadChannelTransform> & ToSt
             case InvertAlpha => "INVERT_ALPHA"
             case Bgr => "BGR"
             case SwapAlpha => "SWAP_ALPHA"
+            case UnshiftSignificantBits => "UNSHIFT_SIGNIFICANT_BITS"
         }
     }
 }
@@ -71,6 +74,7 @@ let PNG_NO_READ_CHANNEL_TRANSFORMS: Array<PngReadChannelTransform> = []
 class ResolvedPngChannelTransforms {
     let invertMonochrome: Bool
     let invertAlpha: Bool
+    let significantBits: ResolvedPngSignificantBitShifts
     let bgr: Bool
     let swapAlpha: Bool
     let layout: PngRgbaLayout
@@ -78,15 +82,31 @@ class ResolvedPngChannelTransforms {
     init(
         invertMonochrome: Bool,
         invertAlpha: Bool,
+        significantBits: ResolvedPngSignificantBitShifts,
         bgr: Bool,
         swapAlpha: Bool,
         layout: PngRgbaLayout
     ) {
         this.invertMonochrome = invertMonochrome
         this.invertAlpha = invertAlpha
+        this.significantBits = significantBits
         this.bgr = bgr
         this.swapAlpha = swapAlpha
         this.layout = layout
+    }
+}
+
+class ResolvedPngSignificantBitShifts {
+    let red: UInt32
+    let green: UInt32
+    let blue: UInt32
+    let alpha: UInt32
+
+    init(red: UInt32, green: UInt32, blue: UInt32, alpha: UInt32) {
+        this.red = red
+        this.green = green
+        this.blue = blue
+        this.alpha = alpha
     }
 }
 
@@ -109,15 +129,53 @@ func pngHasSemanticAlpha(ihdr: PngIhdr, metadata: PngReadMetadata): Bool {
         metadata.hasTransparency
 }
 
+private func resolveSignificantBitShift(outputBitDepth: UInt8, significantBits: UInt8): UInt32 {
+    if (significantBits == UInt8(0) || significantBits >= outputBitDepth) {
+        return UInt32(0)
+    }
+    UInt32(outputBitDepth - significantBits)
+}
+
+func resolvePngSignificantBitShifts(
+    metadata: PngReadMetadata,
+    transforms: Array<PngReadChannelTransform>,
+    outputBitDepth: UInt8,
+    shiftAlpha: Bool
+): ResolvedPngSignificantBitShifts {
+    if (!metadata.hasSignificantBits ||
+        !hasPngReadChannelTransform(transforms, UnshiftSignificantBits)) {
+        return ResolvedPngSignificantBitShifts(
+            UInt32(0), UInt32(0), UInt32(0), UInt32(0)
+        )
+    }
+    ResolvedPngSignificantBitShifts(
+        resolveSignificantBitShift(outputBitDepth, metadata.significantBits.red),
+        resolveSignificantBitShift(outputBitDepth, metadata.significantBits.green),
+        resolveSignificantBitShift(outputBitDepth, metadata.significantBits.blue),
+        if (shiftAlpha) {
+            resolveSignificantBitShift(outputBitDepth, metadata.significantBits.alpha)
+        } else {
+            UInt32(0)
+        }
+    )
+}
+
 func resolvePngChannelTransforms(
     ihdr: PngIhdr,
     metadata: PngReadMetadata,
-    transforms: Array<PngReadChannelTransform>
+    transforms: Array<PngReadChannelTransform>,
+    outputBitDepth: UInt8
 ): ResolvedPngChannelTransforms {
     let semanticAlpha = pngHasSemanticAlpha(ihdr, metadata)
     let invertMonochrome = hasPngReadChannelTransform(transforms, InvertMonochrome) &&
         (ihdr.colorType == Grayscale || ihdr.colorType == GrayscaleAlpha)
     let invertAlpha = semanticAlpha && hasPngReadChannelTransform(transforms, InvertAlpha)
+    let significantBits = resolvePngSignificantBitShifts(
+        metadata,
+        transforms,
+        outputBitDepth,
+        semanticAlpha
+    )
     let bgr = hasPngReadChannelTransform(transforms, Bgr)
     let swapAlpha = semanticAlpha && hasPngReadChannelTransform(transforms, SwapAlpha)
     let layout = if (swapAlpha) {
@@ -128,6 +186,7 @@ func resolvePngChannelTransforms(
     ResolvedPngChannelTransforms(
         invertMonochrome,
         invertAlpha,
+        significantBits,
         bgr,
         swapAlpha,
         layout
@@ -160,6 +219,10 @@ func applyPngChannelTransforms8(
         if (resolved.invertAlpha) {
             row[offset + 3] = UInt8(0xff) - row[offset + 3]
         }
+        row[offset] = UInt8(UInt32(row[offset]) >> resolved.significantBits.red)
+        row[offset + 1] = UInt8(UInt32(row[offset + 1]) >> resolved.significantBits.green)
+        row[offset + 2] = UInt8(UInt32(row[offset + 2]) >> resolved.significantBits.blue)
+        row[offset + 3] = UInt8(UInt32(row[offset + 3]) >> resolved.significantBits.alpha)
         if (resolved.bgr) {
             swapByte(row, offset, offset + 2)
         }
@@ -188,6 +251,10 @@ func applyPngChannelTransforms16(
         if (resolved.invertAlpha) {
             row[offset + 3] = UInt16(0xffff) - row[offset + 3]
         }
+        row[offset] = UInt16(UInt32(row[offset]) >> resolved.significantBits.red)
+        row[offset + 1] = UInt16(UInt32(row[offset + 1]) >> resolved.significantBits.green)
+        row[offset + 2] = UInt16(UInt32(row[offset + 2]) >> resolved.significantBits.blue)
+        row[offset + 3] = UInt16(UInt32(row[offset + 3]) >> resolved.significantBits.alpha)
         if (resolved.bgr) {
             swapUInt16(row, offset, offset + 2)
         }

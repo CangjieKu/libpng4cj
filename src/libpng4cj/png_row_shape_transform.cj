@@ -199,6 +199,7 @@ public class PngPixelRows16 {
 class ResolvedPngRowShape {
     let invertMonochrome: Bool
     let invertExistingAlpha: Bool
+    let significantBits: ResolvedPngSignificantBitShifts
     let bgr: Bool
     let existingAlpha: Bool
     let fillerValue: UInt16
@@ -209,6 +210,7 @@ class ResolvedPngRowShape {
     init(
         invertMonochrome: Bool,
         invertExistingAlpha: Bool,
+        significantBits: ResolvedPngSignificantBitShifts,
         bgr: Bool,
         existingAlpha: Bool,
         fillerValue: UInt16,
@@ -217,6 +219,7 @@ class ResolvedPngRowShape {
     ) {
         this.invertMonochrome = invertMonochrome
         this.invertExistingAlpha = invertExistingAlpha
+        this.significantBits = significantBits
         this.bgr = bgr
         this.existingAlpha = existingAlpha
         this.fillerValue = fillerValue
@@ -258,7 +261,8 @@ private func resolvePixelLayout(
 private func resolvePngRowShape(
     decoded: PngDecodedRows,
     shape: PngRowShapeTransform,
-    transforms: Array<PngReadChannelTransform>
+    transforms: Array<PngReadChannelTransform>,
+    outputBitDepth: UInt8
 ): ResolvedPngRowShape {
     let sourceAlpha = pngHasSemanticAlpha(decoded.ihdr, decoded.metadata)
     let existingAlpha = sourceAlpha && !shape.stripAlpha
@@ -276,11 +280,18 @@ private func resolvePngRowShape(
     }
     let channelCount = if (existingAlpha || fillerApplied) { Int64(4) } else { Int64(3) }
     let bgr = hasPngReadChannelTransform(transforms, Bgr)
+    let significantBits = resolvePngSignificantBitShifts(
+        decoded.metadata,
+        transforms,
+        outputBitDepth,
+        existingAlpha
+    )
     let layout = resolvePixelLayout(bgr, channelCount, hasAlpha, specialBefore)
     ResolvedPngRowShape(
         hasPngReadChannelTransform(transforms, InvertMonochrome) &&
             (decoded.ihdr.colorType == Grayscale || decoded.ihdr.colorType == GrayscaleAlpha),
         existingAlpha && hasPngReadChannelTransform(transforms, InvertAlpha),
+        significantBits,
         bgr,
         existingAlpha,
         shape.fillerValue,
@@ -326,6 +337,10 @@ private func transformCanonicalRow8(
         if (resolved.invertExistingAlpha) {
             alpha = UInt8(0xff) - alpha
         }
+        red = UInt8(UInt32(red) >> resolved.significantBits.red)
+        green = UInt8(UInt32(green) >> resolved.significantBits.green)
+        blue = UInt8(UInt32(blue) >> resolved.significantBits.blue)
+        alpha = UInt8(UInt32(alpha) >> resolved.significantBits.alpha)
         if (resolved.bgr) {
             let value = red
             red = blue
@@ -381,6 +396,10 @@ private func transformCanonicalRow16(
         if (resolved.invertExistingAlpha) {
             alpha = UInt16(0xffff) - alpha
         }
+        red = UInt16(UInt32(red) >> resolved.significantBits.red)
+        green = UInt16(UInt32(green) >> resolved.significantBits.green)
+        blue = UInt16(UInt32(blue) >> resolved.significantBits.blue)
+        alpha = UInt16(UInt32(alpha) >> resolved.significantBits.alpha)
         if (resolved.bgr) {
             let value = red
             red = blue
@@ -424,7 +443,7 @@ public func transformPngRowsToPixels8(
             "16-bit PNG input requires an explicit Png16To8Mode"
         )
     }
-    let resolved = resolvePngRowShape(decoded, shape, transforms)
+    let resolved = resolvePngRowShape(decoded, shape, transforms, UInt8(8))
     validatePixelOutputLimit(decoded.ihdr, limits, resolved.channelCount, UInt64(1))
     let rows = Array<Array<Byte>>(decoded.rowCount(), repeat: Array<Byte>())
     var index: Int64 = 0
@@ -458,7 +477,7 @@ public func transformPngRowsToPixels8(
     shape: PngRowShapeTransform,
     transforms: Array<PngReadChannelTransform>
 ): PngPixelRows8 {
-    let resolved = resolvePngRowShape(decoded, shape, transforms)
+    let resolved = resolvePngRowShape(decoded, shape, transforms, UInt8(8))
     validatePixelOutputLimit(decoded.ihdr, limits, resolved.channelCount, UInt64(1))
     let rows = Array<Array<Byte>>(decoded.rowCount(), repeat: Array<Byte>())
     var index: Int64 = 0
@@ -500,7 +519,7 @@ public func transformPngRowsToPixels16(
     shape: PngRowShapeTransform,
     transforms: Array<PngReadChannelTransform>
 ): PngPixelRows16 {
-    let resolved = resolvePngRowShape(decoded, shape, transforms)
+    let resolved = resolvePngRowShape(decoded, shape, transforms, UInt8(16))
     validatePixelOutputLimit(decoded.ihdr, limits, resolved.channelCount, UInt64(2))
     let rows = Array<Array<UInt16>>(decoded.rowCount(), repeat: Array<UInt16>())
     var index: Int64 = 0

@@ -346,4 +346,48 @@ public class PngRowShapeTransformTestSuite {
             @Assert(e.kind.toString(), "DECODE_LIMIT_EXCEEDED")
         }
     }
+
+    @TestCase
+    public func keepsFillerAndAddedAlphaOutsideSignificantBitShift(): Unit {
+        let rgb = makeShapePng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [makeShapeChunk(PNG_CHUNK_sBIT, [5, 6, 7])],
+            SHAPE_RGB8_ZLIB
+        )
+        let transforms: Array<PngReadChannelTransform> = [
+            UnshiftSignificantBits, InvertAlpha
+        ]
+        let addedAlpha = transformPngRowsToPixels8(
+            decodePngNonInterlaced(rgb),
+            PngRowShapeTransform(false, AlphaBefore, UInt16(0x80)),
+            transforms
+        )
+        let expectedAddedAlpha: Array<Byte> = [
+            0x80, 1, 5, 15,
+            0x80, 5, 12, 30
+        ]
+        @Assert(addedAlpha.layout.toString(), "ARGB")
+        @Assert(addedAlpha.row(0), expectedAddedAlpha)
+
+        let rgba = makeShapePng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(6),
+            [makeShapeChunk(PNG_CHUNK_sBIT, [5, 6, 7, 4])],
+            SHAPE_RGBA8_ZLIB
+        )
+        let strippedWithFiller = transformPngRowsToPixels8(
+            decodePngNonInterlaced(rgba),
+            PngRowShapeTransform(true, FillerBefore, UInt16(0xaa)),
+            transforms
+        )
+        let expectedFiller: Array<Byte> = [
+            0xaa, 0, 0, 1,
+            0xaa, 0, 1, 3
+        ]
+        @Assert(strippedWithFiller.layout.toString(), "XRGB")
+        @Assert(strippedWithFiller.row(0), expectedFiller)
+    }
 }
