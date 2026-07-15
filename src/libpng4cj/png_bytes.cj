@@ -65,6 +65,17 @@ public func readUInt32Be(bytes: Array<Byte>, offset: Int64): UInt32 {
         UInt32(bytes[offset + 3])
 }
 
+public func readUInt16Be(bytes: Array<Byte>, offset: Int64): UInt16 {
+    if (offset < 0 || offset > bytes.size || bytes.size - offset < 2) {
+        throw PngFormatException(
+            TruncatedInput,
+            offset,
+            "not enough bytes for a big-endian UInt16"
+        )
+    }
+    (UInt16(bytes[offset]) << 8) | UInt16(bytes[offset + 1])
+}
+
 public func writeUInt32Be(value: UInt32): Array<Byte> {
     [
         UInt8((value >> 24) & UInt32(0xff)),

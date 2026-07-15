@@ -4,10 +4,12 @@ import std.collection.ArrayList
 
 public class PngDecodedRows {
     public let ihdr: PngIhdr
+    public let metadata: PngReadMetadata
     private let ownedRows: Array<Array<Byte>>
 
-    init(ihdr: PngIhdr, rows: Array<Array<Byte>>) {
+    init(ihdr: PngIhdr, metadata: PngReadMetadata, rows: Array<Array<Byte>>) {
         this.ihdr = ihdr
+        this.metadata = metadata
         ownedRows = rows
     }
 
@@ -118,9 +120,12 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
     let compressed = ArrayList<Byte>()
     var compressedSize: UInt64 = UInt64(0)
     var seenPalette = false
+    var seenTransparency = false
     var seenIdat = false
     var idatEnded = false
     var seenIend = false
+    var palette = Array<Byte>()
+    var transparency = ParsedPngTransparency()
 
     while (!seenIend) {
         if (session.remaining() == 0) {
@@ -149,11 +154,36 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
             if (seenPalette) {
                 throw PngFormatException(InvalidPalette, chunk.offset, "PNG contains more than one PLTE chunk")
             }
+            if (seenTransparency) {
+                throw PngFormatException(
+                    InvalidTransparency,
+                    chunk.offset,
+                    "PLTE must precede tRNS"
+                )
+            }
             if (seenIdat) {
                 throw PngFormatException(InvalidPalette, chunk.offset, "PLTE must appear before IDAT")
             }
             validatePaletteChunk(chunk, ihdr)
+            palette = chunk.payload()
             seenPalette = true
+        } else if (chunk.isType(PNG_CHUNK_tRNS)) {
+            if (seenTransparency) {
+                throw PngFormatException(
+                    InvalidTransparency,
+                    chunk.offset,
+                    "PNG contains more than one tRNS chunk"
+                )
+            }
+            if (seenIdat) {
+                throw PngFormatException(
+                    InvalidTransparency,
+                    chunk.offset,
+                    "tRNS must appear before IDAT"
+                )
+            }
+            transparency = parsePngTransparencyChunk(chunk, ihdr, palette)
+            seenTransparency = true
         } else {
             if (seenIdat) {
                 idatEnded = true
@@ -174,7 +204,8 @@ public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): P
 
     let expectedSize = expectedInflatedSize(ihdr, limits)
     let inflated = inflatePngZlibExact(compressed.toArray(), expectedSize)
-    PngDecodedRows(ihdr, decodeInflatedRows(inflated, ihdr))
+    let metadata = PngReadMetadata(palette, transparency)
+    PngDecodedRows(ihdr, metadata, decodeInflatedRows(inflated, ihdr))
 }
 
 public func decodePngNonInterlaced(bytes: Array<Byte>): PngDecodedRows {

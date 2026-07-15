@@ -7,9 +7,10 @@ Cangjie. It targets two eventual surfaces:
 - a compatible `libpng16` artifact for existing C and C++ consumers
 
 The current `0.1.0` development line contains PNG signature/endian/CRC32
-primitives, a bounded in-memory chunk reader, strictly validated IHDR and PLTE
-handling, and the first non-interlaced raw-row decoder. It is not yet a complete
-PNG decoder or a replacement for libpng.
+primitives, a bounded in-memory chunk reader, strictly validated IHDR/PLTE/tRNS
+handling, a non-interlaced raw-row decoder, and an RGBA8 expansion path for bit
+depths up to 8. It is not yet a complete PNG decoder or a replacement for
+libpng.
 
 ## Build
 
@@ -44,16 +45,22 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - reversal of all five PNG adaptive row filters
 - copy-owned raw rows for non-interlaced grayscale, truecolor, indexed,
   grayscale-alpha, and truecolor-alpha inputs, including packed bit depths
+- copy-owned PLTE and tRNS metadata with color-type, length, uniqueness, and
+  ordering validation
+- `decodePngRgba8NonInterlaced` expansion for grayscale, truecolor, indexed,
+  grayscale-alpha, and truecolor-alpha inputs at bit depths up to 8
+- palette alpha and grayscale/RGB color-key transparency expansion
+- separate configurable transformed-output byte limit
 
-Adam7 execution, palette/sample expansion, the complete transform matrix,
-metadata materialization, progressive reading, and all write/C ABI surfaces
-remain open work.
+The 16-bit transform path, gamma/background/color conversion, remaining
+standard metadata, unknown-chunk retention, Adam7 execution, progressive
+reading, and all write/C ABI surfaces remain open work.
 
 ## Native Dependency
 
 The current host build links the system zlib library with `-lz`. zlib remains
-external by design, matching upstream libpng. The verified LP-S003 receipt is
-for Cangjie `1.1.0` on macOS arm64; other hosts still require native build and
+external by design, matching upstream libpng. The current receipt is for
+Cangjie `1.1.0` on macOS arm64; other hosts still require native build and
 runtime receipts.
 
 ## Port Boundary

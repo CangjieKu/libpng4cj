@@ -27,6 +27,9 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
     | UnsupportedInterlace
     | InvalidFilter
     | InvalidData
+    | InvalidTransparency
+    | UnsupportedTransform
+    | PaletteIndexOutOfRange
 
     public operator func ==(right: PngErrorKind): Bool {
         ordinalValue() == right.ordinalValue()
@@ -64,6 +67,9 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case UnsupportedInterlace => 23
             case InvalidFilter => 24
             case InvalidData => 25
+            case InvalidTransparency => 26
+            case UnsupportedTransform => 27
+            case PaletteIndexOutOfRange => 28
         }
     }
 
@@ -95,6 +101,9 @@ public enum PngErrorKind <: Equatable<PngErrorKind> & ToString {
             case UnsupportedInterlace => "UNSUPPORTED_INTERLACE"
             case InvalidFilter => "INVALID_FILTER"
             case InvalidData => "INVALID_DATA"
+            case InvalidTransparency => "INVALID_TRANSPARENCY"
+            case UnsupportedTransform => "UNSUPPORTED_TRANSFORM"
+            case PaletteIndexOutOfRange => "PALETTE_INDEX_OUT_OF_RANGE"
         }
     }
 }

@@ -53,7 +53,29 @@ through these Cangjie-owned files:
 - `png_decode.cj`: PLTE ordering checks, consecutive IDAT collection, IEND
   finalization, bounded inflate, and copy-owned non-interlaced raw rows
 
-The decoder returns packed file-format rows. It does not yet expand palettes or
-sub-byte samples, swap 16-bit channels, apply transparency/background/gamma
-transforms, execute Adam7, expose progressive IO, or claim full read parity.
-Compressed and inflated data default to separate 256,000,000-byte limits.
+The LP-S003 decoder entry returns packed file-format rows. By itself it does not
+expand palettes or sub-byte samples, swap 16-bit channels, apply
+transparency/background/gamma transforms, execute Adam7, expose progressive IO,
+or claim full read parity. Compressed and inflated data default to separate
+256,000,000-byte limits.
+
+## Implemented First Read Transforms
+
+LP-S004A maps the first palette and expansion parts of `pngrutil.c`,
+`pngrtran.c`, `pngget.c`, and `pngset.c` into:
+
+- `png_metadata.cj`: copy-owned PLTE/tRNS state, strict chunk contracts, palette
+  access, and implicit opaque palette alpha
+- `png_transform.cj`: 1/2/4-bit sample unpacking and copy-owned RGBA8 rows for
+  every PNG color type at bit depths up to 8
+- `png_decode.cj`: metadata retention alongside the existing packed raw rows
+
+The RGBA8 convenience path expands palette entries, grayscale samples, and
+tRNS color keys while preserving existing grayscale-alpha and truecolor-alpha
+values. A separate 256,000,000-byte transformed-output limit prevents packed
+inputs from expanding without a caller-visible bound.
+
+This is not the complete `pngrtran.c` surface. The 16-bit path,
+gamma/background/color-space handling, alpha composition, channel/filler and
+user transforms, remaining standard metadata, unknown chunks, Adam7, and
+progressive reading remain later packets.
