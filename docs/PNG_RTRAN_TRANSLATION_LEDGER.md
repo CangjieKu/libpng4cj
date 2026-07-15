@@ -63,7 +63,7 @@ Status meanings:
 | 3340 | `png_do_compose` | none | pending | background/alpha/gamma composition |
 | 4084 | `png_do_gamma` | none | pending | gamma tables |
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
-| 4349 | `png_do_expand_palette` | indexed palette/tRNS expansion | translated | row-info topology alignment |
+| 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
 | 4523 | `png_do_expand` | gray/RGB/tRNS expansion | translated | row-info topology alignment |
 | 4753 | `png_do_expand_16` | 8-to-16 channel replication | translated | row-info topology alignment |
 | 4783 | `png_do_quantize` | none | pending | palette lookup and dither state |

@@ -418,6 +418,29 @@ The direct body does not scale grayscale values, expand palette entries to RGB,
 translate `png_set_packing`, execute packswap, or claim the complete row
 dispatcher.
 
+## Implemented Direct Palette Expansion
+
+LP-S004S adds `png_palette_expand_transform.cj` as the direct translation of
+`png_do_expand_palette`:
+
+- legal 1/2/4/8-bit Indexed rows expand through retained PLTE entries
+- packed indexes use the already direct reverse unpack formulas before palette
+  growth
+- output growth walks source indexes and destination bytes from the row end
+- no retained palette alpha produces 8-bit RGB output
+- one or more retained tRNS alpha entries produce RGBA, with `0xff` used for
+  palette indexes beyond the retained alpha count
+- width remains unchanged while bit depth, color type, channels, pixel depth,
+  and row bytes update exactly
+- output is copy-owned and malformed rows, invalid palettes/transparency, and
+  out-of-range indexes fail explicitly
+- unsupported color/depth/channel shapes and zero width safely no-op after
+  row-length validation
+
+The direct body does not translate non-palette `png_do_expand`, mutate the
+retained palette, use the upstream NEON riffled-palette path, execute Expand16,
+or claim the complete row dispatcher.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

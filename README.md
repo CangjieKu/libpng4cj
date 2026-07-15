@@ -78,6 +78,9 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - direct `pngDoUnpack` source-row translation expands legal 1/2/4-bit
   grayscale and palette values to one byte each with exact reverse traversal,
   partial-byte alignment, copy ownership, and row-info growth to 8-bit samples
+- direct `pngDoExpandPalette` translates legal 1/2/4/8-bit palette rows to
+  RGB or RGBA with reverse growth, retained PLTE lookup, partial tRNS alpha
+  defaulting, copy ownership, and exact output row information
 - explicit `UnshiftSignificantBits` applies retained sBIT precision per color
   and surviving semantic-alpha channel after inversion and before BGR,
   filler/add-alpha, and alpha swap; palette, UInt16, and reduced output use the
