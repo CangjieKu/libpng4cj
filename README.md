@@ -102,6 +102,11 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   depth, and row bytes exactly, and retain copy-owned no-op behavior outside
   16-bit input; `applyInitializedPng16To8Stages` preserves Scale-before-Strip
   precedence when both stage bits are present
+- direct `pngDoReadInvertAlpha` and `pngDoReadSwapAlpha` translations preserve
+  8/16-bit GA/RGBA network-byte topology while producing copy-owned inverted
+  or alpha-first rows with unchanged row info; `applySelectedPngAlphaTransforms`
+  fixes the upstream relative order as Invert Alpha before Swap Alpha regardless
+  of caller selection order
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
   Strip Alpha, RGB/gray, 16-to-8, and Expand16 state into output color type,
   bit depth, channels, pixel depth, row bytes, and remaining tRNS state using

@@ -350,6 +350,28 @@ LP-S004N adds `png_16_to_8_transform.cj` as the direct translation of
 The direct bodies do not implement Expand16, gamma/background, quantize, byte
 swap, user transforms, or the complete stateful row dispatcher.
 
+## Implemented Direct Alpha Invert And Swap Row Bodies
+
+LP-S004O adds `png_alpha_transform.cj` as the direct translation of
+`png_do_read_invert_alpha` and `png_do_read_swap_alpha`:
+
+- `pngDoReadInvertAlpha` preserves G/RGB bytes and complements only the alpha
+  byte or the two network-order alpha bytes in GA/RGBA rows
+- `pngDoReadSwapAlpha` converts `GA -> AG`, `RGBA -> ARGB`,
+  `GGAA -> AAGG`, and `RRGGBBAA -> AARRGGBB`
+- 16-bit components remain byte pairs in PNG network order; the direct path
+  does not convert them into host-numeric UInt16 values
+- both bodies return copy-owned rows with unchanged row info and safely no-op
+  for non-alpha color types or bit depths outside 8/16
+- malformed row lengths fail before byte access
+- `applySelectedPngAlphaTransforms` consumes only the existing `InvertAlpha`
+  and `SwapAlpha` selections and fixes their relative execution order as
+  Invert Alpha before Swap Alpha regardless of caller array order or duplicates
+
+The narrow adapter deliberately skips the intervening unshift, BGR, and filler
+stages. It does not translate the corresponding `pngtrans.c` setter state or
+claim the complete `png_do_read_transformations` dispatcher.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

@@ -1120,4 +1120,189 @@ public class PngTransformTestSuite {
         @Assert(both.info.pixelDepth, UInt16(24))
         @Assert(both.info.rowBytes, UInt64(3))
     }
+
+    @TestCase
+    public func invertsEightBitGrayAlphaAndRgbaRows(): Unit {
+        let grayAlphaInfo = PngReadRowInfo(
+            UInt32(2), UInt8(8), GrayscaleAlpha
+        )
+        let grayAlpha = pngDoReadInvertAlpha(
+            grayAlphaInfo, [1, 2, 3, 4]
+        )
+        let grayAlphaExpected: Array<Byte> = [1, 0xfd, 3, 0xfb]
+        @Assert(grayAlpha.row(), grayAlphaExpected)
+        @Assert(grayAlpha.info.width, UInt32(2))
+        @Assert(grayAlpha.info.bitDepth, UInt8(8))
+        @Assert(grayAlpha.info.colorType.toString(), "GRAYSCALE_ALPHA")
+        @Assert(grayAlpha.info.channels, UInt8(2))
+        @Assert(grayAlpha.info.pixelDepth, UInt16(16))
+        @Assert(grayAlpha.info.rowBytes, UInt64(4))
+
+        let rgbaInfo = PngReadRowInfo(UInt32(2), UInt8(8), TruecolorAlpha)
+        let rgba = pngDoReadInvertAlpha(
+            rgbaInfo, [1, 2, 3, 4, 5, 6, 7, 8]
+        )
+        let rgbaExpected: Array<Byte> = [1, 2, 3, 0xfb, 5, 6, 7, 0xf7]
+        @Assert(rgba.row(), rgbaExpected)
+        @Assert(rgba.info.colorType.toString(), "TRUECOLOR_ALPHA")
+        @Assert(rgba.info.channels, UInt8(4))
+        @Assert(rgba.info.pixelDepth, UInt16(32))
+        @Assert(rgba.info.rowBytes, UInt64(8))
+    }
+
+    @TestCase
+    public func invertsSixteenBitAlphaWithoutChangingNetworkOrder(): Unit {
+        let grayAlpha = pngDoReadInvertAlpha(
+            PngReadRowInfo(UInt32(1), UInt8(16), GrayscaleAlpha),
+            [0x12, 0x34, 0x56, 0x78]
+        )
+        let grayAlphaExpected: Array<Byte> = [0x12, 0x34, 0xa9, 0x87]
+        @Assert(grayAlpha.row(), grayAlphaExpected)
+        @Assert(grayAlpha.info.bitDepth, UInt8(16))
+        @Assert(grayAlpha.info.pixelDepth, UInt16(32))
+        @Assert(grayAlpha.info.rowBytes, UInt64(4))
+
+        let rgba = pngDoReadInvertAlpha(
+            PngReadRowInfo(UInt32(1), UInt8(16), TruecolorAlpha),
+            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
+        )
+        let rgbaExpected: Array<Byte> = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0xf8, 0xf7
+        ]
+        @Assert(rgba.row(), rgbaExpected)
+        @Assert(rgba.info.pixelDepth, UInt16(64))
+        @Assert(rgba.info.rowBytes, UInt64(8))
+    }
+
+    @TestCase
+    public func swapsAlphaFirstAcrossEightAndSixteenBitRows(): Unit {
+        let grayAlpha8 = pngDoReadSwapAlpha(
+            PngReadRowInfo(UInt32(2), UInt8(8), GrayscaleAlpha),
+            [1, 2, 3, 4]
+        )
+        let grayAlpha8Expected: Array<Byte> = [2, 1, 4, 3]
+        @Assert(grayAlpha8.row(), grayAlpha8Expected)
+
+        let rgba8 = pngDoReadSwapAlpha(
+            PngReadRowInfo(UInt32(2), UInt8(8), TruecolorAlpha),
+            [1, 2, 3, 4, 5, 6, 7, 8]
+        )
+        let rgba8Expected: Array<Byte> = [4, 1, 2, 3, 8, 5, 6, 7]
+        @Assert(rgba8.row(), rgba8Expected)
+
+        let grayAlpha16 = pngDoReadSwapAlpha(
+            PngReadRowInfo(UInt32(1), UInt8(16), GrayscaleAlpha),
+            [0x12, 0x34, 0x56, 0x78]
+        )
+        let grayAlpha16Expected: Array<Byte> = [0x56, 0x78, 0x12, 0x34]
+        @Assert(grayAlpha16.row(), grayAlpha16Expected)
+
+        let rgba16 = pngDoReadSwapAlpha(
+            PngReadRowInfo(UInt32(1), UInt8(16), TruecolorAlpha),
+            [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
+        )
+        let rgba16Expected: Array<Byte> = [
+            0x07, 0x08, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+        ]
+        @Assert(rgba16.row(), rgba16Expected)
+        @Assert(rgba16.info.bitDepth, UInt8(16))
+        @Assert(rgba16.info.colorType.toString(), "TRUECOLOR_ALPHA")
+        @Assert(rgba16.info.channels, UInt8(4))
+        @Assert(rgba16.info.pixelDepth, UInt16(64))
+        @Assert(rgba16.info.rowBytes, UInt64(8))
+    }
+
+    @TestCase
+    public func keepsUnsupportedAlphaRowsOwnedAndRejectsBadLengths(): Unit {
+        let input: Array<Byte> = [1, 2, 3]
+        let opaque = pngDoReadInvertAlpha(
+            PngReadRowInfo(UInt32(1), UInt8(8), Truecolor), input
+        )
+        let expected: Array<Byte> = [1, 2, 3]
+        input[0] = UInt8(9)
+        @Assert(opaque.row(), expected)
+        let mutable = opaque.row()
+        mutable[1] = UInt8(9)
+        @Assert(opaque.row(), expected)
+
+        let unsupported = pngDoReadSwapAlpha(
+            PngReadRowInfo(UInt32(2), UInt8(4), GrayscaleAlpha),
+            [0x12, 0x34]
+        )
+        let unsupportedExpected: Array<Byte> = [0x12, 0x34]
+        @Assert(unsupported.row(), unsupportedExpected)
+        @Assert(unsupported.info.bitDepth, UInt8(4))
+        @Assert(unsupported.info.rowBytes, UInt64(2))
+
+        try {
+            pngDoReadSwapAlpha(
+                PngReadRowInfo(UInt32(2), UInt8(8), TruecolorAlpha),
+                [1, 2, 3, 4, 5, 6, 7]
+            )
+            @Fail("swap-alpha should reject a row length mismatch")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+
+        let selected: Array<PngReadChannelTransform> = [InvertAlpha]
+        try {
+            applySelectedPngAlphaTransforms(
+                selected,
+                PngReadRowInfo(UInt32(2), UInt8(8), GrayscaleAlpha),
+                [1, 2, 3]
+            )
+            @Fail("selected alpha transforms should validate row length")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
+
+    @TestCase
+    public func appliesSelectedAlphaTransformsInFrozenRelativeOrder(): Unit {
+        let rowInfo = PngReadRowInfo(UInt32(1), UInt8(8), TruecolorAlpha)
+        let input: Array<Byte> = [10, 20, 30, 40]
+
+        let disabledTransforms: Array<PngReadChannelTransform> = []
+        let disabled = applySelectedPngAlphaTransforms(
+            disabledTransforms, rowInfo, input
+        )
+        @Assert(disabled.row(), input)
+
+        let invertTransforms: Array<PngReadChannelTransform> = [InvertAlpha]
+        let inverted = applySelectedPngAlphaTransforms(
+            invertTransforms, rowInfo, input
+        )
+        let invertExpected: Array<Byte> = [10, 20, 30, 215]
+        @Assert(inverted.row(), invertExpected)
+
+        let swapTransforms: Array<PngReadChannelTransform> = [SwapAlpha]
+        let swapped = applySelectedPngAlphaTransforms(
+            swapTransforms, rowInfo, input
+        )
+        let swapExpected: Array<Byte> = [40, 10, 20, 30]
+        @Assert(swapped.row(), swapExpected)
+
+        let reversedTransforms: Array<PngReadChannelTransform> = [
+            SwapAlpha, InvertAlpha
+        ]
+        let both = applySelectedPngAlphaTransforms(
+            reversedTransforms, rowInfo, input
+        )
+        let bothExpected: Array<Byte> = [215, 10, 20, 30]
+        @Assert(both.row(), bothExpected)
+
+        let duplicateTransforms: Array<PngReadChannelTransform> = [
+            InvertAlpha, SwapAlpha, InvertAlpha, SwapAlpha
+        ]
+        let duplicate = applySelectedPngAlphaTransforms(
+            duplicateTransforms, rowInfo, input
+        )
+        @Assert(duplicate.row(), bothExpected)
+        @Assert(duplicate.info.width, UInt32(1))
+        @Assert(duplicate.info.bitDepth, UInt8(8))
+        @Assert(duplicate.info.colorType.toString(), "TRUECOLOR_ALPHA")
+        @Assert(duplicate.info.channels, UInt8(4))
+        @Assert(duplicate.info.pixelDepth, UInt16(32))
+        @Assert(duplicate.info.rowBytes, UInt64(4))
+    }
 }

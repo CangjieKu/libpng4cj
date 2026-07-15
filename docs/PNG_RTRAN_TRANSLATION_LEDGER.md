@@ -55,8 +55,8 @@ Status meanings:
 | 2390 | `png_do_unshift` | significant-bit shift resolver | translated | row-info topology alignment |
 | 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
 | 2590 | `png_do_chop` | `pngDoChop` | translated | initialized adapter is narrow; complete dispatcher remains partial |
-| 2615 | `png_do_read_swap_alpha` | `SwapAlpha` | translated | row-info topology alignment |
-| 2711 | `png_do_read_invert_alpha` | `InvertAlpha` | translated | row-info topology alignment |
+| 2615 | `png_do_read_swap_alpha` | `pngDoReadSwapAlpha` | translated | selected adapter is narrow; setter state and complete dispatcher remain partial |
+| 2711 | `png_do_read_invert_alpha` | `pngDoReadInvertAlpha` | translated | selected adapter is narrow; setter state and complete dispatcher remain partial |
 | 2813 | `png_do_read_filler` | `PngRowShapeTransform` filler modes | translated | row-info topology alignment |
 | 3000 | `png_do_gray_to_rgb` | `pngDoGrayToRgb` | translated | initialized stage adapter is narrow; complete dispatcher remains partial |
 | 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray8/16` | translated | gamma-table branches deferred |
@@ -120,3 +120,15 @@ Strip, so a simultaneous Strip stage becomes a no-op after Scale has already
 changed the row to 8-bit depth. The ledger remains
 `23 translated / 6 partial / 16 pending`; Expand16 and the complete dispatcher
 remain separate work.
+
+LP-S004O replaces the canonical RGBA convenience anchors for alpha inversion
+and alpha swapping with direct source-shaped byte-row bodies.
+`pngDoReadInvertAlpha` complements only GA/RGBA alpha bytes at 8-bit or 16-bit
+network-byte depth. `pngDoReadSwapAlpha` preserves component byte order while
+moving GA/RGBA alpha from the last component to the first.
+`applySelectedPngAlphaTransforms` reads the existing channel-transform
+selection as booleans and always executes Invert Alpha before Swap Alpha,
+independent of caller array order or duplicates. The ledger remains
+`23 translated / 6 partial / 16 pending`; `pngtrans.c` setter state,
+intermediate unshift/BGR/filler stages, and the complete dispatcher remain
+separate work.
