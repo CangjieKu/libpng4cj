@@ -1,0 +1,10 @@
+[package]
+  cjc-version = "1.1.0"
+  name = "libpng4cj"
+  version = "0.1.0"
+  output-type = "static"
+  src-dir = "src/libpng4cj"
+  compile-option = "-Woff unused"
+  license = "Libpng-2.0"
+  description = "Full libpng port program for Cangjie with a future libpng16 C ABI surface"
+  include = ["src", "README.md", "docs", "LICENSE", "UPSTREAM.md", "vendor/libpng-1.6.58/LICENSE"]
