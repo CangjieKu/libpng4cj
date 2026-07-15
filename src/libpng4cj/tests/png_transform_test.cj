@@ -650,4 +650,106 @@ public class PngTransformTestSuite {
             @Assert(e.kind.toString(), "INVALID_ARGUMENT")
         }
     }
+
+    @TestCase
+    public func translatesEightBitGrayToRgbRowBodies(): Unit {
+        let grayInfo = PngReadRowInfo(UInt32(3), UInt8(8), Grayscale)
+        let gray = pngDoGrayToRgb(grayInfo, [0x00, 0x7f, 0xff])
+        let expectedGray: Array<Byte> = [
+            0x00, 0x00, 0x00,
+            0x7f, 0x7f, 0x7f,
+            0xff, 0xff, 0xff
+        ]
+        @Assert(gray.row(), expectedGray)
+        @Assert(gray.info.colorType.toString(), "TRUECOLOR")
+        @Assert(gray.info.channels, UInt8(3))
+        @Assert(gray.info.pixelDepth, UInt16(24))
+        @Assert(gray.info.rowBytes, UInt64(9))
+
+        let grayAlphaInfo = PngReadRowInfo(UInt32(2), UInt8(8), GrayscaleAlpha)
+        let grayAlpha = pngDoGrayToRgb(grayAlphaInfo, [7, 8, 9, 10])
+        let expectedGrayAlpha: Array<Byte> = [7, 7, 7, 8, 9, 9, 9, 10]
+        @Assert(grayAlpha.row(), expectedGrayAlpha)
+        @Assert(grayAlpha.info.colorType.toString(), "TRUECOLOR_ALPHA")
+        @Assert(grayAlpha.info.channels, UInt8(4))
+        @Assert(grayAlpha.info.pixelDepth, UInt16(32))
+        @Assert(grayAlpha.info.rowBytes, UInt64(8))
+
+        let mutable = grayAlpha.row()
+        mutable[0] = UInt8(0)
+        @Assert(grayAlpha.row(), expectedGrayAlpha)
+    }
+
+    @TestCase
+    public func translatesSixteenBitGrayToRgbRowBodies(): Unit {
+        let grayInfo = PngReadRowInfo(UInt32(2), UInt8(16), Grayscale)
+        let gray = pngDoGrayToRgb(grayInfo, [0x12, 0x34, 0xab, 0xcd])
+        let expectedGray: Array<Byte> = [
+            0x12, 0x34, 0x12, 0x34, 0x12, 0x34,
+            0xab, 0xcd, 0xab, 0xcd, 0xab, 0xcd
+        ]
+        @Assert(gray.row(), expectedGray)
+        @Assert(gray.info.colorType.toString(), "TRUECOLOR")
+        @Assert(gray.info.pixelDepth, UInt16(48))
+        @Assert(gray.info.rowBytes, UInt64(12))
+
+        let grayAlphaInfo = PngReadRowInfo(UInt32(1), UInt8(16), GrayscaleAlpha)
+        let grayAlpha = pngDoGrayToRgb(grayAlphaInfo, [0x12, 0x34, 0x56, 0x78])
+        let expectedGrayAlpha: Array<Byte> = [
+            0x12, 0x34, 0x12, 0x34, 0x12, 0x34, 0x56, 0x78
+        ]
+        @Assert(grayAlpha.row(), expectedGrayAlpha)
+        @Assert(grayAlpha.info.colorType.toString(), "TRUECOLOR_ALPHA")
+        @Assert(grayAlpha.info.pixelDepth, UInt16(64))
+        @Assert(grayAlpha.info.rowBytes, UInt64(8))
+    }
+
+    @TestCase
+    public func gatesDirectAndInitializedGrayToRgbStages(): Unit {
+        let packedInfo = PngReadRowInfo(UInt32(4), UInt8(2), Grayscale)
+        let packed = pngDoGrayToRgb(packedInfo, [0x1b])
+        let packedExpected: Array<Byte> = [0x1b]
+        @Assert(packed.row(), packedExpected)
+        @Assert(packed.info.colorType.toString(), "GRAYSCALE")
+        @Assert(packed.info.rowBytes, UInt64(1))
+
+        let colorInfo = PngReadRowInfo(UInt32(1), UInt8(8), Truecolor)
+        let color = pngDoGrayToRgb(colorInfo, [1, 2, 3])
+        let colorExpected: Array<Byte> = [1, 2, 3]
+        @Assert(color.row(), colorExpected)
+        @Assert(color.info.colorType.toString(), "TRUECOLOR")
+
+        try {
+            pngDoGrayToRgb(PngReadRowInfo(UInt32(2), UInt8(8), Grayscale), [1])
+            @Fail("gray-to-RGB should reject a row length mismatch")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(4), [], GRAY_ALPHA8_ZLIB
+        ))
+        let disabledState = PngReadTransformState()
+        let disabled = initializePngReadTransformations(disabledState, decoded)
+        let unchanged = applyInitializedPngGrayToRgbStage(
+            disabled,
+            PngReadRowInfo(decoded.ihdr),
+            decoded.row(0)
+        )
+        let unchangedExpected: Array<Byte> = [7, 8, 9, 10]
+        @Assert(unchanged.row(), unchangedExpected)
+        @Assert(unchanged.info.colorType.toString(), "GRAYSCALE_ALPHA")
+
+        let enabledState = PngReadTransformState()
+        @Assert(enabledState.setGrayToRgb(), true)
+        let enabled = initializePngReadTransformations(enabledState, decoded)
+        let transformed = applyInitializedPngGrayToRgbStage(
+            enabled,
+            PngReadRowInfo(decoded.ihdr),
+            decoded.row(0)
+        )
+        let transformedExpected: Array<Byte> = [7, 7, 7, 8, 9, 9, 9, 10]
+        @Assert(transformed.row(), transformedExpected)
+        @Assert(transformed.info.colorType.toString(), "TRUECOLOR_ALPHA")
+    }
 }

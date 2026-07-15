@@ -93,6 +93,10 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - one-shot `PngReadTransformInitialization` classifies palette partial alpha,
   binary transparency, inherent source alpha, and effective tRNS after Strip
   Alpha, then exposes the translated read stages in frozen upstream order
+- direct `pngDoGrayToRgb` row translation preserves the frozen 8/16-bit
+  `G -> RGB`, `GA -> RGBA`, `GG -> RRGGBB`, and `GGAA -> RRGGBBAA` byte
+  topology with exact row-info updates and copy-owned output; a narrow adapter
+  applies it only when initialization contains the `GrayToRgb` stage
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining
@@ -103,6 +107,7 @@ The translation-first route is tracked in
 `docs/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
+The current ledger is `23 translated / 6 partial / 16 pending`.
 
 ## Native Dependency
 

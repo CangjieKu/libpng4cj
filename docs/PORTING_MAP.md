@@ -285,6 +285,27 @@ The initializer ledger entries remain partial: background and alpha-mode
 optimization, palette mutation, gamma, cHRM-derived RGB coefficients,
 transformed info projection, and complete row dispatch are still absent.
 
+## Implemented Direct Gray-To-RGB Row Body
+
+LP-S004L adds `png_gray_to_rgb_transform.cj` as the direct non-gamma
+translation of `png_do_gray_to_rgb`:
+
+- `PngReadRowInfo` carries width, bit depth, color type, channels, pixel depth,
+  and row bytes at the current transform stage
+- 8-bit grayscale expands `G -> RGB`, and grayscale-alpha expands
+  `GA -> RGBA`
+- 16-bit network-byte rows expand `GG -> RRGGBB` and
+  `GGAA -> RRGGBBAA` without converting sample byte order
+- sub-byte and already-color rows retain the upstream no-op behavior
+- output rows are copy-owned because Cangjie arrays cannot be expanded in
+  place; malformed row lengths fail before transformation
+- `applyInitializedPngGrayToRgbStage` applies the body only when the frozen
+  initialization contains `GrayToRgb`
+
+The direct function is now translated, but the complete stateful dispatcher
+remains partial. The narrow adapter does not execute preceding tRNS expansion,
+strip-alpha, background composition, gamma, or later row transforms.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path

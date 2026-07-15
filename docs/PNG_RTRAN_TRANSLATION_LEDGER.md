@@ -40,7 +40,7 @@ Status meanings:
 | 990 | `png_set_expand_gray_1_2_4_to_8` | `PngReadTransformState.setExpandGrayOneTwoFourToEight` | translated | transformed IHDR projection deferred |
 | 1002 | `png_set_tRNS_to_alpha` | `PngReadTransformState.setTransparencyToAlpha` | translated | transformed IHDR projection deferred |
 | 1018 | `png_set_expand_16` | `PngReadTransformState.setExpand16` | translated | transformed IHDR projection deferred |
-| 1031 | `png_set_gray_to_rgb` | `PngReadTransformState.setGrayToRgb` | translated | direct `png_do_gray_to_rgb` row topology remains partial |
+| 1031 | `png_set_gray_to_rgb` | `PngReadTransformState.setGrayToRgb` | translated | direct C ABI setter and transformed-info projection deferred |
 | 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
 | 1118 | `png_set_rgb_to_gray` | none | pending | floating-point fixed conversion facade |
 | 1132 | `png_set_read_user_transform_fn` | none | pending | callback ABI and row hook |
@@ -58,7 +58,7 @@ Status meanings:
 | 2615 | `png_do_read_swap_alpha` | `SwapAlpha` | translated | row-info topology alignment |
 | 2711 | `png_do_read_invert_alpha` | `InvertAlpha` | translated | row-info topology alignment |
 | 2813 | `png_do_read_filler` | `PngRowShapeTransform` filler modes | translated | row-info topology alignment |
-| 3000 | `png_do_gray_to_rgb` | canonical grayscale expansion | partial | direct translated row body |
+| 3000 | `png_do_gray_to_rgb` | `pngDoGrayToRgb` | translated | initialized stage adapter is narrow; complete dispatcher remains partial |
 | 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray8/16` | translated | gamma-table branches deferred |
 | 3340 | `png_do_compose` | none | pending | background/alpha/gamma composition |
 | 4084 | `png_do_gamma` | none | pending | gamma tables |
@@ -90,3 +90,13 @@ transparency, preserves inherent RGB/gray alpha classification, cancels tRNS
 expansion when Strip Alpha precedes composition, and freezes the translated
 stage order. The three initializer rows remain `partial` until background,
 encode/optimize-alpha, palette mutation, gamma, and full dispatcher state land.
+
+LP-S004L directly translates `png_do_gray_to_rgb` for 8-bit and 16-bit
+grayscale/grayscale-alpha rows. `PngReadRowInfo` carries the source-shaped
+width, depth, color type, channels, pixel depth, and row-byte topology;
+`pngDoGrayToRgb` preserves every gray/alpha byte while returning a copy-owned
+expanded row, and `applyInitializedPngGrayToRgbStage` gates that body on the
+frozen initialized stage list. This advances the ledger to
+`23 translated / 6 partial / 16 pending`; the complete dispatcher remains
+partial because preceding expansion/composition and later transforms are not
+executed by this narrow adapter.
