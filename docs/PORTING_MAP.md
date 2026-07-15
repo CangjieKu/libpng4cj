@@ -461,6 +461,25 @@ non-palette `png_do_expand`:
 The direct body does not execute an initialized Expand stage, translate
 `png_do_expand_16`, mutate palette state, or claim the complete row dispatcher.
 
+## Implemented Direct Expand16
+
+LP-S004U adds `png_expand16_transform.cj` as the direct translation of
+`png_do_expand_16`:
+
+- every byte in an 8-bit non-palette runtime row is copied backward into an
+  equal high/low byte pair
+- width, color type, and current runtime channels remain unchanged
+- bit depth becomes 16, pixel depth becomes `channels * 16`, and row bytes
+  double exactly
+- current runtime channels are retained even when they differ from the source
+  color-type default after an earlier shape-changing transform
+- transformed and no-op rows are copy-owned
+- Indexed, non-8-bit, zero-channel, and zero-width rows safely no-op after
+  row-length validation
+
+The direct body does not connect the initialized Expand16 stage, compose with
+Scale16/Strip16, or claim the complete row dispatcher.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path
