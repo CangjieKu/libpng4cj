@@ -752,4 +752,170 @@ public class PngTransformTestSuite {
         @Assert(transformed.row(), transformedExpected)
         @Assert(transformed.info.colorType.toString(), "TRUECOLOR_ALPHA")
     }
+
+    @TestCase
+    public func projectsPaletteExpandInfoFromRetainedTrnsCount(): Unit {
+        let palette: Array<Byte> = [
+            0xff, 0x00, 0x00,
+            0x00, 0xff, 0x00,
+            0x00, 0x00, 0xff,
+            0xff, 0xff, 0xff
+        ]
+        let opaque = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [
+                makeTransformChunk(PNG_CHUNK_PLTE, palette),
+                makeTransformChunk(PNG_CHUNK_tRNS, [0xff, 0xff])
+            ],
+            PALETTE_GRAY_ZLIB
+        ))
+        let opaqueState = PngReadTransformState()
+        @Assert(opaqueState.setExpand(), true)
+        let opaqueInit = initializePngReadTransformations(opaqueState, opaque)
+        let opaqueInfo = projectPngReadTransformInfo(opaqueInit, opaque)
+        @Assert(opaqueInit.inputHasTransparency, false)
+        @Assert(opaqueInfo.colorType.toString(), "TRUECOLOR_ALPHA")
+        @Assert(opaqueInfo.bitDepth, UInt8(8))
+        @Assert(opaqueInfo.channels, UInt8(4))
+        @Assert(opaqueInfo.pixelDepth, UInt16(32))
+        @Assert(opaqueInfo.rowBytes, UInt64(16))
+        @Assert(opaqueInfo.hasTransparency, false)
+
+        let plain = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [makeTransformChunk(PNG_CHUNK_PLTE, palette)],
+            PALETTE_GRAY_ZLIB
+        ))
+        let plainState = PngReadTransformState()
+        @Assert(plainState.setExpand(), true)
+        let plainInfo = projectPngReadTransformInfo(
+            initializePngReadTransformations(plainState, plain),
+            plain
+        )
+        @Assert(plainInfo.colorType.toString(), "TRUECOLOR")
+        @Assert(plainInfo.rowBytes, UInt64(12))
+
+        let stripState = PngReadTransformState()
+        @Assert(stripState.setExpand(), true)
+        @Assert(stripState.setStripAlpha(), true)
+        let strippedInfo = projectPngReadTransformInfo(
+            initializePngReadTransformations(stripState, opaque),
+            opaque
+        )
+        @Assert(strippedInfo.colorType.toString(), "TRUECOLOR")
+        @Assert(strippedInfo.rowBytes, UInt64(12))
+        @Assert(strippedInfo.hasTransparency, false)
+    }
+
+    @TestCase
+    public func projectsSubByteAndTrnsExpandInfo(): Unit {
+        let grayTransparency: Array<Byte> = [0x00, 0x02]
+        let gray = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(0),
+            [makeTransformChunk(PNG_CHUNK_tRNS, grayTransparency)],
+            PALETTE_GRAY_ZLIB
+        ))
+        let depthOnlyState = PngReadTransformState()
+        @Assert(depthOnlyState.setExpandGrayOneTwoFourToEight(), true)
+        let depthOnly = projectPngReadTransformInfo(
+            initializePngReadTransformations(depthOnlyState, gray),
+            gray
+        )
+        @Assert(depthOnly.colorType.toString(), "GRAYSCALE")
+        @Assert(depthOnly.bitDepth, UInt8(8))
+        @Assert(depthOnly.rowBytes, UInt64(4))
+        @Assert(depthOnly.hasTransparency, false)
+
+        let alphaState = PngReadTransformState()
+        @Assert(alphaState.setTransparencyToAlpha(), true)
+        let alpha = projectPngReadTransformInfo(
+            initializePngReadTransformations(alphaState, gray),
+            gray
+        )
+        @Assert(alpha.colorType.toString(), "GRAYSCALE_ALPHA")
+        @Assert(alpha.bitDepth, UInt8(8))
+        @Assert(alpha.channels, UInt8(2))
+        @Assert(alpha.rowBytes, UInt64(8))
+        @Assert(alpha.hasTransparency, false)
+    }
+
+    @TestCase
+    public func projectsAlphaAndBitDepthStages(): Unit {
+        let grayAlpha = decodePngNonInterlaced(makeTransformImage(
+            UInt32(1), UInt8(16), UInt8(4), [], GRAY_ALPHA16_ZLIB
+        ))
+        let stripAlphaState = PngReadTransformState()
+        @Assert(stripAlphaState.setStripAlpha(), true)
+        let stripAlpha = projectPngReadTransformInfo(
+            initializePngReadTransformations(stripAlphaState, grayAlpha),
+            grayAlpha
+        )
+        @Assert(stripAlpha.colorType.toString(), "GRAYSCALE")
+        @Assert(stripAlpha.bitDepth, UInt8(16))
+        @Assert(stripAlpha.channels, UInt8(1))
+        @Assert(stripAlpha.rowBytes, UInt64(2))
+
+        let scaleState = PngReadTransformState()
+        @Assert(scaleState.setScale16(), true)
+        let scale = projectPngReadTransformInfo(
+            initializePngReadTransformations(scaleState, grayAlpha),
+            grayAlpha
+        )
+        @Assert(scale.colorType.toString(), "GRAYSCALE_ALPHA")
+        @Assert(scale.bitDepth, UInt8(8))
+        @Assert(scale.rowBytes, UInt64(2))
+
+        let roundTripState = PngReadTransformState()
+        @Assert(roundTripState.setScale16(), true)
+        @Assert(roundTripState.setStrip16(), true)
+        @Assert(roundTripState.setExpand16(), true)
+        let roundTrip = projectPngReadTransformInfo(
+            initializePngReadTransformations(roundTripState, grayAlpha),
+            grayAlpha
+        )
+        @Assert(roundTrip.bitDepth, UInt8(16))
+        @Assert(roundTrip.pixelDepth, UInt16(32))
+        @Assert(roundTrip.rowBytes, UInt64(4))
+    }
+
+    @TestCase
+    public func preservesTransformInfoRgbGrayProjectionOrder(): Unit {
+        let rgb = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let bothState = PngReadTransformState()
+        bothState.markIhdrRead(rgb.ihdr)
+        @Assert(
+            bothState.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(bothState.setGrayToRgb(), true)
+        let bothInit = initializePngReadTransformations(bothState, rgb)
+        @Assert(bothInit.hasStage(ReadStageRgbToGray), true)
+        @Assert(bothInit.hasStage(ReadStageGrayToRgb), true)
+        let both = projectPngReadTransformInfo(bothInit, rgb)
+        @Assert(both.colorType.toString(), "GRAYSCALE")
+        @Assert(both.channels, UInt8(1))
+        @Assert(both.pixelDepth, UInt16(8))
+        @Assert(both.rowBytes, UInt64(2))
+
+        let gray = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(4), [], GRAY_ALPHA8_ZLIB
+        ))
+        let grayToRgbState = PngReadTransformState()
+        @Assert(grayToRgbState.setGrayToRgb(), true)
+        let grayToRgb = projectPngReadTransformInfo(
+            initializePngReadTransformations(grayToRgbState, gray),
+            gray
+        )
+        @Assert(grayToRgb.colorType.toString(), "TRUECOLOR_ALPHA")
+        @Assert(grayToRgb.channels, UInt8(4))
+        @Assert(grayToRgb.rowBytes, UInt64(8))
+    }
 }

@@ -159,27 +159,13 @@ public func pngDoGrayToRgb(
     PngReadTransformRow(pngGrayToRgbOutputInfo(rowInfo), output)
 }
 
-private func hasPngReadTransformStage(
-    initialization: PngReadTransformInitialization,
-    expected: PngReadTransformStage
-): Bool {
-    var index: Int64 = 0
-    while (index < initialization.stageCount()) {
-        if (initialization.stage(index) == expected) {
-            return true
-        }
-        index += 1
-    }
-    false
-}
-
 public func applyInitializedPngGrayToRgbStage(
     initialization: PngReadTransformInitialization,
     rowInfo: PngReadRowInfo,
     row: Array<Byte>
 ): PngReadTransformRow {
     validatePngTransformRowLength(rowInfo, row)
-    if (!hasPngReadTransformStage(initialization, ReadStageGrayToRgb)) {
+    if (!initialization.hasStage(ReadStageGrayToRgb)) {
         return PngReadTransformRow(rowInfo, row)
     }
     pngDoGrayToRgb(rowInfo, row)

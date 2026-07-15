@@ -92,6 +92,17 @@ public class PngReadTransformInitialization {
     public func stages(): Array<PngReadTransformStage> {
         ownedStages.clone()
     }
+
+    public func hasStage(expected: PngReadTransformStage): Bool {
+        var index: Int64 = 0
+        while (index < ownedStages.size) {
+            if (ownedStages[index] == expected) {
+                return true
+            }
+            index += 1
+        }
+        false
+    }
 }
 
 private class PngInputAlphaClassification {

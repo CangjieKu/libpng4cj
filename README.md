@@ -97,6 +97,10 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   `G -> RGB`, `GA -> RGBA`, `GG -> RRGGBB`, and `GGAA -> RRGGBBAA` byte
   topology with exact row-info updates and copy-owned output; a narrow adapter
   applies it only when initialization contains the `GrayToRgb` stage
+- bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
+  Strip Alpha, RGB/gray, 16-to-8, and Expand16 state into output color type,
+  bit depth, channels, pixel depth, row bytes, and remaining tRNS state using
+  the frozen info-function order rather than runtime row-stage order
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining

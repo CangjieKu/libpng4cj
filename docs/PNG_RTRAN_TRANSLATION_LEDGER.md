@@ -50,7 +50,7 @@ Status meanings:
 | 1351 | `png_resolve_file_gamma` | retained gAMA/sRGB/cHRM | pending | precedence and fixed-point resolution |
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
 | 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | gamma/background, coefficient defaulting, palette mutation, and complete dispatcher state |
-| 2069 | `png_read_transform_info` | explicit result layouts | partial | transformed IHDR/metadata projection |
+| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | gamma/background, palette sync, filler, quantize, pack, user-transform, and full metadata projection |
 | 2292 | `png_do_unpack` | `packedSample`, gray/index expansion | translated | direct packed-row public surface unchanged |
 | 2390 | `png_do_unshift` | significant-bit shift resolver | translated | row-info topology alignment |
 | 2529 | `png_do_scale_16_to_8` | `Png16To8Mode.Scale` | translated | row-info topology alignment |
@@ -100,3 +100,13 @@ frozen initialized stage list. This advances the ledger to
 `23 translated / 6 partial / 16 pending`; the complete dispatcher remains
 partial because preceding expansion/composition and later transforms are not
 executed by this narrow adapter.
+
+LP-S004M adds the bounded non-gamma `png_read_transform_info` projection for
+the currently translated state. It handles palette/non-palette Expand, tRNS
+consumption, Strip Alpha, Scale16/Strip16, Gray-to-RGB, RGB-to-gray, Expand16,
+final channels, pixel depth, and row bytes. The projection deliberately follows
+the frozen info-function order, where Gray-to-RGB is applied before
+RGB-to-gray, instead of iterating runtime row stages. The ledger remains
+`23 translated / 6 partial / 16 pending` because palette synchronization,
+gamma/background, filler, quantize, pack, user transforms, and complete
+metadata projection remain absent.

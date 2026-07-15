@@ -306,6 +306,29 @@ The direct function is now translated, but the complete stateful dispatcher
 remains partial. The narrow adapter does not execute preceding tRNS expansion,
 strip-alpha, background composition, gamma, or later row transforms.
 
+## Implemented Non-Gamma Transform Info Projection
+
+LP-S004M adds `png_read_transform_info.cj` as a bounded translation of
+`png_read_transform_info`:
+
+- `PngReadTransformInfo` exposes projected width, height, bit depth, color
+  type, channels, pixel depth, row bytes, and remaining tRNS state
+- indexed Expand projects to RGB or RGBA at 8-bit depth based on retained
+  post-initialization tRNS count, including all-opaque palette tRNS
+- non-palette Expand raises sub-byte gray to 8 bits and adds alpha only when
+  effective tRNS expansion remains enabled
+- Expand and Strip Alpha clear projected tRNS state
+- Scale16 or Strip16 project 16-bit input to 8 bits; Expand16 can subsequently
+  project non-palette 8-bit output back to 16 bits
+- Gray-to-RGB projection precedes RGB-to-gray exactly as in the frozen info
+  function, even though the runtime row dispatcher orders those stages
+  differently
+- final color type determines channels, pixel depth, and PNG row bytes
+
+The ledger entry remains partial. Palette byte synchronization,
+gamma/file-gamma, background, filler/add-alpha, quantize, pack, user-transform,
+and complete metadata projection are still deferred.
+
 ## Implemented Significant-Bit Unshift
 
 LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path
