@@ -132,3 +132,20 @@ public func pngDoQuantize(
 
     PngReadTransformRow(rowInfo, row)
 }
+
+public func applyInitializedPngQuantizeStage(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>
+): PngReadTransformRow {
+    if (!initialization.hasStage(ReadStageQuantize)) {
+        validatePngTransformRowLength(rowInfo, row)
+        return PngReadTransformRow(rowInfo, row)
+    }
+    pngDoQuantize(
+        rowInfo,
+        row,
+        initialization.quantizePaletteLookup(),
+        initialization.quantizeIndex()
+    )
+}

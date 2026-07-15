@@ -614,6 +614,8 @@ public class PngTransformTestSuite {
         @Assert(state.setGrayToRgb(), true)
         @Assert(state.setScale16(), true)
         @Assert(state.setStrip16(), true)
+        let quantizePalette: Array<Byte> = [0, 0, 0, 0xff, 0xff, 0xff]
+        @Assert(state.setQuantize(quantizePalette, 2, 2, true), true)
         @Assert(state.setExpand16(), true)
 
         let initialized = initializePngReadTransformations(state, decoded)
@@ -624,6 +626,7 @@ public class PngTransformTestSuite {
             "GRAY_TO_RGB",
             "SCALE_16_TO_8",
             "STRIP_16_TO_8",
+            "QUANTIZE",
             "EXPAND_16"
         ]
         @Assert(initialized.stageCount(), Int64(expectedStages.size))
@@ -648,6 +651,126 @@ public class PngTransformTestSuite {
             @Fail("read transform initialization should be one-shot")
         } catch (e: PngFormatException) {
             @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
+
+    @TestCase
+    public func snapshotsAndAppliesInitializedFullColorQuantize(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let state = PngReadTransformState()
+        let palette: Array<Byte> = [0, 0, 0, 0xff, 0xff, 0xff]
+        @Assert(state.setQuantize(palette, 2, 2, true), true)
+
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.quantizeEnabled(), true)
+        @Assert(initialized.quantizeMode().toString(), "FULL_COLOR")
+        @Assert(initialized.quantizeIndex().size, Int64(0))
+        @Assert(initialized.quantizePaletteLookup().size, Int64(32768))
+
+        let mutableLookup = initialized.quantizePaletteLookup()
+        mutableLookup[0] = UInt8(99)
+        @Assert(initialized.quantizePaletteLookup()[0], UInt8(0))
+
+        let quantized = applyInitializedPngQuantizeStage(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            [0, 0, 0, 0xff, 0xff, 0xff]
+        )
+        let expected: Array<Byte> = [0, 1]
+        @Assert(quantized.row(), expected)
+        @Assert(quantized.info.colorType.toString(), "INDEXED")
+
+        let replacement: Array<Byte> = [0xff, 0, 0]
+        @Assert(state.setQuantize(replacement, 1, 1, true), false)
+        @Assert(initialized.quantizeMode().toString(), "FULL_COLOR")
+        @Assert(initialized.quantizePaletteLookup()[0], UInt8(0))
+    }
+
+    @TestCase
+    public func snapshotsAndAppliesInitializedPaletteRemap(): Unit {
+        let palette: Array<Byte> = [0, 0, 0, 1, 1, 1]
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2),
+            UInt8(4),
+            UInt8(3),
+            [makeTransformChunk(PNG_CHUNK_PLTE, palette)],
+            INDEXED4_ZLIB
+        ))
+        let state = PngReadTransformState()
+        @Assert(state.setQuantize(palette, 2, 1, false), true)
+
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.quantizeMode().toString(), "PALETTE_REMAP")
+        @Assert(initialized.quantizeIndex().size, Int64(256))
+        @Assert(initialized.quantizePaletteLookup().size, Int64(0))
+
+        let mutableIndex = initialized.quantizeIndex()
+        mutableIndex[1] = UInt8(99)
+        @Assert(initialized.quantizeIndex()[1], UInt8(0))
+
+        let remapped = applyInitializedPngQuantizeStage(
+            initialized,
+            PngReadRowInfo(UInt32(3), UInt8(8), Indexed),
+            [0, 1, 255]
+        )
+        let expected: Array<Byte> = [0, 0, 255]
+        @Assert(remapped.row(), expected)
+        @Assert(remapped.info.colorType.toString(), "INDEXED")
+    }
+
+    @TestCase
+    public func keepsDisabledAndUnsupportedInitializedQuantizeRowsBounded(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let disabled = initializePngReadTransformations(
+            PngReadTransformState(), decoded
+        )
+        @Assert(disabled.quantizeEnabled(), false)
+        @Assert(disabled.quantizeIndex().size, Int64(0))
+        @Assert(disabled.quantizePaletteLookup().size, Int64(0))
+        try {
+            disabled.quantizeMode()
+            @Fail("disabled initialization should not expose a quantize mode")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "UNSUPPORTED_TRANSFORM")
+        }
+
+        let input: Array<Byte> = [1, 2]
+        let unchanged = applyInitializedPngQuantizeStage(
+            disabled,
+            PngReadRowInfo(UInt32(2), UInt8(8), Grayscale),
+            input
+        )
+        let expected: Array<Byte> = [1, 2]
+        @Assert(unchanged.row(), expected)
+        input[0] = UInt8(9)
+        @Assert(unchanged.row(), expected)
+
+        let state = PngReadTransformState()
+        let palette: Array<Byte> = [0, 0, 0]
+        @Assert(state.setQuantize(palette, 1, 1, true), true)
+        let enabled = initializePngReadTransformations(state, decoded)
+        let unsupported = applyInitializedPngQuantizeStage(
+            enabled,
+            PngReadRowInfo(UInt32(2), UInt8(8), Grayscale),
+            [3, 4]
+        )
+        let unsupportedExpected: Array<Byte> = [3, 4]
+        @Assert(unsupported.row(), unsupportedExpected)
+
+        try {
+            applyInitializedPngQuantizeStage(
+                enabled,
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+                [1, 2, 3, 4, 5]
+            )
+            @Fail("initialized quantize should reject malformed rows first")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+            @Assert(e.message, "PNG transform row length does not match row info")
         }
     }
 

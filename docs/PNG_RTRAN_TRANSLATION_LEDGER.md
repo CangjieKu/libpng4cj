@@ -49,7 +49,7 @@ Status meanings:
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | retained gAMA/sRGB/cHRM | pending | precedence and fixed-point resolution |
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | gamma/background, coefficient defaulting, palette mutation, and complete dispatcher state |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize mode/tables are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | gamma/background, palette sync, filler, quantize, pack, user-transform, and full metadata projection |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | packing setter state and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -66,8 +66,8 @@ Status meanings:
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | initializer adapter and complete dispatcher remain partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | initialized adapter and complete dispatcher remain partial |
-| 4783 | `png_do_quantize` | `pngDoQuantize` | translated | setter, palette generation/mutation, and complete dispatcher remain partial |
-| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | complete stateful dispatcher and pending bodies |
+| 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter is narrow; retained palette synchronization and complete dispatcher remain partial |
+| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | quantize is ordered after Strip16 and before Expand16; complete stateful dispatcher and pending bodies remain |
 
 ## Translation Rule
 

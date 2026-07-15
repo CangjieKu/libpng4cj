@@ -277,13 +277,17 @@ the non-gamma portions of the three read initializer functions:
 - pre-compose Strip Alpha cancels `PNG_EXPAND_tRNS` and effective tRNS input
   without rewriting the source color-type classification
 - the initialization result exposes expand, strip-alpha, RGB-to-gray,
-  gray-to-RGB, scale16, strip16, and expand16 in frozen execution order
+  gray-to-RGB, scale16, strip16, quantize, and expand16 in frozen execution
+  order
+- quantize enablement, mode, full-color palette lookup, and Indexed remap are
+  snapshotted before row initialization and returned through copy-owned accessors
 - initialization is one-shot, marks row state initialized, and therefore makes
   subsequent setters fail through the translated `png_rtran_ok` lifecycle
 
 The initializer ledger entries remain partial: background and alpha-mode
-optimization, palette mutation, gamma, cHRM-derived RGB coefficients,
-transformed info projection, and complete row dispatch are still absent.
+optimization, gamma, cHRM-derived RGB coefficients, remaining palette
+initialization mutation, transformed info projection, and complete row dispatch
+are still absent.
 
 ## Implemented Direct Gray-To-RGB Row Body
 
@@ -498,9 +502,20 @@ LP-S004V adds `png_quantize_transform.cj` as the direct translation of
 - transformed and no-op rows are copy-owned, and malformed row lengths fail
   before lookup validation
 
-The direct body does not consume setter state, build or reduce palettes, consume
-histograms, execute median-cut logic, mutate retained metadata, or claim the
-complete row dispatcher.
+LP-S004AA connects the direct body to one bounded initialized stage:
+
+- `PngReadTransformInitialization` owns frozen copies of the generated
+  32768-entry palette lookup and 256-entry index remap
+- `ReadStageQuantize` is ordered after Strip16 and before Expand16 exactly like
+  frozen `png_do_read_transformations`
+- `applyInitializedPngQuantizeStage` chooses the already-generated tables from
+  the initialization snapshot and delegates row behavior to `pngDoQuantize`
+- disabled stages, unsupported row topology, and accessor readback remain
+  copy-owned; malformed rows still fail before lookup validation
+- post-initialization setter rejection cannot mutate the frozen mode or tables
+
+The bounded adapter does not build or reduce palettes, mutate retained PLTE,
+project transformed info, or claim the complete row dispatcher.
 
 ## Implemented Quantize Setter State Floor
 
@@ -584,8 +599,8 @@ histogram:
 - caller palette ownership and failed setter lifecycle state remain unchanged
 
 The managed path assumes successful allocation. Native `png_malloc_warn` null
-fallback, initialized row dispatch, transformed-info projection, and C ABI
-remain open.
+fallback, complete row dispatch, transformed-info projection, and C ABI remain
+open.
 
 ## Implemented Significant-Bit Unshift
 

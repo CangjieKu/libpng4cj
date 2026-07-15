@@ -9,6 +9,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageGrayToRgb
     | ReadStageScale16To8
     | ReadStageStrip16To8
+    | ReadStageQuantize
     | ReadStageExpand16
 
     public operator func ==(right: PngReadTransformStage): Bool {
@@ -27,7 +28,8 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageGrayToRgb => 3
             case ReadStageScale16To8 => 4
             case ReadStageStrip16To8 => 5
-            case ReadStageExpand16 => 6
+            case ReadStageQuantize => 6
+            case ReadStageExpand16 => 7
         }
     }
 
@@ -39,6 +41,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageGrayToRgb => "GRAY_TO_RGB"
             case ReadStageScale16To8 => "SCALE_16_TO_8"
             case ReadStageStrip16To8 => "STRIP_16_TO_8"
+            case ReadStageQuantize => "QUANTIZE"
             case ReadStageExpand16 => "EXPAND_16"
         }
     }
@@ -52,6 +55,10 @@ public class PngReadTransformInitialization {
     public let transparencyStripped: Bool
     public let effectiveTransparencyExpansion: Bool
     public let effectiveOutputHasAlpha: Bool
+    private let quantizeEnabledValue: Bool
+    private let quantizeModeValue: PngQuantizeMode
+    private let ownedQuantizeIndex: Array<Byte>
+    private let ownedQuantizePaletteLookup: Array<Byte>
     private let ownedStages: Array<PngReadTransformStage>
 
     init(
@@ -62,6 +69,10 @@ public class PngReadTransformInitialization {
         transparencyStripped: Bool,
         effectiveTransparencyExpansion: Bool,
         effectiveOutputHasAlpha: Bool,
+        quantizeEnabled: Bool,
+        quantizeMode: PngQuantizeMode,
+        quantizeIndex: Array<Byte>,
+        quantizePaletteLookup: Array<Byte>,
         stages: Array<PngReadTransformStage>
     ) {
         this.usesPaletteInitializer = usesPaletteInitializer
@@ -71,6 +82,10 @@ public class PngReadTransformInitialization {
         this.transparencyStripped = transparencyStripped
         this.effectiveTransparencyExpansion = effectiveTransparencyExpansion
         this.effectiveOutputHasAlpha = effectiveOutputHasAlpha
+        quantizeEnabledValue = quantizeEnabled
+        quantizeModeValue = quantizeMode
+        ownedQuantizeIndex = quantizeIndex.clone()
+        ownedQuantizePaletteLookup = quantizePaletteLookup.clone()
         ownedStages = stages.clone()
     }
 
@@ -102,6 +117,29 @@ public class PngReadTransformInitialization {
             index += 1
         }
         false
+    }
+
+    public func quantizeEnabled(): Bool {
+        quantizeEnabledValue
+    }
+
+    public func quantizeMode(): PngQuantizeMode {
+        if (!quantizeEnabledValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no quantize mode"
+            )
+        }
+        quantizeModeValue
+    }
+
+    public func quantizeIndex(): Array<Byte> {
+        ownedQuantizeIndex.clone()
+    }
+
+    public func quantizePaletteLookup(): Array<Byte> {
+        ownedQuantizePaletteLookup.clone()
     }
 }
 
@@ -173,6 +211,9 @@ private func pngReadTransformStages(
     if (state.strip16Enabled()) {
         stages.add(ReadStageStrip16To8)
     }
+    if (state.quantizeEnabled()) {
+        stages.add(ReadStageQuantize)
+    }
     if (state.expand16Enabled()) {
         stages.add(ReadStageExpand16)
     }
@@ -218,6 +259,22 @@ public func initializePngReadTransformations(
         classification.hasAlpha ||
             (classification.hasTransparency && state.expandTransparencyEnabled())
     }
+    let quantizeEnabled = state.quantizeEnabled()
+    let quantizeMode = if (quantizeEnabled) {
+        state.quantizeMode()
+    } else {
+        PaletteRemap
+    }
+    let quantizeIndex = if (quantizeEnabled) {
+        state.quantizeIndex()
+    } else {
+        Array<Byte>()
+    }
+    let quantizePaletteLookup = if (quantizeEnabled) {
+        state.quantizePaletteLookup()
+    } else {
+        Array<Byte>()
+    }
     let stages = pngReadTransformStages(state)
     state.markRowInitialized()
 
@@ -229,6 +286,10 @@ public func initializePngReadTransformations(
         transparencyStripped,
         state.expandTransparencyEnabled(),
         effectiveOutputHasAlpha,
+        quantizeEnabled,
+        quantizeMode,
+        quantizeIndex,
+        quantizePaletteLookup,
         stages
     )
 }
