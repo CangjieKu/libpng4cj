@@ -95,6 +95,15 @@ are treated as already-fixed or flag-shaped inputs. The conversion then applies
 `floor(value + 0.5)`, rejects nonfinite/signed-32-bit overflow before mutation,
 and delegates both converted values into `setGammaFixed`.
 
+`initializePngReadTransformations` snapshots the accepted explicit file/screen
+gamma state together with retained gAMA chunk gamma, then calls
+`pngInitGammaValues`. `PngReadTransformInitialization` exposes
+`gammaConfigured`, `chunkGamma`, resolved `fileGamma`/`screenGamma`,
+`gammaCorrectionRequired`, and a copy of the immutable `PngGammaValues` result.
+Explicit file gamma wins over gAMA; absent sources resolve to identity gamma.
+This initialization fact does not add a Gamma row stage or alter existing stage
+ordinals. Gamma tables and pixel correction remain separate work.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

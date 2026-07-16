@@ -164,8 +164,10 @@ oracle-test source. Production implementation code belongs directly under
   palette/count plus generated lookup/remap tables and fixed RGB-to-gray
   configuration, and exposes the translated read stages in frozen upstream
   order
-- immutable gamma initialization resolves file/screen values and exposes
-  whether file-to-screen correction is required before table generation
+- state-driven immutable gamma initialization snapshots configured file/screen
+  values plus retained gAMA chunk gamma, resolves frozen precedence/fallback,
+  and exposes whether file-to-screen correction is required before table
+  generation
 - lifecycle-gated fixed gamma configuration translates frozen sRGB/old-Mac
   flags, validates the supported range, and preserves failed-call state
 - floating gamma configuration preserves already-fixed/flag-shaped values,

@@ -537,8 +537,9 @@ LP-S004AS translates `png_set_gamma_fixed` and its immediate validation helpers:
 - only accepted calls replace file/screen gamma; failed calls preserve prior
   state
 
-Floating conversion, callback delivery, initialization snapshot, gamma tables,
-row correction, background/alpha mode, and C ABI wrappers remain separate.
+Floating conversion, callback delivery, gamma tables, row correction,
+background/alpha mode, and C ABI wrappers remain separate. A later section
+records the initialization snapshot integration.
 
 ## Implemented Floating Gamma Setter Facade
 
@@ -552,8 +553,31 @@ LP-S004AT translates `convert_gamma_value` and floating `png_set_gamma`:
 - fixed lifecycle, flag/range validation, diagnostics, and failure isolation are
   reused unchanged
 
-Initialization snapshot, gamma tables, row correction, callback delivery,
-background/alpha mode, and C ABI wrappers remain separate.
+Gamma tables, row correction, callback delivery, background/alpha mode, and C
+ABI wrappers remain separate. A later section records the initialization
+snapshot integration.
+
+## Implemented State-Driven Gamma Initialization Snapshot
+
+LP-S004AU connects accepted gamma setter state and retained gAMA metadata to
+the existing immutable initializer:
+
+- explicit configured file and screen gamma are snapshotted before row
+  initialization
+- retained gAMA is converted from its validated UInt31 representation into the
+  chunk-gamma source
+- absent explicit/chunk/default values remain zero before one call to
+  `pngInitGammaValues`
+- explicit file gamma preserves frozen precedence over retained gAMA
+- `PngReadTransformInitialization` exposes configuration/chunk facts, resolved
+  file/screen values, correction status, and a copy of `PngGammaValues`
+- rejected setter state does not become configured state, and post-initialized
+  setter calls cannot change the snapshot
+- existing row-stage ordinals remain unchanged and no executable Gamma stage
+  is fabricated before table generation exists
+
+Gamma tables, `png_do_gamma`, gamma-aware RGB-to-gray, background/alpha mode,
+palette mutation, callback delivery, and C ABI wrappers remain separate.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

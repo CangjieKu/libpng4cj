@@ -33,7 +33,7 @@ Status meanings:
 | 361 | `png_set_alpha_mode_fixed` | none | pending | alpha/background/gamma state |
 | 461 | `png_set_alpha_mode` | none | pending | floating-point facade |
 | 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | normal lifecycle, both reduction branches, remap, and full lookup translated; allocation-warning fallback, dispatcher, and C ABI deferred |
-| 892 | `png_set_gamma_fixed` | `PngReadTransformState.setGammaFixed` | translated | callback delivery, C ABI, initialization snapshot, and tables deferred |
+| 892 | `png_set_gamma_fixed` | `PngReadTransformState.setGammaFixed` | translated | callback delivery, C ABI, and tables deferred; initialization snapshot connected |
 | 934 | `png_set_gamma` | `PngReadTransformState.setGamma` | translated | callback delivery and C ABI wrapper deferred |
 | 948 | `png_set_expand` | `PngReadTransformState.setExpand` | translated | transformed IHDR projection deferred |
 | 978 | `png_set_palette_to_rgb` | `PngReadTransformState.setPaletteToRgb` | translated | transformed IHDR projection deferred |
@@ -44,12 +44,12 @@ Status meanings:
 | 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
-| 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | gamma setter/state/table integration deferred |
+| 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | setter/state/initialization connected; table integration deferred |
 | 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
-| 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | mutable read-state and C ABI integration deferred |
-| 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | mutable read-state and C ABI integration deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, and native user-transform state are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
+| 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
+| 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, native user-transform, and configured/chunk gamma values are snapshotted; gamma tables/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -354,3 +354,13 @@ before nearest rounding. Nonfinite and signed-32-bit overflow fail before state
 mutation, and accepted values delegate into the AS fixed setter. Initialization
 snapshot, tables, row correction, callbacks, and C ABI remain separate, while
 the ledger advances to `30 translated / 8 partial / 7 pending`.
+
+LP-S004AU connects configured file/screen gamma state and retained gAMA chunk
+gamma to `initializePngReadTransformations`. The initializer constructs one
+immutable `PngFileGammaSources`, applies the translated precedence and fallback
+through `pngInitGammaValues`, and exposes resolved values plus correction status
+without adding an executable Gamma row stage. Rejected setter state falls back
+to chunk/default behavior, explicit file gamma wins over gAMA, and the snapshot
+is isolated from post-initialization mutation. Gamma tables, row correction,
+background/alpha mode, palette mutation, callbacks, and C ABI remain separate,
+so the ledger remains `30 translated / 8 partial / 7 pending`.

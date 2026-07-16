@@ -88,6 +88,9 @@ public class PngReadTransformInitialization {
     public let transparencyStripped: Bool
     public let effectiveTransparencyExpansion: Bool
     public let effectiveOutputHasAlpha: Bool
+    private let gammaConfiguredValue: Bool
+    private let chunkGammaValue: Int32
+    private let initializedGammaValuesValue: PngGammaValues
     private let ownedExpandPalette: Array<Byte>
     private let ownedExpandPaletteAlpha: Array<Byte>
     private let expandTransparencyValue: PngExpandTransparency
@@ -130,6 +133,9 @@ public class PngReadTransformInitialization {
         transparencyStripped: Bool,
         effectiveTransparencyExpansion: Bool,
         effectiveOutputHasAlpha: Bool,
+        gammaConfigured: Bool,
+        chunkGamma: Int32,
+        initializedGammaValues: PngGammaValues,
         expandPalette: Array<Byte>,
         expandPaletteAlpha: Array<Byte>,
         expandTransparency: PngExpandTransparency,
@@ -171,6 +177,13 @@ public class PngReadTransformInitialization {
         this.transparencyStripped = transparencyStripped
         this.effectiveTransparencyExpansion = effectiveTransparencyExpansion
         this.effectiveOutputHasAlpha = effectiveOutputHasAlpha
+        gammaConfiguredValue = gammaConfigured
+        chunkGammaValue = chunkGamma
+        initializedGammaValuesValue = PngGammaValues(
+            initializedGammaValues.fileGamma,
+            initializedGammaValues.screenGamma,
+            initializedGammaValues.correctionRequired
+        )
         ownedExpandPalette = expandPalette.clone()
         ownedExpandPaletteAlpha = expandPaletteAlpha.clone()
         expandTransparencyValue = expandTransparency
@@ -240,6 +253,34 @@ public class PngReadTransformInitialization {
 
     public func quantizeEnabled(): Bool {
         quantizeEnabledValue
+    }
+
+    public func gammaConfigured(): Bool {
+        gammaConfiguredValue
+    }
+
+    public func chunkGamma(): Int32 {
+        chunkGammaValue
+    }
+
+    public func fileGamma(): Int32 {
+        initializedGammaValuesValue.fileGamma
+    }
+
+    public func screenGamma(): Int32 {
+        initializedGammaValuesValue.screenGamma
+    }
+
+    public func gammaCorrectionRequired(): Bool {
+        initializedGammaValuesValue.correctionRequired
+    }
+
+    public func gammaValues(): PngGammaValues {
+        PngGammaValues(
+            initializedGammaValuesValue.fileGamma,
+            initializedGammaValuesValue.screenGamma,
+            initializedGammaValuesValue.correctionRequired
+        )
     }
 
     public func expandPalette(): Array<Byte> {
@@ -533,6 +574,18 @@ public func initializePngReadTransformations(
     }
 
     state.markIhdrRead(ihdr)
+    let gammaConfigured = state.gammaConfigured()
+    let chunkGamma = if (metadata.hasGamma) {
+        Int32(metadata.gamma)
+    } else {
+        Int32(0)
+    }
+    let initializedGammaValues = pngInitGammaValues(PngFileGammaSources(
+        if (gammaConfigured) { state.fileGamma() } else { Int32(0) },
+        chunkGamma,
+        Int32(0),
+        if (gammaConfigured) { state.screenGamma() } else { Int32(0) }
+    ))
     let sourceHasTransparency = metadata.hasTransparency
     let transparencyStripped = state.stripAlphaEnabled() && sourceHasTransparency
     if (state.stripAlphaEnabled()) {
@@ -652,6 +705,9 @@ public func initializePngReadTransformations(
         transparencyStripped,
         state.expandTransparencyEnabled(),
         effectiveOutputHasAlpha,
+        gammaConfigured,
+        chunkGamma,
+        initializedGammaValues,
         expandPalette,
         expandPaletteAlpha,
         expandTransparency,

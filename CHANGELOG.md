@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Connect configured gamma state and retained gAMA metadata to immutable read
+  initialization, exposing resolved file/screen values and correction status
+  without adding a row-correction stage.
 - Translate floating gamma conversion and delegation into fixed setter state,
   including already-fixed values, reserved flags, and finite/range checks.
 - Translate fixed gamma flag/range validation and lifecycle-gated file/screen
