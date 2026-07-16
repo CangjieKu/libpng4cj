@@ -523,6 +523,23 @@ LP-S004AR translates `png_init_gamma_values` without opening mutable read state:
 This packet does not add gamma setters, read-state mutation, gamma tables,
 pixel-row correction, background/alpha mode, or C ABI wrappers.
 
+## Implemented Fixed Gamma Setter State
+
+LP-S004AS translates `png_set_gamma_fixed` and its immediate validation helpers:
+
+- sRGB `-1/-100000` and old-Mac `-2/-50000` aliases map to the frozen
+  screen/file constants by role
+- `pngGammaSupported` preserves the inclusive `1000..10000000` range
+- `setGammaFixed` participates in the existing pre-row lifecycle without an
+  IHDR requirement
+- invalid nonpositive file/screen inputs retain separate application-error facts
+- unsupported translated values retain a warning fact and reject the call
+- only accepted calls replace file/screen gamma; failed calls preserve prior
+  state
+
+Floating conversion, callback delivery, initialization snapshot, gamma tables,
+row correction, background/alpha mode, and C ABI wrappers remain separate.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

@@ -4,6 +4,16 @@ import std.math.floor
 
 public let PNG_FP_1: Int32 = Int32(100000)
 public let PNG_GAMMA_THRESHOLD_FIXED: Int32 = Int32(5000)
+public let PNG_DEFAULT_SRGB: Int32 = Int32(-1)
+public let PNG_GAMMA_MAC_18: Int32 = Int32(-2)
+public let PNG_DEFAULT_SRGB_RECIPROCAL_FLAG: Int32 = Int32(-100000)
+public let PNG_GAMMA_MAC_18_RECIPROCAL_FLAG: Int32 = Int32(-50000)
+public let PNG_GAMMA_SRGB: Int32 = Int32(220000)
+public let PNG_GAMMA_SRGB_INVERSE: Int32 = Int32(45455)
+public let PNG_GAMMA_MAC_OLD: Int32 = Int32(151724)
+public let PNG_GAMMA_MAC_INVERSE: Int32 = Int32(65909)
+public let PNG_LIB_GAMMA_MIN: Int32 = Int32(1000)
+public let PNG_LIB_GAMMA_MAX: Int32 = Int32(10000000)
 
 public class PngFixedMulDivResult {
     public let success: Bool
@@ -40,6 +50,22 @@ public func pngMulDivFixed(
 public func pngGammaSignificant(gammaValue: Int32): Bool {
     gammaValue < PNG_FP_1 - PNG_GAMMA_THRESHOLD_FIXED ||
         gammaValue > PNG_FP_1 + PNG_GAMMA_THRESHOLD_FIXED
+}
+
+public func pngTranslateGammaFlags(outputGamma: Int32, isScreen: Bool): Int32 {
+    if (outputGamma == PNG_DEFAULT_SRGB ||
+        outputGamma == PNG_DEFAULT_SRGB_RECIPROCAL_FLAG) {
+        return if (isScreen) { PNG_GAMMA_SRGB } else { PNG_GAMMA_SRGB_INVERSE }
+    }
+    if (outputGamma == PNG_GAMMA_MAC_18 ||
+        outputGamma == PNG_GAMMA_MAC_18_RECIPROCAL_FLAG) {
+        return if (isScreen) { PNG_GAMMA_MAC_OLD } else { PNG_GAMMA_MAC_INVERSE }
+    }
+    outputGamma
+}
+
+public func pngGammaSupported(gammaValue: Int32): Bool {
+    gammaValue >= PNG_LIB_GAMMA_MIN && gammaValue <= PNG_LIB_GAMMA_MAX
 }
 
 // Direct translation of upstream png_gamma_threshold.

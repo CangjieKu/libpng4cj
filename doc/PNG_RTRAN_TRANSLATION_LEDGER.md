@@ -33,7 +33,7 @@ Status meanings:
 | 361 | `png_set_alpha_mode_fixed` | none | pending | alpha/background/gamma state |
 | 461 | `png_set_alpha_mode` | none | pending | floating-point facade |
 | 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | normal lifecycle, both reduction branches, remap, and full lookup translated; allocation-warning fallback, dispatcher, and C ABI deferred |
-| 892 | `png_set_gamma_fixed` | retained gAMA only | pending | gamma transform state and tables |
+| 892 | `png_set_gamma_fixed` | `PngReadTransformState.setGammaFixed` | translated | callback delivery, C ABI, initialization snapshot, and tables deferred |
 | 934 | `png_set_gamma` | none | pending | floating-point facade |
 | 948 | `png_set_expand` | `PngReadTransformState.setExpand` | translated | transformed IHDR projection deferred |
 | 978 | `png_set_palette_to_rgb` | `PngReadTransformState.setPaletteToRgb` | translated | transformed IHDR projection deferred |
@@ -338,3 +338,11 @@ uses the exact reciprocal; a nonpositive resolved file resets both values to
 `PNG_FP_1`. Mutable read-state integration, tables, and row correction remain
 separate, while the ledger advances to
 `28 translated / 8 partial / 9 pending`.
+
+LP-S004AS translates gamma flag aliases, the inclusive supported range, and
+`png_set_gamma_fixed` as lifecycle-gated `PngReadTransformState.setGammaFixed`.
+Accepted calls store translated file/screen values; invalid nonpositive inputs
+record application-error facts, unsupported values record a warning fact, and
+failed calls preserve prior state. Floating conversion, callback delivery,
+initialization snapshot, tables, and row correction remain separate, while the
+ledger advances to `29 translated / 8 partial / 8 pending`.

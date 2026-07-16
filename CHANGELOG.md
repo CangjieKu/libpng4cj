@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Translate fixed gamma flag/range validation and lifecycle-gated file/screen
+  setter state with explicit application-error and warning facts.
 - Translate immutable gamma-value initialization with file/screen resolution,
   reciprocal fallback, identity-gamma reset, and correction classification.
 - Translate fixed-point reciprocal and immutable file-gamma precedence

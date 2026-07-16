@@ -82,6 +82,13 @@ positive file with absent or nonpositive screen gamma derives the screen value
 from the file reciprocal. A nonpositive resolved file resets both values to
 `PNG_FP_1` and disables correction.
 
+`PngReadTransformState.setGammaFixed(screenGamma, fileGamma)` translates the
+reserved sRGB/old-Mac flag aliases by screen/file role, accepts only the frozen
+inclusive range `1000..10000000`, and stores values only after the existing
+read-transform lifecycle gate succeeds. Invalid nonpositive inputs expose
+application-error facts; unsupported values expose a warning fact. Failed calls
+do not replace the last accepted gamma state.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

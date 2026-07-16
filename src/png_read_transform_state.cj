@@ -104,6 +104,12 @@ public class PngReadTransformState {
         PngReadRowInfo,
         Array<Byte>
     ) -> PngReadUserTransformResult = pngIdentityReadUserTransform
+    private var gammaConfiguredValue: Bool = false
+    private var fileGammaValue: Int32 = Int32(0)
+    private var screenGammaValue: Int32 = Int32(0)
+    private var gammaFileApplicationErrorValue: Bool = false
+    private var gammaScreenApplicationErrorValue: Bool = false
+    private var gammaUnsupportedWarningValue: Bool = false
 
     public init() {}
 
@@ -265,6 +271,28 @@ public class PngReadTransformState {
         let redFixed = pngFixedFromFloat64(redWeight, "RGB-to-gray red coefficient")
         let greenFixed = pngFixedFromFloat64(greenWeight, "RGB-to-gray green coefficient")
         setRgbToGrayFixed(policy, redFixed, greenFixed)
+    }
+
+    public func setGammaFixed(screenGamma: Int32, fileGamma: Int32): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+
+        let translatedScreen = pngTranslateGammaFlags(screenGamma, true)
+        let translatedFile = pngTranslateGammaFlags(fileGamma, false)
+        gammaFileApplicationErrorValue = translatedFile <= Int32(0)
+        gammaScreenApplicationErrorValue = translatedScreen <= Int32(0)
+        gammaUnsupportedWarningValue = !pngGammaSupported(translatedFile) ||
+            !pngGammaSupported(translatedScreen)
+
+        if (gammaUnsupportedWarningValue) {
+            return false
+        }
+
+        fileGammaValue = translatedFile
+        screenGammaValue = translatedScreen
+        gammaConfiguredValue = true
+        true
     }
 
     public func setQuantize(
@@ -649,6 +677,30 @@ public class PngReadTransformState {
             )
         }
         readUserTransformValue
+    }
+
+    public func gammaConfigured(): Bool {
+        gammaConfiguredValue
+    }
+
+    public func fileGamma(): Int32 {
+        fileGammaValue
+    }
+
+    public func screenGamma(): Int32 {
+        screenGammaValue
+    }
+
+    public func gammaFileApplicationError(): Bool {
+        gammaFileApplicationErrorValue
+    }
+
+    public func gammaScreenApplicationError(): Bool {
+        gammaScreenApplicationErrorValue
+    }
+
+    public func gammaUnsupportedWarning(): Bool {
+        gammaUnsupportedWarningValue
     }
 
     func cancelTransparencyExpansionForInitialization(): Unit {

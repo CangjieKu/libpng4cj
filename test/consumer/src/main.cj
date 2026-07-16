@@ -19,6 +19,13 @@ main(): Int64 {
         println("libpng4cj gamma initialization check failed")
         return 1
     }
+    let gammaState = PngReadTransformState()
+    if (!gammaState.setGammaFixed(PNG_DEFAULT_SRGB, PNG_DEFAULT_SRGB) ||
+        gammaState.screenGamma() != PNG_GAMMA_SRGB ||
+        gammaState.fileGamma() != PNG_GAMMA_SRGB_INVERSE) {
+        println("libpng4cj fixed gamma setter check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }
