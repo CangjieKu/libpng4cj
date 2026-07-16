@@ -94,6 +94,7 @@ public class PngReadTransformState {
     private var fillerModeValue: PngFillerMode = NoFiller
     private var fillerValueValue: UInt16 = UInt16(0)
     private var swapAlphaValue: Bool = false
+    private var byteSwapValue: Bool = false
 
     public init() {}
 
@@ -416,6 +417,14 @@ public class PngReadTransformState {
         true
     }
 
+    public func setSwap(): Bool {
+        if (!pngRtranOk(true)) {
+            return false
+        }
+        byteSwapValue = ihdrBitDepthKnownValue && ihdrBitDepthValue == UInt8(16)
+        true
+    }
+
     public func scale16Enabled(): Bool {
         scale16Value
     }
@@ -542,6 +551,10 @@ public class PngReadTransformState {
 
     public func swapAlphaEnabled(): Bool {
         swapAlphaValue
+    }
+
+    public func byteSwapEnabled(): Bool {
+        byteSwapValue
     }
 
     func cancelTransparencyExpansionForInitialization(): Unit {

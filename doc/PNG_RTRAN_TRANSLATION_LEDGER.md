@@ -67,7 +67,7 @@ Status meanings:
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated non-gamma stages through Invert/Unshift/Unpack/BGR/PackSwap/Filler/Swap Alpha have bounded composition; byte swap, callbacks, gamma/background, and pending bodies remain |
+| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated non-gamma stages through Invert/Unshift/Unpack/BGR/PackSwap/Filler/Swap Alpha/Byte Swap have bounded composition; callbacks, gamma/background, and pending bodies remain |
 
 ## Translation Rule
 
@@ -278,3 +278,12 @@ row depth to 8 and PackSwap becomes a validated copy-owned no-op, matching the
 frozen dispatcher order. These anchors live in `pngtrans.c`, not the generated
 45-function `pngrtran.c` inventory, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
+
+LP-S004AL translates read-side `pngtrans.c::png_set_swap` state plus the shared
+`png_do_swap` body. The direct transform exchanges every adjacent byte pair in
+16-bit rows without changing row information. Immutable initialized execution
+places Byte Swap after Filler and Swap Alpha and before the eventual user
+transform. Earlier Scale16/Strip16 output is 8-bit, so Byte Swap becomes a
+validated copy-owned no-op in those combinations. These anchors live in
+`pngtrans.c`, not the generated 45-function `pngrtran.c` inventory, so the
+ledger remains `24 translated / 7 partial / 14 pending`.

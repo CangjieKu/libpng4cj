@@ -321,7 +321,7 @@ late-channel stages:
   limits, and returns copy-owned rows
 
 The public entry covers the currently translated non-gamma stage set. Gamma,
-background composition, byte swap, user transforms, Adam7
+background composition, user transforms, Adam7
 execution, and progressive input remain outside this combined path.
 
 ## Implemented Read Packing Setter And Initialized Unpack
@@ -340,9 +340,9 @@ LP-S004AJ connects the direct packed-row body to translated read state:
   stage selection, and whole-image transformed-byte limits include unpack growth
 - `projectPngReadTransformInfo` now projects active packing to 8-bit row shape
 
-PackSwap is connected by LP-S004AK. Palette-index diagnostics, byte swap, user
-callbacks, write packing, gamma/background, Adam7, progressive IO, C ABI, and
-release packaging remain separate work.
+PackSwap is connected by LP-S004AK and read-side byte swap by LP-S004AL.
+Palette-index diagnostics, user callbacks, write packing, gamma/background,
+Adam7, progressive IO, C ABI, and release packaging remain separate work.
 
 ## Implemented Read PackSwap Setter And Initialized Stage
 
@@ -364,7 +364,32 @@ LP-S004AK translates `pngtrans.c::png_set_packswap` and
 - whole-image initialized execution uses the same stage and existing final-row
   transformed-byte limit
 
-Byte swap, palette-index diagnostics, user callbacks, write-side PackSwap,
+Palette-index diagnostics, user callbacks, write-side PackSwap,
+gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
+separate work. Read-side byte swap is connected by LP-S004AL.
+
+## Implemented Read Byte Swap Setter And Initialized Stage
+
+LP-S004AL translates `pngtrans.c::png_set_swap` and
+`pngtrans.c::png_do_swap` into read state and direct row execution:
+
+- `setSwap()` requires a known IHDR and enables only for source bit depth 16
+- `pngDoSwap()` exchanges every adjacent high/low byte pair across the complete
+  stored row, independent of color type or channel count
+- width, bit depth, color type, channels, pixel depth, and row bytes remain
+  unchanged; transformed, disabled, empty, and unsupported results are
+  copy-owned
+- malformed row lengths fail before stage selection or bit-depth checks
+- immutable initialization appends Byte Swap after Filler and Swap Alpha and
+  before the eventual user-transform stage
+- added alpha is moved first by Swap Alpha, then every resulting 16-bit
+  component has its two bytes exchanged
+- when Scale16 or Strip16 runs first, output depth is already 8 and Byte Swap
+  becomes a validated copy-owned no-op
+- whole-image initialized execution uses the same stage and existing final-row
+  transformed-byte limit
+
+User callbacks, write-side byte swap, palette-index diagnostics,
 gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
 separate work.
 

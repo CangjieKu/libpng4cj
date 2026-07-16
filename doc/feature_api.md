@@ -30,7 +30,7 @@ import libpng4cj.*
   quantize, filler, and significant-bit row operations
 - initialized late-channel setters and stages for invert mono, invert alpha,
   significant-bit unshift, packed-sample unpack, BGR, 1/2/4-bit PackSwap,
-  filler/add alpha placement, and alpha swapping
+  filler/add alpha placement, alpha swapping, and 16-bit byte swapping
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).

@@ -196,12 +196,13 @@ oracle-test source. Production implementation code belongs directly under
   packed padding bits invert with the complete stored byte and alpha is retained
 - the one-shot initialized pipeline now snapshots and executes Invert Mono,
   Invert Alpha, significant-bit Unshift, packed-sample Unpack, BGR, PackSwap,
-  Filler/Add Alpha, and Swap Alpha after Expand16 in frozen upstream-relative
-  order; `setPacking()` and `setPackSwap()` only enable for a known sub-byte
-  IHDR, PackSwap reverses complete stored bytes without changing row info,
-  unpack growth updates row information exactly, added alpha participates in
-  swapping while plain filler remains non-alpha, and whole-image transformed-
-  byte limits include unpack and filler growth
+  Filler/Add Alpha, Swap Alpha, and 16-bit Byte Swap after Expand16 in frozen
+  upstream-relative order; `setPacking()` and `setPackSwap()` only enable for a
+  known sub-byte IHDR while `setSwap()` only enables for a known 16-bit IHDR,
+  PackSwap reverses complete stored bytes, Byte Swap exchanges every adjacent
+  component byte without changing row info, and earlier depth-changing stages
+  produce validated copy-owned no-ops when their output no longer matches the
+  selected stage depth
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
   Strip Alpha, RGB/gray, quantize, 16-to-8, Expand16, and packing state into
   output color type, bit depth, channels, pixel depth, row bytes, remaining tRNS

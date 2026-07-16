@@ -25,3 +25,7 @@
   reverse 1/2/4-bit sample groups across every stored byte, and execute the
   immutable stage after BGR and before Filler; prior Unpack makes PackSwap an
   exact validated no-op after output depth reaches 8.
+- Translate read-side `pngtrans.c::png_set_swap` and `png_do_swap`, exchange
+  every adjacent byte in 16-bit rows, and execute the immutable stage after
+  Swap Alpha; prior Scale16/Strip16 reduction makes Byte Swap a validated
+  copy-owned no-op after output depth reaches 8.

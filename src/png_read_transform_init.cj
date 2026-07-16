@@ -19,6 +19,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageSwapAlpha
     | ReadStageUnpack
     | ReadStagePackSwap
+    | ReadStageByteSwap
 
     public operator func ==(right: PngReadTransformStage): Bool {
         ordinalValue() == right.ordinalValue()
@@ -46,6 +47,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageInvertMono => 13
             case ReadStageUnpack => 14
             case ReadStagePackSwap => 15
+            case ReadStageByteSwap => 16
         }
     }
 
@@ -67,6 +69,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStagePackSwap => "PACK_SWAP"
             case ReadStageFiller => "FILLER"
             case ReadStageSwapAlpha => "SWAP_ALPHA"
+            case ReadStageByteSwap => "BYTE_SWAP"
         }
     }
 }
@@ -100,6 +103,7 @@ public class PngReadTransformInitialization {
     private let fillerModeValue: PngFillerMode
     private let fillerValueValue: UInt16
     private let swapAlphaEnabledValue: Bool
+    private let byteSwapEnabledValue: Bool
     private let ownedStages: Array<PngReadTransformStage>
 
     init(
@@ -131,6 +135,7 @@ public class PngReadTransformInitialization {
         fillerMode: PngFillerMode,
         fillerValue: UInt16,
         swapAlphaEnabled: Bool,
+        byteSwapEnabled: Bool,
         stages: Array<PngReadTransformStage>
     ) {
         this.usesPaletteInitializer = usesPaletteInitializer
@@ -167,6 +172,7 @@ public class PngReadTransformInitialization {
         fillerModeValue = fillerMode
         fillerValueValue = fillerValue
         swapAlphaEnabledValue = swapAlphaEnabled
+        byteSwapEnabledValue = byteSwapEnabled
         ownedStages = stages.clone()
     }
 
@@ -322,6 +328,10 @@ public class PngReadTransformInitialization {
     public func swapAlphaEnabled(): Bool {
         swapAlphaEnabledValue
     }
+
+    public func byteSwapEnabled(): Bool {
+        byteSwapEnabledValue
+    }
 }
 
 private class PngInputAlphaClassification {
@@ -421,6 +431,9 @@ private func pngReadTransformStages(
     }
     if (state.swapAlphaEnabled()) {
         stages.add(ReadStageSwapAlpha)
+    }
+    if (state.byteSwapEnabled()) {
+        stages.add(ReadStageByteSwap)
     }
     stages.toArray()
 }
@@ -538,6 +551,7 @@ public func initializePngReadTransformations(
     let fillerMode = state.fillerMode()
     let fillerValue = state.fillerValue()
     let swapAlphaEnabled = state.swapAlphaEnabled()
+    let byteSwapEnabled = state.byteSwapEnabled()
     let stages = pngReadTransformStages(state)
     state.markRowInitialized()
 
@@ -570,6 +584,7 @@ public func initializePngReadTransformations(
         fillerMode,
         fillerValue,
         swapAlphaEnabled,
+        byteSwapEnabled,
         stages
     )
 }

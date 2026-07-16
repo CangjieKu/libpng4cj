@@ -322,9 +322,12 @@ public func applyInitializedPngReadStages(
         filled.row(),
         filled.info.channels != packSwapped.info.channels
     )
+    let byteSwapped = applyInitializedPngByteSwapStage(
+        initialization, swappedAlpha.info, swappedAlpha.row()
+    )
     PngInitializedReadRowResult(
-        swappedAlpha.info,
-        swappedAlpha.row(),
+        byteSwapped.info,
+        byteSwapped.row(),
         gray.hadNonGrayPixels
     )
 }

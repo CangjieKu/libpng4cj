@@ -22,6 +22,16 @@ private let LATE_RGB16_ZLIB: Array<Byte> = [
     0x78, 0x9c, 0x63, 0x60, 0x00, 0x03, 0x00, 0x00, 0x07, 0x00, 0x01
 ]
 
+private let LATE_GRAY16_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x10, 0x32, 0x01, 0x00, 0x00, 0x5b, 0x00, 0x47
+]
+
+private let LATE_RGB16_TWO_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x60, 0x64, 0x62, 0x66, 0x61,
+    0x65, 0x13, 0x14, 0x12, 0x16, 0x11, 0x15, 0x03,
+    0x00, 0x02, 0x4b, 0x00, 0x8b
+]
+
 private let LATE_RGB2X2_ZLIB: Array<Byte> = [
     0x78, 0x9c, 0x63, 0x60, 0x64, 0x62, 0x66, 0x61,
     0x65, 0x63, 0x60, 0xe7, 0xe0, 0xe4, 0xe2, 0xe6,
@@ -99,6 +109,10 @@ private func lateChannelCompressed(
         colorType == Truecolor) {
         return LATE_RGB2X2_ZLIB.clone()
     }
+    if (width == UInt32(2) && height == UInt32(1) &&
+        colorType == Truecolor && bitDepth == UInt8(16)) {
+        return LATE_RGB16_TWO_ZLIB.clone()
+    }
     if (colorType == GrayscaleAlpha) {
         return LATE_GRAY_ALPHA1_ZLIB.clone()
     }
@@ -107,6 +121,9 @@ private func lateChannelCompressed(
     }
     if (colorType == Truecolor && bitDepth == UInt8(16)) {
         return LATE_RGB16_ZLIB.clone()
+    }
+    if (colorType == Grayscale && bitDepth == UInt8(16)) {
+        return LATE_GRAY16_ZLIB.clone()
     }
     if (colorType == Grayscale) {
         return LATE_GRAY1_ZLIB.clone()
@@ -505,6 +522,145 @@ public class PngInitializedLateChannelPipelineTestSuite {
             @Fail("filler growth should count against transformed-byte limits")
         } catch (error: PngFormatException) {
             @Assert(error.kind.toString(), "DECODE_LIMIT_EXCEEDED")
+        }
+    }
+
+    @TestCase
+    public func gatesAndSnapshotsByteSwapAfterSwapAlpha(): Unit {
+        let beforeIhdr = PngReadTransformState()
+        @Assert(beforeIhdr.setSwap(), false)
+        @Assert(
+            beforeIhdr.lastApplicationError().toString(),
+            "INVALID_BEFORE_IHDR"
+        )
+
+        let byteDecoded = lateChannelDecoded(
+            UInt32(1), UInt32(1), UInt8(8), Truecolor
+        )
+        let byteState = PngReadTransformState()
+        byteState.markIhdrRead(byteDecoded.ihdr)
+        @Assert(byteState.setSwap(), true)
+        @Assert(byteState.byteSwapEnabled(), false)
+
+        let colorOnly = PngReadTransformState()
+        colorOnly.markIhdrRead(Truecolor)
+        @Assert(colorOnly.setSwap(), true)
+        @Assert(colorOnly.byteSwapEnabled(), false)
+
+        let decoded = lateChannelDecoded(
+            UInt32(2), UInt32(1), UInt8(16), Truecolor
+        )
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(state.setAddAlpha(UInt16(0x1234), true), true)
+        @Assert(state.setSwapAlpha(), true)
+        @Assert(state.setSwap(), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.stageCount(), Int64(3))
+        @Assert(initialized.stage(0).toString(), "FILLER")
+        @Assert(initialized.stage(1).toString(), "SWAP_ALPHA")
+        @Assert(initialized.stage(2).toString(), "BYTE_SWAP")
+        @Assert(ReadStageByteSwap.ordinalValue(), Int64(16))
+        @Assert(initialized.byteSwapEnabled(), true)
+
+        @Assert(state.setSwap(), false)
+        @Assert(
+            state.lastApplicationError().toString(),
+            "INVALID_AFTER_ROW_INITIALIZATION"
+        )
+        @Assert(initialized.byteSwapEnabled(), true)
+    }
+
+    @TestCase
+    public func appliesByteSwapAfterAddedAlphaSwapAndAfterReduction(): Unit {
+        let decoded = lateChannelDecoded(
+            UInt32(1), UInt32(1), UInt8(16), Truecolor
+        )
+        let orderedState = PngReadTransformState()
+        orderedState.markIhdrRead(decoded.ihdr)
+        @Assert(orderedState.setAddAlpha(UInt16(0x1234), true), true)
+        @Assert(orderedState.setSwapAlpha(), true)
+        @Assert(orderedState.setSwap(), true)
+        let ordered = applyInitializedPngReadStages(
+            initializePngReadTransformations(orderedState, decoded),
+            PngReadRowInfo(UInt32(1), UInt8(16), Truecolor),
+            [0x00, 0x01, 0x00, 0x02, 0x00, 0x03]
+        )
+        let orderedExpected: Array<Byte> = [
+            0x34, 0x12, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00
+        ]
+        @Assert(ordered.row(), orderedExpected)
+        @Assert(ordered.info.bitDepth, UInt8(16))
+        @Assert(ordered.info.channels, UInt8(4))
+
+        let grayDecoded = lateChannelDecoded(
+            UInt32(1), UInt32(1), UInt8(16), Grayscale
+        )
+        let reducedState = PngReadTransformState()
+        reducedState.markIhdrRead(grayDecoded.ihdr)
+        @Assert(reducedState.setStrip16(), true)
+        @Assert(reducedState.setSwap(), true)
+        let reducedInitialization = initializePngReadTransformations(
+            reducedState, grayDecoded
+        )
+        @Assert(reducedInitialization.stage(0).toString(), "STRIP_16_TO_8")
+        @Assert(reducedInitialization.stage(1).toString(), "BYTE_SWAP")
+        let reduced = applyInitializedPngReadStages(
+            reducedInitialization,
+            PngReadRowInfo(UInt32(1), UInt8(16), Grayscale),
+            [0x12, 0x34]
+        )
+        let reducedExpected: Array<Byte> = [0x12]
+        @Assert(reduced.row(), reducedExpected)
+        @Assert(reduced.info.bitDepth, UInt8(8))
+    }
+
+    @TestCase
+    public func appliesWholeImageByteSwapAndValidatesDisabledRows(): Unit {
+        let decoded = lateChannelDecoded(
+            UInt32(2), UInt32(1), UInt8(16), Truecolor
+        )
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(state.setSwap(), true)
+        let transformed = transformPngRowsInitialized(
+            decoded,
+            state,
+            PngReadLimits(
+                UInt32(8_000_000),
+                UInt32(100),
+                UInt32(100),
+                UInt64(1024),
+                UInt64(1024),
+                UInt64(12)
+            )
+        )
+        let expected: Array<Byte> = [
+            0x02, 0x01, 0x04, 0x03, 0x06, 0x05,
+            0x12, 0x11, 0x14, 0x13, 0x16, 0x15
+        ]
+        @Assert(transformed.row(0), expected)
+        @Assert(transformed.info.rowBytes, UInt64(12))
+
+        let disabledState = PngReadTransformState()
+        disabledState.markIhdrRead(
+            lateChannelDecoded(
+                UInt32(1), UInt32(1), UInt8(8), Truecolor
+            ).ihdr
+        )
+        @Assert(disabledState.setSwap(), true)
+        let disabled = lateChannelInitialization(
+            disabledState, UInt8(8), Truecolor
+        )
+        try {
+            applyInitializedPngByteSwapStage(
+                disabled,
+                PngReadRowInfo(UInt32(2), UInt8(8), Grayscale),
+                [0xff]
+            )
+            @Fail("disabled byte swap should validate malformed rows first")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_ARGUMENT")
         }
     }
 }
