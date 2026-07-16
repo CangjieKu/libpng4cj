@@ -398,3 +398,11 @@ equivalence proofs. These helpers are outside the generated 45-function
 `pngrtran.c` inventory; 16-to-8 specialization, initialized attachment,
 16-bit `png_do_gamma`, and gamma-aware RGB-to-gray remain separate, so the
 ledger remains `30 translated / 9 partial / 6 pending`.
+
+LP-S004AZ translates frozen `png_build_16to8_table`, gamma-shift selection,
+and the 16-bit branch of `png_build_gamma_table` from `png.c`. Immutable read
+initialization now retains sBIT/reduction-aware direct or 16-to-8 tables plus
+optional to-linear/from-linear tables without enabling 16-bit row execution.
+These helpers remain outside the generated inventory; `png_do_gamma` stays
+partial until its 16-bit branches land, so the ledger remains
+`30 translated / 9 partial / 6 pending`.

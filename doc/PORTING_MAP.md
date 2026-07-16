@@ -655,6 +655,30 @@ These helpers are outside the 45-function `pngrtran.c` inventory. The
 16-to-8 specialization, gamma-shift selection, initialized 16-bit table
 snapshot, 16-bit `png_do_gamma`, and gamma-aware RGB-to-gray remain separate.
 
+## Implemented Initialized 16-Bit Gamma Table Snapshot
+
+LP-S004AZ translates the remaining 16-bit branch of frozen
+`png_build_gamma_table` before row execution:
+
+- `pngBuildGamma16To8Table` preserves the 255 corrected boundary calculations,
+  compressed-domain rescaling, lower-output filling, and final 65535 fill
+- `pngResolveGamma16BitShift` selects maximum RGB or grayscale sBIT precision,
+  applies the frozen 11-bit input floor for Scale16/Strip16, and clamps to 8
+- direct correction uses the direct segmented builder unless later reduction
+  selects the reciprocal-correction 16-to-8 specialization
+- optional RGB-to-gray support retains direct, file-to-linear, and
+  linear-to-screen segmented tables with one shared shift
+- `PngReadTransformInitialization` owns and exposes the complete table group;
+  post-return access remains deep-copy isolated
+- 16-bit snapshots do not yet add a Gamma stage, so the existing row pipeline
+  cannot claim correction before the row body is translated
+- exhaustive compressed-domain 16-to-8 proof, shift boundaries, direct versus
+  reduction selection, initialized ownership, linear tables, and consumer use
+  are covered directly
+
+The ledger remains `30 translated / 9 partial / 6 pending`. The 16-bit
+`png_do_gamma` branches and gamma-aware RGB-to-gray arithmetic remain separate.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

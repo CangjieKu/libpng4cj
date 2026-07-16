@@ -95,6 +95,7 @@ public class PngReadTransformInitialization {
     private let chunkGammaValue: Int32
     private let initializedGammaValuesValue: PngGammaValues
     private let initializedGamma8BitTablesValue: PngGamma8BitTables
+    private let initializedGamma16BitTablesValue: PngGamma16BitTables
     private let ownedExpandPalette: Array<Byte>
     private let ownedExpandPaletteAlpha: Array<Byte>
     private let expandTransparencyValue: PngExpandTransparency
@@ -141,6 +142,7 @@ public class PngReadTransformInitialization {
         chunkGamma: Int32,
         initializedGammaValues: PngGammaValues,
         initializedGamma8BitTables: PngGamma8BitTables,
+        initializedGamma16BitTables: PngGamma16BitTables,
         expandPalette: Array<Byte>,
         expandPaletteAlpha: Array<Byte>,
         expandTransparency: PngExpandTransparency,
@@ -191,6 +193,9 @@ public class PngReadTransformInitialization {
         )
         initializedGamma8BitTablesValue = PngGamma8BitTables(
             initializedGamma8BitTables
+        )
+        initializedGamma16BitTablesValue = PngGamma16BitTables(
+            initializedGamma16BitTables
         )
         ownedExpandPalette = expandPalette.clone()
         ownedExpandPaletteAlpha = expandPaletteAlpha.clone()
@@ -301,6 +306,26 @@ public class PngReadTransformInitialization {
 
     public func gamma8BitTables(): PngGamma8BitTables {
         PngGamma8BitTables(initializedGamma8BitTablesValue)
+    }
+
+    public func gamma16BitTablesBuilt(): Bool {
+        initializedGamma16BitTablesValue.built()
+    }
+
+    public func gamma16BitLinearTablesBuilt(): Bool {
+        initializedGamma16BitTablesValue.linearTablesBuilt()
+    }
+
+    public func gamma16BitReductionTableBuilt(): Bool {
+        initializedGamma16BitTablesValue.reductionTableBuilt()
+    }
+
+    public func gamma16BitShift(): UInt8 {
+        initializedGamma16BitTablesValue.shift()
+    }
+
+    public func gamma16BitTables(): PngGamma16BitTables {
+        PngGamma16BitTables(initializedGamma16BitTablesValue)
     }
 
     public func expandPalette(): Array<Byte> {
@@ -667,6 +692,14 @@ public func initializePngReadTransformations(
         rgbToGrayEnabled,
         ihdr.bitDepth
     )
+    let initializedGamma16BitTables = pngBuildInitializedGamma16BitTables(
+        initializedGammaValues,
+        rgbToGrayEnabled,
+        ihdr.bitDepth,
+        ihdr.colorType,
+        metadata.significantBits,
+        state.scale16Enabled() || state.strip16Enabled()
+    )
     let quantizeEnabled = state.quantizeEnabled()
     let quantizeMode = if (quantizeEnabled) {
         state.quantizeMode()
@@ -745,6 +778,7 @@ public func initializePngReadTransformations(
         chunkGamma,
         initializedGammaValues,
         initializedGamma8BitTables,
+        initializedGamma16BitTables,
         expandPalette,
         expandPaletteAlpha,
         expandTransparency,

@@ -7,6 +7,10 @@ private let CONSUMER_RGBA_ZLIB: Array<Byte> = [
     0x65, 0x63, 0xe7, 0x00, 0x00, 0x00, 0x81, 0x00, 0x25
 ]
 
+private let CONSUMER_GRAY16_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x10, 0x32, 0x01, 0x00, 0x00, 0x5b, 0x00, 0x47
+]
+
 private func joinConsumerBytes(
     left: Array<Byte>,
     right: Array<Byte>
@@ -57,6 +61,32 @@ private func consumerGammaPng(): Array<Byte> {
         makeConsumerChunk(PNG_CHUNK_gAMA, writeUInt32Be(UInt32(45455)))
     )
     png = joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_RGBA_ZLIB))
+    joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
+}
+
+private func consumerGamma16Png(): Array<Byte> {
+    let ihdr = Array<Byte>(13, repeat: 0)
+    ihdr[3] = UInt8(1)
+    ihdr[7] = UInt8(1)
+    ihdr[8] = UInt8(16)
+    ihdr[9] = UInt8(0)
+
+    var png = joinConsumerBytes(
+        PNG_SIGNATURE,
+        makeConsumerChunk(PNG_CHUNK_IHDR, ihdr)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_gAMA, writeUInt32Be(UInt32(45455)))
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_sBIT, [UInt8(12)])
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_GRAY16_ZLIB)
+    )
     joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
 }
 
@@ -144,6 +174,24 @@ main(): Int64 {
         gamma16Table.value(UInt16(0x8080)) !=
             pngGamma16BitCorrect(UInt16(0x8080), Int32(220000))) {
         println("libpng4cj 16-bit gamma table check failed")
+        return 1
+    }
+    let gamma16State = PngReadTransformState()
+    if (!gamma16State.setScale16() ||
+        !gamma16State.setGammaFixed(Int32(106000), Int32(100000))) {
+        println("libpng4cj initialized 16-bit gamma setup failed")
+        return 1
+    }
+    let initializedGamma16 = initializePngReadTransformations(
+        gamma16State,
+        decodePngNonInterlaced(consumerGamma16Png())
+    )
+    if (!initializedGamma16.gamma16BitTablesBuilt() ||
+        !initializedGamma16.gamma16BitReductionTableBuilt() ||
+        initializedGamma16.gamma16BitLinearTablesBuilt() ||
+        initializedGamma16.gamma16BitShift() != UInt8(5) ||
+        initializedGamma16.hasStage(ReadStageGamma)) {
+        println("libpng4cj initialized 16-bit gamma table check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

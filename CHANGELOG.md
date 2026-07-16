@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Attach immutable initialized 16-bit direct and optional linear Gamma tables,
+  including sBIT/reduction shift selection and the frozen 16-to-8 specialization.
 - Translate frozen floating-arithmetic 16-bit gamma correction and immutable
   segmented direct tables for shifts `0..8`, with exact scaling and copy-owned
   lookup access.

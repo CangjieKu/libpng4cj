@@ -1,0 +1,262 @@
+package libpng4cj.tests
+
+import libpng4cj.*
+
+private let GAMMA16_GRAY_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x10, 0x32, 0x01, 0x00, 0x00, 0x5b, 0x00, 0x47
+]
+
+private func joinGamma16InitBytes(
+    left: Array<Byte>,
+    right: Array<Byte>
+): Array<Byte> {
+    let output = Array<Byte>(left.size + right.size, repeat: 0)
+    var index: Int64 = 0
+    while (index < left.size) {
+        output[index] = left[index]
+        index += 1
+    }
+    var rightIndex: Int64 = 0
+    while (rightIndex < right.size) {
+        output[left.size + rightIndex] = right[rightIndex]
+        rightIndex += 1
+    }
+    output
+}
+
+private func makeGamma16InitChunk(
+    chunkType: Array<Byte>,
+    data: Array<Byte>
+): Array<Byte> {
+    joinGamma16InitBytes(
+        joinGamma16InitBytes(
+            joinGamma16InitBytes(writeUInt32Be(UInt32(data.size)), chunkType),
+            data
+        ),
+        writeUInt32Be(pngChunkCrc32(chunkType, data))
+    )
+}
+
+private func makeGamma16InitIhdr(): Array<Byte> {
+    let data = Array<Byte>(13, repeat: 0)
+    data[3] = UInt8(1)
+    data[7] = UInt8(1)
+    data[8] = UInt8(16)
+    data[9] = UInt8(0)
+    makeGamma16InitChunk(PNG_CHUNK_IHDR, data)
+}
+
+private func gamma16InitializedDecoded(
+    gamma: UInt32,
+    significantGray: UInt8
+): PngDecodedRows {
+    var png = joinGamma16InitBytes(PNG_SIGNATURE, makeGamma16InitIhdr())
+    if (gamma != UInt32(0)) {
+        png = joinGamma16InitBytes(
+            png,
+            makeGamma16InitChunk(PNG_CHUNK_gAMA, writeUInt32Be(gamma))
+        )
+    }
+    if (significantGray != UInt8(0)) {
+        png = joinGamma16InitBytes(
+            png,
+            makeGamma16InitChunk(PNG_CHUNK_sBIT, [significantGray])
+        )
+    }
+    png = joinGamma16InitBytes(
+        png,
+        makeGamma16InitChunk(PNG_CHUNK_IDAT, GAMMA16_GRAY_ZLIB)
+    )
+    png = joinGamma16InitBytes(
+        png,
+        makeGamma16InitChunk(PNG_CHUNK_IEND, [])
+    )
+    decodePngNonInterlaced(png)
+}
+
+private func gamma16CompressedSample(index: UInt32, shift: UInt8): UInt16 {
+    let retainedBits = UInt32(8) - UInt32(shift)
+    let segmentMask = (UInt32(1) << retainedBits) - UInt32(1)
+    let high = index >> retainedBits
+    let segment = index & segmentMask
+    UInt16((high << UInt32(8)) | (segment << UInt32(shift)))
+}
+
+private func gamma16To8Oracle(
+    compressedInput: UInt32,
+    shift: UInt8,
+    gammaValue: Int32
+): UInt16 {
+    let compressedMax =
+        (UInt32(1) << (UInt32(16) - UInt32(shift))) - UInt32(1)
+    var outputIndex = UInt32(0)
+    while (outputIndex < UInt32(255)) {
+        let output = UInt16(outputIndex * UInt32(257))
+        let corrected = pngGamma16BitCorrect(
+            UInt16(UInt32(output) + UInt32(128)),
+            gammaValue
+        )
+        let bound = UInt32(
+            (UInt64(corrected) * UInt64(compressedMax) + UInt64(32768)) /
+            UInt64(65535) + UInt64(1)
+        )
+        if (compressedInput < bound) {
+            return output
+        }
+        outputIndex += UInt32(1)
+    }
+    UInt16(65535)
+}
+
+@Test
+public class PngGamma16BitInitializationTestSuite {
+    @TestCase
+    public func resolvesSignificantAndReductionShiftBounds(): Unit {
+        @Assert(
+            pngResolveGamma16BitShift(
+                Truecolor,
+                PngSignificantBits(0, 12, 10, 11, 16),
+                false
+            ),
+            UInt8(4)
+        )
+        @Assert(
+            pngResolveGamma16BitShift(
+                Grayscale,
+                PngSignificantBits(7, 0, 0, 0, 16),
+                false
+            ),
+            UInt8(8)
+        )
+        @Assert(
+            pngResolveGamma16BitShift(
+                Grayscale,
+                PngSignificantBits(0, 0, 0, 0, 0),
+                true
+            ),
+            UInt8(5)
+        )
+        @Assert(
+            pngResolveGamma16BitShift(
+                Grayscale,
+                PngSignificantBits(14, 0, 0, 0, 16),
+                true
+            ),
+            UInt8(5)
+        )
+    }
+
+    @TestCase
+    public func exhaustivelyMatchesSixteenToEightBoundaryFill(): Unit {
+        let shift = UInt8(5)
+        let gamma = Int32(220000)
+        let table = pngBuildGamma16To8Table(shift, gamma)
+        let entryCount = UInt32(1) << (UInt32(16) - UInt32(shift))
+        var index = UInt32(0)
+        while (index < entryCount) {
+            let value = table.value(gamma16CompressedSample(index, shift))
+            @Assert(value, gamma16To8Oracle(index, shift, gamma))
+            @Assert(UInt32(value) % UInt32(257), UInt32(0))
+            index += UInt32(1)
+        }
+        @Assert(table.value(UInt16(0)), UInt16(0))
+        @Assert(table.value(UInt16(65535)), UInt16(65535))
+    }
+
+    @TestCase
+    public func buildsDirectAndReductionGroupsWithOwnedTables(): Unit {
+        let direct = pngBuildGamma16BitTables(
+            UInt8(8),
+            Int32(100000),
+            Int32(106000),
+            false,
+            false
+        )
+        @Assert(direct.built(), true)
+        @Assert(direct.reductionTableBuilt(), false)
+        @Assert(direct.linearTablesBuilt(), false)
+
+        let reduction = pngBuildGamma16BitTables(
+            UInt8(5),
+            Int32(100000),
+            Int32(106000),
+            false,
+            true
+        )
+        @Assert(reduction.built(), true)
+        @Assert(reduction.reductionTableBuilt(), true)
+        @Assert(reduction.shift(), UInt8(5))
+        let mutable = reduction.direct().segment(0)
+        mutable[0] = UInt16(999)
+        @Assert(reduction.direct().value(UInt16(0)), UInt16(0))
+    }
+
+    @TestCase
+    public func snapshotsDirectAndReductionTablesWithoutGammaStage(): Unit {
+        let directState = PngReadTransformState()
+        @Assert(
+            directState.setGammaFixed(Int32(106000), Int32(100000)),
+            true
+        )
+        let direct = initializePngReadTransformations(
+            directState,
+            gamma16InitializedDecoded(UInt32(45455), UInt8(12))
+        )
+        @Assert(direct.gamma8BitTablesBuilt(), false)
+        @Assert(direct.gamma16BitTablesBuilt(), true)
+        @Assert(direct.gamma16BitReductionTableBuilt(), false)
+        @Assert(direct.gamma16BitShift(), UInt8(4))
+        @Assert(direct.hasStage(ReadStageGamma), false)
+
+        let reductionState = PngReadTransformState()
+        @Assert(reductionState.setScale16(), true)
+        @Assert(
+            reductionState.setGammaFixed(Int32(106000), Int32(100000)),
+            true
+        )
+        let reduction = initializePngReadTransformations(
+            reductionState,
+            gamma16InitializedDecoded(UInt32(0), UInt8(0))
+        )
+        @Assert(reduction.gamma16BitTablesBuilt(), true)
+        @Assert(reduction.gamma16BitReductionTableBuilt(), true)
+        @Assert(reduction.gamma16BitShift(), UInt8(5))
+        @Assert(reduction.hasStage(ReadStageGamma), false)
+        @Assert(reduction.hasStage(ReadStageScale16To8), true)
+    }
+
+    @TestCase
+    public func snapshotsOwnedLinearTablesForSixteenBitRgbToGray(): Unit {
+        let decoded = gamma16InitializedDecoded(UInt32(45455), UInt8(8))
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.gamma16BitTablesBuilt(), true)
+        @Assert(initialized.gamma16BitLinearTablesBuilt(), true)
+        @Assert(initialized.gamma16BitReductionTableBuilt(), false)
+        @Assert(initialized.gamma16BitShift(), UInt8(8))
+        @Assert(initialized.stageCount(), Int64(1))
+        @Assert(initialized.stage(0), ReadStageRgbToGray)
+
+        let tables = initialized.gamma16BitTables()
+        @Assert(
+            tables.toLinear().value(UInt16(0x8080)),
+            pngBuildGamma16BitTable(
+                UInt8(8),
+                pngReciprocalFixed(initialized.fileGamma())
+            ).value(UInt16(0x8080))
+        )
+        let mutable = tables.fromLinear().segment(0)
+        mutable[128] = UInt16(0)
+        @Assert(
+            initialized.gamma16BitTables().fromLinear().value(
+                UInt16(0x8080)
+            ) == UInt16(0),
+            false
+        )
+    }
+}

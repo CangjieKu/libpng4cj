@@ -178,6 +178,9 @@ oracle-test source. Production implementation code belongs directly under
 - frozen 16-bit scalar gamma correction and immutable segmented direct tables
   preserve exact endpoints, nearest rounding, shifts `0..8`, full-range
   identity scaling, and copy-owned segment access
+- initialized 16-bit gamma snapshots select sBIT/reduction-aware shifts, retain
+  direct or frozen 16-to-8 tables plus optional to-linear/from-linear tables,
+  and remain detached from row execution until the 16-bit body lands
 - initialized 8-bit gamma snapshots derive exact reciprocal2 correction and
   retain direct plus optional RGB-to-gray to-linear/from-linear tables without
   changing prior stage identities
@@ -247,7 +250,7 @@ oracle-test source. Production implementation code belongs directly under
   the frozen info-function order rather than runtime row-stage order
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
-RGB-to-gray and general gamma correction, background composition, remaining
+RGB-to-gray and 16-bit gamma row correction, background composition, remaining
 standard metadata, quantize allocation-warning fallback, benign-error callback
 delivery for invalid palette indexes, the remaining read-transform dispatch
 stages, complete transformed-metadata projection, C ABI callback trampolines,

@@ -126,8 +126,27 @@ samples.
 `1 << (8 - shift)` segments of 256 entries, selected by the retained low bits
 and indexed by the input high byte. Significant gamma uses direct full-range
 `pow` scaling; insignificant gamma uses exact identity-range scaling. Segment
-and whole-table accessors return deep copies. The table is not yet attached to
-read initialization or 16-bit `pngDoGamma` execution.
+and whole-table accessors return deep copies.
+
+`pngBuildGamma16To8Table(shift, gammaValue)` translates the frozen boundary-fill
+specialization used when 16-bit input will be reduced to 8-bit. Every result is
+an 8-bit level expanded by `*257`; boundary inputs are corrected, rescaled to
+the compressed domain, and rounded exactly like upstream.
+
+`pngResolveGamma16BitShift(colorType, significantBits, reductionRequired)` uses
+the maximum retained RGB significance or grayscale significance, clamps shifts
+to `0..8`, and enforces the frozen `PNG_MAX_GAMMA_8=11` floor when Scale16 or
+Strip16 will reduce the output.
+
+`pngBuildGamma16BitTables(...)` returns copy-owned direct and optional
+to-linear/from-linear segmented tables. `PngGamma16BitTables` reports the
+selected shift and whether its direct table is the 16-to-8 specialization.
+
+`PngReadTransformInitialization.gamma16BitTablesBuilt()`,
+`gamma16BitLinearTablesBuilt()`, `gamma16BitReductionTableBuilt()`, and
+`gamma16BitShift()` expose the immutable 16-bit snapshot. Source depth 16 uses
+retained sBIT plus Scale16/Strip16 state to choose the table topology. The
+snapshot does not yet enable the Gamma stage for 16-bit rows.
 
 `pngReciprocal2Fixed(a, b)` preserves the frozen floating arithmetic used for
 file-to-screen correction: nonzero inputs calculate `floor(1E15/a/b + 0.5)`,
