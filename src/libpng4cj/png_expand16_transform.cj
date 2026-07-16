@@ -35,3 +35,15 @@ public func pngDoExpand16(
         output
     )
 }
+
+public func applyInitializedPngExpand16Stage(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>
+): PngReadTransformRow {
+    validatePngTransformRowLength(rowInfo, row)
+    if (!initialization.hasStage(ReadStageExpand16)) {
+        return PngReadTransformRow(rowInfo, row)
+    }
+    pngDoExpand16(rowInfo, row)
+}

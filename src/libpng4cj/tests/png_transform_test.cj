@@ -1386,6 +1386,102 @@ public class PngTransformTestSuite {
     }
 
     @TestCase
+    public func appliesInitializedExpand16AfterReductionAndQuantize(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB
+        ))
+        let rowInfo = PngReadRowInfo(UInt32(1), UInt8(16), Truecolor)
+        let input: Array<Byte> = [0x00, 0xff, 0xff, 0x00, 0xff, 0xff]
+
+        let scaleState = PngReadTransformState()
+        @Assert(scaleState.setScale16(), true)
+        @Assert(scaleState.setExpand16(), true)
+        let scaleInitialized = initializePngReadTransformations(scaleState, decoded)
+        let scaled = applyInitializedPng16To8Stages(
+            scaleInitialized, rowInfo, input
+        )
+        let scaleExpanded = applyInitializedPngExpand16Stage(
+            scaleInitialized, scaled.info, scaled.row()
+        )
+        let scaleExpected: Array<Byte> = [0x01, 0x01, 0xfe, 0xfe, 0xff, 0xff]
+        @Assert(scaleExpanded.row(), scaleExpected)
+        @Assert(scaleExpanded.info.bitDepth, UInt8(16))
+
+        let stripState = PngReadTransformState()
+        @Assert(stripState.setStrip16(), true)
+        @Assert(stripState.setExpand16(), true)
+        let stripInitialized = initializePngReadTransformations(stripState, decoded)
+        let stripped = applyInitializedPng16To8Stages(
+            stripInitialized, rowInfo, input
+        )
+        let stripExpanded = applyInitializedPngExpand16Stage(
+            stripInitialized, stripped.info, stripped.row()
+        )
+        let stripExpected: Array<Byte> = [0x00, 0x00, 0xff, 0xff, 0xff, 0xff]
+        @Assert(stripExpanded.row(), stripExpected)
+        @Assert(stripExpanded.info.bitDepth, UInt8(16))
+
+        let palette: Array<Byte> = [0, 0, 0, 0xff, 0xff, 0xff]
+        let quantizeState = PngReadTransformState()
+        @Assert(quantizeState.setScale16(), true)
+        @Assert(quantizeState.setQuantize(palette, 2, 2, true), true)
+        @Assert(quantizeState.setExpand16(), true)
+        let quantizeInitialized = initializePngReadTransformations(
+            quantizeState, decoded
+        )
+        let black16: Array<Byte> = [0, 0, 0, 0, 0, 0]
+        let black8 = applyInitializedPng16To8Stages(
+            quantizeInitialized, rowInfo, black16
+        )
+        let quantized = applyInitializedPngQuantizeStage(
+            quantizeInitialized, black8.info, black8.row()
+        )
+        let indexed = applyInitializedPngExpand16Stage(
+            quantizeInitialized, quantized.info, quantized.row()
+        )
+        let indexedExpected: Array<Byte> = [0]
+        @Assert(indexed.row(), indexedExpected)
+        @Assert(indexed.info.colorType.toString(), "INDEXED")
+        @Assert(indexed.info.bitDepth, UInt8(8))
+        @Assert(indexed.info.rowBytes, UInt64(1))
+    }
+
+    @TestCase
+    public func keepsDisabledInitializedExpand16OwnedAndRejectsMalformedRows(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let disabled = initializePngReadTransformations(
+            PngReadTransformState(), decoded
+        )
+        let input: Array<Byte> = [1, 2, 3]
+        let unchanged = applyInitializedPngExpand16Stage(
+            disabled,
+            PngReadRowInfo(UInt32(1), UInt8(8), Truecolor),
+            input
+        )
+        let expected: Array<Byte> = [1, 2, 3]
+        @Assert(unchanged.row(), expected)
+        input[0] = UInt8(9)
+        @Assert(unchanged.row(), expected)
+
+        let state = PngReadTransformState()
+        @Assert(state.setExpand16(), true)
+        let enabled = initializePngReadTransformations(state, decoded)
+        try {
+            applyInitializedPngExpand16Stage(
+                enabled,
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+                [1, 2, 3, 4, 5]
+            )
+            @Fail("initialized Expand16 should reject malformed rows first")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+            @Assert(e.message, "PNG transform row length does not match row info")
+        }
+    }
+
+    @TestCase
     public func invertsEightBitGrayAlphaAndRgbaRows(): Unit {
         let grayAlphaInfo = PngReadRowInfo(
             UInt32(2), UInt8(8), GrayscaleAlpha

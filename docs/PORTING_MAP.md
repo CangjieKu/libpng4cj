@@ -481,8 +481,18 @@ LP-S004U adds `png_expand16_transform.cj` as the direct translation of
 - Indexed, non-8-bit, zero-channel, and zero-width rows safely no-op after
   row-length validation
 
-The direct body does not connect the initialized Expand16 stage, compose with
-Scale16/Strip16, or claim the complete row dispatcher.
+LP-S004AC connects the direct body to the bounded initialized Expand16 stage:
+
+- disabled initialization returns a validated copy-owned no-op row
+- enabled initialization delegates to `pngDoExpand16`
+- Scale16 and Strip16 can reduce a 16-bit row before Expand16 replicates the
+  resulting 8-bit bytes back into network-order 16-bit pairs
+- full-color Quantize changes RGB/RGBA to Indexed before Expand16, so the direct
+  body's Indexed no-op gate preserves the quantized bytes and row info
+- malformed rows fail before disabled, transformed, or Indexed no-op behavior
+
+The adapter does not execute preceding stages automatically or claim the
+complete row dispatcher.
 
 ## Implemented Direct Quantize
 

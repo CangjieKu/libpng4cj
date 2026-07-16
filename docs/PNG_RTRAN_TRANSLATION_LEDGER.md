@@ -39,7 +39,7 @@ Status meanings:
 | 978 | `png_set_palette_to_rgb` | `PngReadTransformState.setPaletteToRgb` | translated | transformed IHDR projection deferred |
 | 990 | `png_set_expand_gray_1_2_4_to_8` | `PngReadTransformState.setExpandGrayOneTwoFourToEight` | translated | transformed IHDR projection deferred |
 | 1002 | `png_set_tRNS_to_alpha` | `PngReadTransformState.setTransparencyToAlpha` | translated | transformed IHDR projection deferred |
-| 1018 | `png_set_expand_16` | `PngReadTransformState.setExpand16` | translated | transformed IHDR projection deferred |
+| 1018 | `png_set_expand_16` | `PngReadTransformState.setExpand16` | translated | direct C ABI setter deferred |
 | 1031 | `png_set_gray_to_rgb` | `PngReadTransformState.setGrayToRgb` | translated | direct C ABI setter and transformed-info projection deferred |
 | 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
 | 1118 | `png_set_rgb_to_gray` | none | pending | floating-point fixed conversion facade |
@@ -65,9 +65,9 @@ Status meanings:
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | initializer adapter and complete dispatcher remain partial |
-| 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | initialized adapter and complete dispatcher remain partial |
+| 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | quantize is ordered after Strip16 and before Expand16; complete stateful dispatcher and pending bodies remain |
+| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | Scale/Strip, Quantize, and Expand16 have bounded initialized composition; complete stateful dispatcher and pending bodies remain |
 
 ## Translation Rule
 
@@ -194,3 +194,10 @@ metadata stays immutable, and Indexed output blocks Expand16. Gamma/background,
 filler, pack, user-transform, complete metadata projection, complete dispatch,
 native allocation-warning fallback, and C ABI remain open, so the ledger stays
 `24 translated / 7 partial / 14 pending`.
+
+LP-S004AC adds `applyInitializedPngExpand16Stage` over the direct row body.
+Disabled stages remain validated copy-owned no-ops; Scale/Strip output expands
+back to network-order 16-bit pairs, while preceding Quantize produces Indexed
+rows that correctly block Expand16. The adapter proves the local frozen order
+without claiming automatic execution of preceding transforms or the complete
+dispatcher, so the ledger remains `24 translated / 7 partial / 14 pending`.

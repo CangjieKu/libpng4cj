@@ -86,7 +86,8 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   traversal, PNG network order, copy ownership, and exact row information
 - direct `pngDoExpand16` replicates every 8-bit non-palette runtime row byte
   into a 16-bit high/low pair with reverse growth, retained color type/current
-  channels, copy ownership, and exact row-information updates
+  channels, copy ownership, and exact row-information updates;
+  `applyInitializedPngExpand16Stage` gates it after Scale/Strip and Quantize
 - direct `pngDoQuantize` translates 8-bit RGB/RGBA through the frozen 5/5/5
   32768-entry palette lookup and remaps Indexed rows through a complete
   256-entry safety table with copy ownership and exact row-information updates
