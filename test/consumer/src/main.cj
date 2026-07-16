@@ -108,6 +108,12 @@ main(): Int64 {
         println("libpng4cj state-driven gamma initialization check failed")
         return 1
     }
+    let gammaTable = pngBuildGamma8BitTable(Int32(220000))
+    if (gammaTable.size() != Int64(256) ||
+        gammaTable.value(UInt8(128)) != UInt8(56)) {
+        println("libpng4cj 8-bit gamma table check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

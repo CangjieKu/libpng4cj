@@ -364,3 +364,12 @@ to chunk/default behavior, explicit file gamma wins over gAMA, and the snapshot
 is isolated from post-initialization mutation. Gamma tables, row correction,
 background/alpha mode, palette mutation, callbacks, and C ABI remain separate,
 so the ledger remains `30 translated / 8 partial / 7 pending`.
+
+LP-S004AV translates the frozen floating-arithmetic
+`png_gamma_8bit_correct` helper and result-equivalent `png_build_8bit_table`
+substrate from `png.c`. Exact endpoints, nearest `pow` rounding, identity
+filling, significant table generation, exhaustive table/scalar equivalence,
+monotonicity, and copy ownership are covered. These helpers are outside the
+generated 45-function `pngrtran.c` inventory; initialization attachment,
+16-bit tables, and `png_do_gamma` remain separate, so the ledger remains
+`30 translated / 8 partial / 7 pending`.

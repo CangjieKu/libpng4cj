@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Translate frozen floating-arithmetic 8-bit gamma correction and immutable
+  256-entry identity/significant table generation.
 - Connect configured gamma state and retained gAMA metadata to immutable read
   initialization, exposing resolved file/screen values and correction status
   without adding a row-correction stage.

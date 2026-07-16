@@ -104,6 +104,17 @@ Explicit file gamma wins over gAMA; absent sources resolve to identity gamma.
 This initialization fact does not add a Gamma row stage or alter existing stage
 ordinals. Gamma tables and pixel correction remain separate work.
 
+`pngGamma8BitCorrect(value, gammaValue)` translates the frozen floating
+arithmetic branch for byte samples. Zero and 255 remain exact; interior values
+use `floor(255 * pow(value / 255, gammaValue * 0.00001) + 0.5)`.
+
+`pngBuildGamma8BitTable(gammaValue)` returns a copy-owned immutable
+`PngGamma8BitTable`. Gamma values inside the significance threshold generate
+the exact identity table; significant values apply scalar correction to all
+256 entries. The table builder is intended for positive gamma values already
+resolved from validated setter/metadata state. Initialization attachment,
+16-bit tables, and row execution remain separate work.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

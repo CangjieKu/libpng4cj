@@ -172,6 +172,9 @@ oracle-test source. Production implementation code belongs directly under
   flags, validates the supported range, and preserves failed-call state
 - floating gamma configuration preserves already-fixed/flag-shaped values,
   scales ordinary decimals, and delegates into the fixed setter
+- frozen 8-bit scalar gamma correction and immutable 256-entry table generation
+  preserve exact endpoints, nearest rounding, identity fast paths, and
+  copy-owned table access before row-stage attachment
 - source-shaped `pngDoRgbToGray` converts 8/16-bit RGB/RGBA byte rows into
   Gray/GA with fixed coefficients, PNG network-order preservation, exact row
   information, copy ownership, and aggregate nongray status

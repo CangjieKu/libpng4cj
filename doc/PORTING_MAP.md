@@ -579,6 +579,21 @@ the existing immutable initializer:
 Gamma tables, `png_do_gamma`, gamma-aware RGB-to-gray, background/alpha mode,
 palette mutation, callback delivery, and C ABI wrappers remain separate.
 
+## Implemented 8-Bit Gamma Correction And Table Substrate
+
+LP-S004AV translates the frozen floating-arithmetic 8-bit correction path:
+
+- `pngGamma8BitCorrect` preserves exact zero/255 endpoints
+- interior samples use frozen `pow` scaling and `floor(... + 0.5)` rounding
+- `PngGamma8BitTable` owns exactly 256 entries and returns cloned table arrays
+- insignificant gamma uses direct identity filling
+- significant gamma applies the scalar correction to every entry
+- exhaustive identity and table/scalar equivalence tests cover all 256 values
+
+This substrate is not yet attached to read initialization. The 16-bit table,
+`png_build_gamma_table`, `png_do_gamma`, gamma-aware RGB-to-gray,
+background/alpha mode, and C ABI wrappers remain separate.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
