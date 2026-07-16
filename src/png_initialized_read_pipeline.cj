@@ -310,14 +310,17 @@ public func applyInitializedPngReadStages(
     let bgr = applyInitializedPngBgrStage(
         initialization, unpacked.info, unpacked.row()
     )
-    let filled = applyInitializedPngFillerStage(
+    let packSwapped = applyInitializedPngPackSwapStage(
         initialization, bgr.info, bgr.row()
+    )
+    let filled = applyInitializedPngFillerStage(
+        initialization, packSwapped.info, packSwapped.row()
     )
     let swappedAlpha = applyInitializedPngSwapAlphaAfterFillerStage(
         initialization,
         filled.info,
         filled.row(),
-        filled.info.channels != bgr.info.channels
+        filled.info.channels != packSwapped.info.channels
     )
     PngInitializedReadRowResult(
         swappedAlpha.info,

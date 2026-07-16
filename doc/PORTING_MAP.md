@@ -166,8 +166,8 @@ apply operations while each already bounded output row is being created, so
 the packet does not add a second full transformed-image allocation.
 
 sBIT unshift, strip-alpha/filler, RGB-to-gray, gamma/background/alpha-mode,
-quantization, packing/packswap, byte swap, and user callbacks remain later
-LP-S004 work.
+quantization, packing/packswap, byte swap, and user callbacks were outside the
+LP-S004E packet; later sections record their current status.
 
 ## Implemented Row Shapes
 
@@ -192,7 +192,8 @@ limit using the final three- or four-channel shape. Existing fixed RGBA8/RGBA16
 convenience APIs remain unchanged.
 
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
-swap, and user callbacks remain later LP-S004 work.
+swap, and user callbacks were outside the LP-S004F packet; later sections
+record their current status.
 
 ## Implemented RGB-to-Gray Fixed Core
 
@@ -222,9 +223,9 @@ Palette, grayscale-family, native 8-bit, native UInt16, and explicit Strip/Scale
 inputs share the same output contract. Retained metadata remains unchanged.
 
 cHRM-derived default coefficients, gamma linearization and lookup tables,
-background/alpha composition, warning callbacks, and transformed metadata
-projection remain later LP-S004 work, along with quantization, packing/packswap,
-byte swap, and user callbacks.
+background/alpha composition, warning callbacks, transformed metadata
+projection, quantization, packing/packswap, byte swap, and user callbacks were
+outside the LP-S004H packet; later sections record their current status.
 
 ## Translation-First Realignment
 
@@ -320,7 +321,7 @@ late-channel stages:
   limits, and returns copy-owned rows
 
 The public entry covers the currently translated non-gamma stage set. Gamma,
-background composition, packswap, byte swap, user transforms, Adam7
+background composition, byte swap, user transforms, Adam7
 execution, and progressive input remain outside this combined path.
 
 ## Implemented Read Packing Setter And Initialized Unpack
@@ -339,7 +340,31 @@ LP-S004AJ connects the direct packed-row body to translated read state:
   stage selection, and whole-image transformed-byte limits include unpack growth
 - `projectPngReadTransformInfo` now projects active packing to 8-bit row shape
 
-PackSwap, palette-index diagnostics, byte swap, user callbacks, write packing,
+PackSwap is connected by LP-S004AK. Palette-index diagnostics, byte swap, user
+callbacks, write packing, gamma/background, Adam7, progressive IO, C ABI, and
+release packaging remain separate work.
+
+## Implemented Read PackSwap Setter And Initialized Stage
+
+LP-S004AK translates `pngtrans.c::png_set_packswap` and
+`pngtrans.c::png_do_packswap` into read state and direct row execution:
+
+- `setPackSwap()` requires a known IHDR and enables only for source bit depths
+  1, 2, or 4
+- `pngDoPackSwap()` reverses the order of 1-bit samples, 2-bit groups, or
+  4-bit nibbles independently in every stored byte
+- complete final bytes are transformed, so unused padding bits follow the same
+  lookup-table semantics as the frozen C implementation
+- width, bit depth, color type, channels, pixel depth, and row bytes remain
+  unchanged; transformed, disabled, and unsupported results are copy-owned
+- malformed row lengths fail before stage selection or support checks
+- immutable initialization places PackSwap after BGR and before Filler
+- when Packing is also enabled, the earlier Unpack stage raises bit depth to 8
+  and PackSwap becomes a validated no-op without changing the unpacked result
+- whole-image initialized execution uses the same stage and existing final-row
+  transformed-byte limit
+
+Byte swap, palette-index diagnostics, user callbacks, write-side PackSwap,
 gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
 separate work.
 
@@ -360,8 +385,9 @@ LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
 - initialized row and whole-image execution place Invert Mono after Expand16
   and before Invert Alpha and Unshift
 
-The bounded stage does not add pack/packswap, byte swap, user callbacks,
-gamma/background, Adam7, progressive IO, write behavior, or C ABI surfaces.
+The LP-S004AI packet did not add pack/packswap, byte swap, user callbacks,
+gamma/background, Adam7, progressive IO, write behavior, or C ABI surfaces;
+later sections record the current PackSwap status.
 
 ## Implemented Direct BGR Row Body
 
@@ -381,9 +407,9 @@ LP-S004AH adds `png_bgr_transform.cj` as the direct translation of
 - whole-image initialized transformation uses the same stage and retains the
   existing transformed-byte limit
 
-The bounded stage does not add invert-mono, pack/packswap, byte swap, user
+The LP-S004AH packet did not add invert-mono, pack/packswap, byte swap, user
 callbacks, gamma/background, Adam7, progressive IO, write behavior, or C ABI
-surfaces.
+surfaces; later sections record the current PackSwap status.
 
 ## Implemented Direct Gray-To-RGB Row Body
 
@@ -537,9 +563,9 @@ LP-S004R adds `png_unpack_transform.cj` as the direct translation of
 - malformed packed row lengths fail before source bytes are read
 
 The direct body does not scale grayscale values or expand palette entries to
-RGB. LP-S004AJ now provides read-side `png_set_packing` state and bounded
-initialized dispatch; packswap, write packing, and the complete dispatcher
-remain separate work.
+RGB. LP-S004AJ provides read-side `png_set_packing` state and bounded
+initialized dispatch. LP-S004AK now provides PackSwap; write packing and the
+complete dispatcher remain separate work.
 
 ## Implemented Direct Palette Expansion
 
@@ -806,4 +832,5 @@ The direct adapter does not perform palette initialization mutation or compose
 byte swap, filler, and the complete `png_do_read_transformations` path.
 
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
-swap, and user callbacks remain later LP-S004 work.
+swap, and user callbacks were outside that direct adapter packet; later
+sections record their current status.

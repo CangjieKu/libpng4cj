@@ -90,6 +90,7 @@ public class PngReadTransformState {
     private var shiftSignificantBitsValue: PngSignificantBits = PngSignificantBits()
     private var packingValue: Bool = false
     private var bgrValue: Bool = false
+    private var packSwapValue: Bool = false
     private var fillerModeValue: PngFillerMode = NoFiller
     private var fillerValueValue: UInt16 = UInt16(0)
     private var swapAlphaValue: Bool = false
@@ -364,6 +365,14 @@ public class PngReadTransformState {
         true
     }
 
+    public func setPackSwap(): Bool {
+        if (!pngRtranOk(true)) {
+            return false
+        }
+        packSwapValue = ihdrBitDepthKnownValue && ihdrBitDepthValue < UInt8(8)
+        true
+    }
+
     private func pngFillerMode(after: Bool, addAlpha: Bool): PngFillerMode {
         if (addAlpha) {
             return if (after) { AlphaAfter } else { AlphaBefore }
@@ -509,6 +518,10 @@ public class PngReadTransformState {
 
     public func bgrEnabled(): Bool {
         bgrValue
+    }
+
+    public func packSwapEnabled(): Bool {
+        packSwapValue
     }
 
     public func fillerEnabled(): Bool {

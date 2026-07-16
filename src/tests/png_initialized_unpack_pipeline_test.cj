@@ -6,6 +6,10 @@ private let PACKING_GRAY1_ZLIB: Array<Byte> = [
     0x78, 0x9c, 0x63, 0x60, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01
 ]
 
+private let PACKSWAP_GRAY1_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0xd8, 0x04, 0x00, 0x00, 0xb4, 0x00, 0xb3
+]
+
 private func joinPackingBytes(
     left: Array<Byte>,
     right: Array<Byte>
@@ -86,6 +90,19 @@ private func packingDecoded(): PngDecodedRows {
     png = joinPackingBytes(
         png,
         makePackingChunk(PNG_CHUNK_IDAT, PACKING_GRAY1_ZLIB)
+    )
+    png = joinPackingBytes(png, makePackingChunk(PNG_CHUNK_IEND, []))
+    decodePngNonInterlaced(png)
+}
+
+private func packSwapDecoded(): PngDecodedRows {
+    var png = joinPackingBytes(
+        PNG_SIGNATURE,
+        makePackingIhdrChunk(UInt32(8), UInt8(1), Grayscale)
+    )
+    png = joinPackingBytes(
+        png,
+        makePackingChunk(PNG_CHUNK_IDAT, PACKSWAP_GRAY1_ZLIB)
     )
     png = joinPackingBytes(png, makePackingChunk(PNG_CHUNK_IEND, []))
     decodePngNonInterlaced(png)
@@ -315,6 +332,109 @@ public class PngInitializedUnpackPipelineTestSuite {
             @Fail("unpack growth should count against transformed-byte limits")
         } catch (error: PngFormatException) {
             @Assert(error.kind.toString(), "DECODE_LIMIT_EXCEEDED")
+        }
+    }
+
+    @TestCase
+    public func gatesAndSnapshotsPackSwapAfterBgrBeforeFiller(): Unit {
+        let beforeIhdr = PngReadTransformState()
+        @Assert(beforeIhdr.setPackSwap(), false)
+        @Assert(
+            beforeIhdr.lastApplicationError().toString(),
+            "INVALID_BEFORE_IHDR"
+        )
+
+        let depths: Array<UInt8> = [1, 2, 4]
+        var index: Int64 = 0
+        while (index < depths.size) {
+            let state = PngReadTransformState()
+            state.markIhdrRead(packingIhdr(depths[index], Grayscale))
+            @Assert(state.setPackSwap(), true)
+            @Assert(state.packSwapEnabled(), true)
+            index += 1
+        }
+
+        let byteDepth = PngReadTransformState()
+        byteDepth.markIhdrRead(packingIhdr(UInt8(8), Grayscale))
+        @Assert(byteDepth.setPackSwap(), true)
+        @Assert(byteDepth.packSwapEnabled(), false)
+
+        let colorOnly = PngReadTransformState()
+        colorOnly.markIhdrRead(Grayscale)
+        @Assert(colorOnly.setPackSwap(), true)
+        @Assert(colorOnly.packSwapEnabled(), false)
+
+        let decoded = packSwapDecoded()
+        let ordered = PngReadTransformState()
+        ordered.markIhdrRead(decoded.ihdr)
+        @Assert(ordered.setBgr(), true)
+        @Assert(ordered.setPackSwap(), true)
+        @Assert(ordered.setFiller(UInt16(0xff), true), true)
+        let initialized = initializePngReadTransformations(ordered, decoded)
+        @Assert(initialized.stageCount(), Int64(3))
+        @Assert(initialized.stage(0).toString(), "BGR")
+        @Assert(initialized.stage(1).toString(), "PACK_SWAP")
+        @Assert(initialized.stage(2).toString(), "FILLER")
+        @Assert(initialized.packSwapEnabled(), true)
+
+        @Assert(ordered.setPackSwap(), false)
+        @Assert(
+            ordered.lastApplicationError().toString(),
+            "INVALID_AFTER_ROW_INITIALIZATION"
+        )
+        @Assert(initialized.packSwapEnabled(), true)
+    }
+
+    @TestCase
+    public func appliesPackSwapAndPackingInteractionInInitializedOrder(): Unit {
+        let decoded = packSwapDecoded()
+        let packSwapOnly = PngReadTransformState()
+        packSwapOnly.markIhdrRead(decoded.ihdr)
+        @Assert(packSwapOnly.setPackSwap(), true)
+        let transformed = transformPngRowsInitialized(decoded, packSwapOnly)
+        let swappedExpected: Array<Byte> = [0x4d]
+        @Assert(transformed.row(0), swappedExpected)
+        @Assert(transformed.info.bitDepth, UInt8(1))
+        @Assert(transformed.info.rowBytes, UInt64(1))
+
+        let combinedState = PngReadTransformState()
+        combinedState.markIhdrRead(decoded.ihdr)
+        @Assert(combinedState.setPacking(), true)
+        @Assert(combinedState.setPackSwap(), true)
+        let combinedInitialization = initializePngReadTransformations(
+            combinedState,
+            decoded
+        )
+        @Assert(combinedInitialization.stageCount(), Int64(2))
+        @Assert(combinedInitialization.stage(0).toString(), "UNPACK")
+        @Assert(combinedInitialization.stage(1).toString(), "PACK_SWAP")
+
+        let combined = applyInitializedPngReadStages(
+            combinedInitialization,
+            PngReadRowInfo(UInt32(8), UInt8(1), Grayscale),
+            [0xb2]
+        )
+        let unpackedExpected: Array<Byte> = [1, 0, 1, 1, 0, 0, 1, 0]
+        @Assert(combined.row(), unpackedExpected)
+        @Assert(combined.info.bitDepth, UInt8(8))
+        @Assert(combined.info.rowBytes, UInt64(8))
+    }
+
+    @TestCase
+    public func validatesPackSwapRowsBeforeStageSelection(): Unit {
+        let state = PngReadTransformState()
+        state.markIhdrRead(packingIhdr(UInt8(8), Grayscale))
+        @Assert(state.setPackSwap(), true)
+        let disabled = initializePngReadTransformations(state, packingDecoded())
+        try {
+            applyInitializedPngPackSwapStage(
+                disabled,
+                PngReadRowInfo(UInt32(2), UInt8(8), Grayscale),
+                [0xff]
+            )
+            @Fail("disabled PackSwap should validate malformed rows first")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_ARGUMENT")
         }
     }
 }

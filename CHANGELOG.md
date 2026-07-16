@@ -21,3 +21,7 @@
 - Translate read-side `pngtrans.c::png_set_packing`, snapshot it in one-shot
   initialization, and execute direct `pngDoUnpack` after Unshift and before BGR
   with exact row growth and transformed-byte limiting.
+- Translate read-side `pngtrans.c::png_set_packswap` and `png_do_packswap`,
+  reverse 1/2/4-bit sample groups across every stored byte, and execute the
+  immutable stage after BGR and before Filler; prior Unpack makes PackSwap an
+  exact validated no-op after output depth reaches 8.

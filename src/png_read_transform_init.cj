@@ -18,6 +18,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageFiller
     | ReadStageSwapAlpha
     | ReadStageUnpack
+    | ReadStagePackSwap
 
     public operator func ==(right: PngReadTransformStage): Bool {
         ordinalValue() == right.ordinalValue()
@@ -44,6 +45,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageBgr => 12
             case ReadStageInvertMono => 13
             case ReadStageUnpack => 14
+            case ReadStagePackSwap => 15
         }
     }
 
@@ -62,6 +64,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageUnshift => "UNSHIFT"
             case ReadStageUnpack => "UNPACK"
             case ReadStageBgr => "BGR"
+            case ReadStagePackSwap => "PACK_SWAP"
             case ReadStageFiller => "FILLER"
             case ReadStageSwapAlpha => "SWAP_ALPHA"
         }
@@ -93,6 +96,7 @@ public class PngReadTransformInitialization {
     private let shiftSignificantBitsValue: PngSignificantBits
     private let packingEnabledValue: Bool
     private let bgrEnabledValue: Bool
+    private let packSwapEnabledValue: Bool
     private let fillerModeValue: PngFillerMode
     private let fillerValueValue: UInt16
     private let swapAlphaEnabledValue: Bool
@@ -123,6 +127,7 @@ public class PngReadTransformInitialization {
         shiftSignificantBits: PngSignificantBits,
         packingEnabled: Bool,
         bgrEnabled: Bool,
+        packSwapEnabled: Bool,
         fillerMode: PngFillerMode,
         fillerValue: UInt16,
         swapAlphaEnabled: Bool,
@@ -158,6 +163,7 @@ public class PngReadTransformInitialization {
         )
         packingEnabledValue = packingEnabled
         bgrEnabledValue = bgrEnabled
+        packSwapEnabledValue = packSwapEnabled
         fillerModeValue = fillerMode
         fillerValueValue = fillerValue
         swapAlphaEnabledValue = swapAlphaEnabled
@@ -297,6 +303,10 @@ public class PngReadTransformInitialization {
         bgrEnabledValue
     }
 
+    public func packSwapEnabled(): Bool {
+        packSwapEnabledValue
+    }
+
     public func fillerMode(): PngFillerMode {
         fillerModeValue
     }
@@ -402,6 +412,9 @@ private func pngReadTransformStages(
     }
     if (state.bgrEnabled()) {
         stages.add(ReadStageBgr)
+    }
+    if (state.packSwapEnabled()) {
+        stages.add(ReadStagePackSwap)
     }
     if (state.fillerEnabled()) {
         stages.add(ReadStageFiller)
@@ -521,6 +534,7 @@ public func initializePngReadTransformations(
     }
     let packingEnabled = state.packingEnabled()
     let bgrEnabled = state.bgrEnabled()
+    let packSwapEnabled = state.packSwapEnabled()
     let fillerMode = state.fillerMode()
     let fillerValue = state.fillerValue()
     let swapAlphaEnabled = state.swapAlphaEnabled()
@@ -552,6 +566,7 @@ public func initializePngReadTransformations(
         shiftSignificantBits,
         packingEnabled,
         bgrEnabled,
+        packSwapEnabled,
         fillerMode,
         fillerValue,
         swapAlphaEnabled,
