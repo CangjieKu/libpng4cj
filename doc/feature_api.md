@@ -76,6 +76,12 @@ when division or signed-32-bit representation fails.
 screen gamma is reciprocated before return. An all-zero source set or failed
 screen reciprocal resolves to zero. The input object remains immutable.
 
+`pngInitGammaValues` returns immutable `PngGammaValues`. Positive file and
+screen gamma values retain both inputs and evaluate correction significance. A
+positive file with absent or nonpositive screen gamma derives the screen value
+from the file reciprocal. A nonpositive resolved file resets both values to
+`PNG_FP_1` and disables correction.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

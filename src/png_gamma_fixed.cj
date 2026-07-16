@@ -95,3 +95,39 @@ public func pngResolveFileGamma(sources: PngFileGammaSources): Int32 {
     }
     Int32(0)
 }
+
+public class PngGammaValues {
+    public let fileGamma: Int32
+    public let screenGamma: Int32
+    public let correctionRequired: Bool
+
+    public init(
+        fileGamma: Int32,
+        screenGamma: Int32,
+        correctionRequired: Bool
+    ) {
+        this.fileGamma = fileGamma
+        this.screenGamma = screenGamma
+        this.correctionRequired = correctionRequired
+    }
+}
+
+// Immutable translation of upstream png_init_gamma_values.
+public func pngInitGammaValues(sources: PngFileGammaSources): PngGammaValues {
+    var fileGamma = pngResolveFileGamma(sources)
+    var screenGamma = sources.screenGamma
+    var correctionRequired = false
+
+    if (fileGamma > Int32(0)) {
+        if (screenGamma > Int32(0)) {
+            correctionRequired = pngGammaThreshold(fileGamma, screenGamma)
+        } else {
+            screenGamma = pngReciprocalFixed(fileGamma)
+        }
+    } else {
+        fileGamma = PNG_FP_1
+        screenGamma = PNG_FP_1
+    }
+
+    PngGammaValues(fileGamma, screenGamma, correctionRequired)
+}

@@ -48,7 +48,7 @@ Status meanings:
 | 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | mutable read-state and C ABI integration deferred |
-| 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
+| 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | mutable read-state and C ABI integration deferred |
 | 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, and native user-transform state are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
@@ -330,3 +330,11 @@ nonzero screen gamma is reciprocated, with zero or reciprocal failure returning
 zero. Mutable read-state integration, gamma initialization, tables, and row
 correction remain separate, while the ledger advances to
 `27 translated / 8 partial / 10 pending`.
+
+LP-S004AR translates `png_init_gamma_values` as immutable
+`pngInitGammaValues`. Positive resolved file and screen gamma values use the
+accepted threshold helper; a positive file with absent/nonpositive screen gamma
+uses the exact reciprocal; a nonpositive resolved file resets both values to
+`PNG_FP_1`. Mutable read-state integration, tables, and row correction remain
+separate, while the ledger advances to
+`28 translated / 8 partial / 9 pending`.

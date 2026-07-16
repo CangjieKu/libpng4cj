@@ -164,6 +164,8 @@ oracle-test source. Production implementation code belongs directly under
   palette/count plus generated lookup/remap tables and fixed RGB-to-gray
   configuration, and exposes the translated read stages in frozen upstream
   order
+- immutable gamma initialization resolves file/screen values and exposes
+  whether file-to-screen correction is required before table generation
 - source-shaped `pngDoRgbToGray` converts 8/16-bit RGB/RGBA byte rows into
   Gray/GA with fixed coefficients, PNG network-order preservation, exact row
   information, copy ownership, and aggregate nongray status
@@ -238,7 +240,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `27 translated / 8 partial / 10 pending`.
+The current ledger is `28 translated / 8 partial / 9 pending`.
 
 ## Native Dependency
 

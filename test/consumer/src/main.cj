@@ -7,6 +7,18 @@ main(): Int64 {
         println("libpng4cj signature check failed")
         return 1
     }
+    let gamma = pngInitGammaValues(PngFileGammaSources(
+        Int32(45455),
+        Int32(0),
+        Int32(0),
+        Int32(0)
+    ))
+    if (gamma.fileGamma != Int32(45455) ||
+        gamma.screenGamma != Int32(219998) ||
+        gamma.correctionRequired) {
+        println("libpng4cj gamma initialization check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

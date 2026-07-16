@@ -506,6 +506,23 @@ This packet does not add gamma setters, read-state mutation,
 `png_init_gamma_values`, tables, pixel-row correction, background/alpha mode,
 or C ABI wrappers.
 
+## Implemented Gamma Value Initialization
+
+LP-S004AR translates `png_init_gamma_values` without opening mutable read state:
+
+- `pngInitGammaValues` resolves file gamma through the AQ precedence helper
+- positive file and screen values evaluate the AP gamma threshold
+- positive file with absent/nonpositive screen derives exact reciprocal screen
+  gamma without enabling correction
+- nonpositive resolved file resets file and screen gamma to `PNG_FP_1`
+- immutable `PngGammaValues` exposes resolved file gamma, screen gamma, and the
+  correction-required decision
+- threshold overflow, reciprocal fallback/failure, signed nonpositive input,
+  every branch, and source immutability are covered directly
+
+This packet does not add gamma setters, read-state mutation, gamma tables,
+pixel-row correction, background/alpha mode, or C ABI wrappers.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

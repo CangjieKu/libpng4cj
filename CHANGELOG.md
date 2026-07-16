@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Translate immutable gamma-value initialization with file/screen resolution,
+  reciprocal fallback, identity-gamma reset, and correction classification.
 - Translate fixed-point reciprocal and immutable file-gamma precedence
   resolution across explicit, chunk, default, and screen sources.
 - Translate the frozen fixed-point multiply/divide substrate, gamma
