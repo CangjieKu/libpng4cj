@@ -83,6 +83,53 @@ private func pngDoGamma8(
     output
 }
 
+private func pngDoGamma16(
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>,
+    table: PngGamma16BitTable
+): Array<Byte> {
+    var colorChannels: Int64 = 0
+    var pixelChannels: Int64 = 0
+    if (rowInfo.colorType == Grayscale) {
+        colorChannels = 1
+        pixelChannels = 1
+    } else if (rowInfo.colorType == GrayscaleAlpha) {
+        colorChannels = 1
+        pixelChannels = 2
+    } else if (rowInfo.colorType == Truecolor) {
+        colorChannels = 3
+        pixelChannels = 3
+    } else if (rowInfo.colorType == TruecolorAlpha) {
+        colorChannels = 3
+        pixelChannels = 4
+    } else {
+        return row.clone()
+    }
+    if (Int64(rowInfo.channels) != pixelChannels) {
+        return row.clone()
+    }
+
+    let output = row.clone()
+    var pixel: Int64 = 0
+    while (pixel < Int64(rowInfo.width)) {
+        let base = pixel * pixelChannels * 2
+        var channel: Int64 = 0
+        while (channel < colorChannels) {
+            let offset = base + channel * 2
+            let sample = UInt16(
+                (UInt16(output[offset]) << UInt16(8)) |
+                UInt16(output[offset + 1])
+            )
+            let corrected = table.value(sample)
+            output[offset] = UInt8((corrected >> UInt16(8)) & UInt16(0xff))
+            output[offset + 1] = UInt8(corrected & UInt16(0xff))
+            channel += 1
+        }
+        pixel += 1
+    }
+    output
+}
+
 // Packed and 8-bit branches of upstream png_do_gamma.
 public func pngDoGamma(
     rowInfo: PngReadRowInfo,
@@ -105,6 +152,19 @@ public func pngDoGamma(
     PngReadTransformRow(rowInfo, row)
 }
 
+// 16-bit branches of upstream png_do_gamma.
+public func pngDoGamma(
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>,
+    table: PngGamma16BitTable
+): PngReadTransformRow {
+    validatePngTransformRowLength(rowInfo, row)
+    if (rowInfo.bitDepth != UInt8(16)) {
+        return PngReadTransformRow(rowInfo, row)
+    }
+    PngReadTransformRow(rowInfo, pngDoGamma16(rowInfo, row, table))
+}
+
 public func applyInitializedPngGammaStage(
     initialization: PngReadTransformInitialization,
     rowInfo: PngReadRowInfo,
@@ -114,9 +174,12 @@ public func applyInitializedPngGammaStage(
     if (!initialization.hasStage(ReadStageGamma)) {
         return PngReadTransformRow(rowInfo, row)
     }
-    pngDoGamma(
-        rowInfo,
-        row,
-        initialization.gamma8BitTables().direct()
-    )
+    if (rowInfo.bitDepth == UInt8(16)) {
+        return pngDoGamma(
+            rowInfo,
+            row,
+            initialization.gamma16BitTables().direct()
+        )
+    }
+    pngDoGamma(rowInfo, row, initialization.gamma8BitTables().direct())
 }

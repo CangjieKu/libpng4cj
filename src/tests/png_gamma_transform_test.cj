@@ -64,6 +64,48 @@ public class PngGammaTransformTestSuite {
     }
 
     @TestCase
+    public func correctsSixteenBitColorChannelsAndPreservesAlpha(): Unit {
+        let table = pngBuildGamma16BitTable(UInt8(8), Int32(220000))
+        let corrected = table.value(UInt16(0x8080))
+        let high = UInt8((corrected >> UInt16(8)) & UInt16(0xff))
+        let low = UInt8(corrected & UInt16(0xff))
+
+        let gray = pngDoGamma(
+            PngReadRowInfo(UInt32(1), UInt8(16), Grayscale),
+            [0x80, 0x80],
+            table
+        )
+        let grayExpected: Array<Byte> = [high, low]
+        @Assert(gray.row(), grayExpected)
+
+        let ga = pngDoGamma(
+            PngReadRowInfo(UInt32(1), UInt8(16), GrayscaleAlpha),
+            [0x80, 0x80, 0x12, 0x34],
+            table
+        )
+        let gaExpected: Array<Byte> = [high, low, 0x12, 0x34]
+        @Assert(ga.row(), gaExpected)
+
+        let rgb = pngDoGamma(
+            PngReadRowInfo(UInt32(1), UInt8(16), Truecolor),
+            [0x80, 0x80, 0x80, 0x80, 0x80, 0x80],
+            table
+        )
+        let rgbExpected: Array<Byte> = [high, low, high, low, high, low]
+        @Assert(rgb.row(), rgbExpected)
+
+        let rgba = pngDoGamma(
+            PngReadRowInfo(UInt32(1), UInt8(16), TruecolorAlpha),
+            [0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xab, 0xcd],
+            table
+        )
+        let rgbaExpected: Array<Byte> = [
+            high, low, high, low, high, low, 0xab, 0xcd
+        ]
+        @Assert(rgba.row(), rgbaExpected)
+    }
+
+    @TestCase
     public func exhaustivelyMatchesPackedTwoAndFourBitOracles(): Unit {
         let table = pngBuildGamma8BitTable(Int32(220000))
         var value: Int64 = 0
@@ -127,6 +169,19 @@ public class PngGammaTransformTestSuite {
                 PngReadRowInfo(UInt32(1), UInt8(8), Truecolor),
                 [1, 2],
                 table
+            )
+        } catch (error: PngFormatException) {
+            caught = error.kind == InvalidArgument
+        }
+        @Assert(caught, true)
+
+        let table16 = pngBuildGamma16BitTable(UInt8(8), Int32(220000))
+        caught = false
+        try {
+            pngDoGamma(
+                PngReadRowInfo(UInt32(1), UInt8(16), Truecolor),
+                [0, 1, 0, 2, 0],
+                table16
             )
         } catch (error: PngFormatException) {
             caught = error.kind == InvalidArgument

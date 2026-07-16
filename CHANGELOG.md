@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Complete frozen 16-bit Gray/GA/RGB/RGBA `png_do_gamma` execution with
+  initialized direct/reduction dispatch, network-order and alpha preservation.
 - Attach immutable initialized 16-bit direct and optional linear Gamma tables,
   including sBIT/reduction shift selection and the frozen 16-to-8 specialization.
 - Translate frozen floating-arithmetic 16-bit gamma correction and immutable

@@ -146,7 +146,8 @@ selected shift and whether its direct table is the 16-to-8 specialization.
 `gamma16BitLinearTablesBuilt()`, `gamma16BitReductionTableBuilt()`, and
 `gamma16BitShift()` expose the immutable 16-bit snapshot. Source depth 16 uses
 retained sBIT plus Scale16/Strip16 state to choose the table topology. The
-snapshot does not yet enable the Gamma stage for 16-bit rows.
+snapshot enables the existing Gamma stage only for direct file-to-screen
+correction outside palette and RGB-to-gray ownership.
 
 `pngReciprocal2Fixed(a, b)` preserves the frozen floating arithmetic used for
 file-to-screen correction: nonzero inputs calculate `floor(1E15/a/b + 0.5)`,
@@ -173,7 +174,10 @@ before transform selection.
 required and neither palette initialization nor RGB-to-gray owns gamma work.
 `ReadStageGamma` has stable identity `19`, leaving all prior stage identities
 unchanged while executing after Gray-to-RGB and before 16-to-8 reduction.
-Sixteen-bit Gamma rows and gamma-aware RGB-to-gray remain separate work.
+The 16-bit overload corrects network-order Gray/GA/RGB/RGBA color components
+through the initialized segmented table and preserves alpha. Reduction-specialized
+tables therefore execute before Scale16/Strip16. Gamma-aware RGB-to-gray remains
+separate work.
 
 ## Invalid Palette Index Diagnosis
 

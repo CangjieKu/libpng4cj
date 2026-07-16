@@ -756,7 +756,8 @@ public func initializePngReadTransformations(
     } else {
         pngIdentityReadUserTransform
     }
-    let gammaStageEnabled = initializedGamma8BitTables.built() &&
+    let gammaStageEnabled = (initializedGamma8BitTables.built() ||
+        initializedGamma16BitTables.built()) &&
         initializedGammaValues.correctionRequired && !rgbToGrayEnabled &&
         ihdr.colorType != Indexed
     let stages = pngReadTransformStages(

@@ -192,7 +192,7 @@ public class PngGamma16BitInitializationTestSuite {
     }
 
     @TestCase
-    public func snapshotsDirectAndReductionTablesWithoutGammaStage(): Unit {
+    public func executesDirectAndReductionTablesBeforeScale(): Unit {
         let directState = PngReadTransformState()
         @Assert(
             directState.setGammaFixed(Int32(106000), Int32(100000)),
@@ -206,7 +206,22 @@ public class PngGamma16BitInitializationTestSuite {
         @Assert(direct.gamma16BitTablesBuilt(), true)
         @Assert(direct.gamma16BitReductionTableBuilt(), false)
         @Assert(direct.gamma16BitShift(), UInt8(4))
-        @Assert(direct.hasStage(ReadStageGamma), false)
+        @Assert(direct.stageCount(), Int64(1))
+        @Assert(direct.stage(0), ReadStageGamma)
+        let directSource: Array<Byte> = [0x12, 0x34]
+        let directRow = applyInitializedPngGammaStage(
+            direct,
+            PngReadRowInfo(UInt32(1), UInt8(16), Grayscale),
+            directSource
+        )
+        let directValue = direct.gamma16BitTables().direct().value(
+            UInt16(0x1234)
+        )
+        let directExpected: Array<Byte> = [
+            UInt8(directValue >> UInt16(8)),
+            UInt8(directValue & UInt16(0xff))
+        ]
+        @Assert(directRow.row(), directExpected)
 
         let reductionState = PngReadTransformState()
         @Assert(reductionState.setScale16(), true)
@@ -221,8 +236,42 @@ public class PngGamma16BitInitializationTestSuite {
         @Assert(reduction.gamma16BitTablesBuilt(), true)
         @Assert(reduction.gamma16BitReductionTableBuilt(), true)
         @Assert(reduction.gamma16BitShift(), UInt8(5))
-        @Assert(reduction.hasStage(ReadStageGamma), false)
-        @Assert(reduction.hasStage(ReadStageScale16To8), true)
+        @Assert(reduction.stageCount(), Int64(2))
+        @Assert(reduction.stage(0), ReadStageGamma)
+        @Assert(reduction.stage(1), ReadStageScale16To8)
+        let reductionSource: Array<Byte> = [0x12, 0x34]
+        let reduced = applyInitializedPngReadStages(
+            reduction,
+            PngReadRowInfo(UInt32(1), UInt8(16), Grayscale),
+            reductionSource
+        )
+        let reducedValue = reduction.gamma16BitTables().direct().value(
+            UInt16(0x1234)
+        )
+        let reducedExpected: Array<Byte> = [UInt8(reducedValue >> UInt16(8))]
+        @Assert(reduced.row(), reducedExpected)
+
+        let wholeState = PngReadTransformState()
+        @Assert(wholeState.setScale16(), true)
+        @Assert(
+            wholeState.setGammaFixed(Int32(106000), Int32(100000)),
+            true
+        )
+        let decoded = gamma16InitializedDecoded(UInt32(0), UInt8(0))
+        let whole = transformPngRowsInitialized(decoded, wholeState)
+        let source = decoded.row(0)
+        let sourceValue = UInt16(
+            (UInt16(source[0]) << UInt16(8)) | UInt16(source[1])
+        )
+        let expectedValue = pngBuildGamma16BitTables(
+            UInt8(5),
+            Int32(100000),
+            Int32(106000),
+            false,
+            true
+        ).direct().value(sourceValue)
+        let wholeExpected: Array<Byte> = [UInt8(expectedValue >> UInt16(8))]
+        @Assert(whole.row(0), wholeExpected)
     }
 
     @TestCase

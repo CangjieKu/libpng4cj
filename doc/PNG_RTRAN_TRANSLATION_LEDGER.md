@@ -61,7 +61,7 @@ Status meanings:
 | 3000 | `png_do_gray_to_rgb` | `pngDoGrayToRgb` | translated | initialized stage adapter is narrow; complete dispatcher remains partial |
 | 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray` plus fixed 8/16-bit cores | translated | gamma-table branches deferred |
 | 3340 | `png_do_compose` | none | pending | background/alpha/gamma composition |
-| 4084 | `png_do_gamma` | `pngDoGamma` | partial | packed 2/4-bit and 8-bit Gray/GA/RGB/RGBA branches plus initialized direct dispatch translated; 16-bit table branches remain |
+| 4084 | `png_do_gamma` | `pngDoGamma` | translated | packed 2/4-bit, 8-bit, and 16-bit Gray/GA/RGB/RGBA branches plus initialized direct/reduction dispatch translated |
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
@@ -406,3 +406,10 @@ optional to-linear/from-linear tables without enabling 16-bit row execution.
 These helpers remain outside the generated inventory; `png_do_gamma` stays
 partial until its 16-bit branches land, so the ledger remains
 `30 translated / 9 partial / 6 pending`.
+
+LP-S004BA completes 16-bit Gray/GA/RGB/RGBA `png_do_gamma` execution through
+the initialized segmented direct or 16-to-8-specialized table. Network order,
+alpha preservation, Gamma-before-reduction order, whole-image behavior, and
+consumer use are covered. The inventoried row advances from partial to
+translated, so the ledger advances to
+`31 translated / 8 partial / 6 pending`.

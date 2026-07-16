@@ -190,8 +190,23 @@ main(): Int64 {
         !initializedGamma16.gamma16BitReductionTableBuilt() ||
         initializedGamma16.gamma16BitLinearTablesBuilt() ||
         initializedGamma16.gamma16BitShift() != UInt8(5) ||
-        initializedGamma16.hasStage(ReadStageGamma)) {
+        !initializedGamma16.hasStage(ReadStageGamma)) {
         println("libpng4cj initialized 16-bit gamma table check failed")
+        return 1
+    }
+    let gamma16Row = applyInitializedPngReadStages(
+        initializedGamma16,
+        PngReadRowInfo(UInt32(1), UInt8(16), Grayscale),
+        [0x12, 0x34]
+    )
+    let gamma16Expected = initializedGamma16.gamma16BitTables().direct().value(
+        UInt16(0x1234)
+    )
+    let gamma16RowExpected: Array<Byte> = [
+        UInt8(gamma16Expected >> UInt16(8))
+    ]
+    if (gamma16Row.row() != gamma16RowExpected) {
+        println("libpng4cj initialized 16-bit gamma row check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

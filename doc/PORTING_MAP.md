@@ -676,8 +676,27 @@ LP-S004AZ translates the remaining 16-bit branch of frozen
   reduction selection, initialized ownership, linear tables, and consumer use
   are covered directly
 
-The ledger remains `30 translated / 9 partial / 6 pending`. The 16-bit
-`png_do_gamma` branches and gamma-aware RGB-to-gray arithmetic remain separate.
+The ledger remains `30 translated / 9 partial / 6 pending` at this snapshot
+checkpoint. The next section records 16-bit row execution.
+
+## Implemented 16-Bit Gamma Row Body
+
+LP-S004BA completes the frozen 16-bit branches of `png_do_gamma`:
+
+- Gray, GrayAlpha, RGB, and RGBA read each color component in PNG network order
+- segmented direct or reduction-specialized tables correct only color samples
+- corrected UInt16 values are written back high byte first
+- GrayAlpha and RGBA alpha pairs remain byte-for-byte unchanged
+- initialized Gamma executes after Gray-to-RGB and before Scale16/Strip16
+- reduction-specialized outputs are expanded 8-bit levels, so the following
+  Scale16 step recovers the selected byte exactly
+- malformed rows fail before lookup; transformed and disabled rows remain
+  copy-owned
+- direct, reduction, alpha, order, whole-image, and consumer behavior are
+  covered directly
+
+The `png_do_gamma` ledger row is now translated and the ledger advances to
+`31 translated / 8 partial / 6 pending`. Gamma-aware RGB-to-gray remains open.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

@@ -180,7 +180,8 @@ oracle-test source. Production implementation code belongs directly under
   identity scaling, and copy-owned segment access
 - initialized 16-bit gamma snapshots select sBIT/reduction-aware shifts, retain
   direct or frozen 16-to-8 tables plus optional to-linear/from-linear tables,
-  and remain detached from row execution until the 16-bit body lands
+  and execute Gray/GA/RGB/RGBA color components before Scale16/Strip16 while
+  preserving alpha and PNG network byte order
 - initialized 8-bit gamma snapshots derive exact reciprocal2 correction and
   retain direct plus optional RGB-to-gray to-linear/from-linear tables without
   changing prior stage identities
@@ -261,7 +262,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `30 translated / 9 partial / 6 pending`.
+The current ledger is `31 translated / 8 partial / 6 pending`.
 
 ## Native Dependency
 
