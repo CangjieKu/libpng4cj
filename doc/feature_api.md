@@ -27,6 +27,8 @@ import libpng4cj.*
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed RGB-to-gray, expansion, alpha, 16-bit reduction, quantize, filler, and
   significant-bit row operations
+- initialized late-channel setters and stages for invert alpha, significant-bit
+  unshift, filler/add alpha placement, and alpha swapping
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).

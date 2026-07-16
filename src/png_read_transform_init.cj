@@ -11,6 +11,10 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageStrip16To8
     | ReadStageQuantize
     | ReadStageExpand16
+    | ReadStageInvertAlpha
+    | ReadStageUnshift
+    | ReadStageFiller
+    | ReadStageSwapAlpha
 
     public operator func ==(right: PngReadTransformStage): Bool {
         ordinalValue() == right.ordinalValue()
@@ -30,6 +34,10 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageStrip16To8 => 5
             case ReadStageQuantize => 6
             case ReadStageExpand16 => 7
+            case ReadStageInvertAlpha => 8
+            case ReadStageUnshift => 9
+            case ReadStageFiller => 10
+            case ReadStageSwapAlpha => 11
         }
     }
 
@@ -43,6 +51,10 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageStrip16To8 => "STRIP_16_TO_8"
             case ReadStageQuantize => "QUANTIZE"
             case ReadStageExpand16 => "EXPAND_16"
+            case ReadStageInvertAlpha => "INVERT_ALPHA"
+            case ReadStageUnshift => "UNSHIFT"
+            case ReadStageFiller => "FILLER"
+            case ReadStageSwapAlpha => "SWAP_ALPHA"
         }
     }
 }
@@ -66,6 +78,12 @@ public class PngReadTransformInitialization {
     private let quantizePaletteCountValue: Int64
     private let ownedQuantizeIndex: Array<Byte>
     private let ownedQuantizePaletteLookup: Array<Byte>
+    private let invertAlphaEnabledValue: Bool
+    private let shiftEnabledValue: Bool
+    private let shiftSignificantBitsValue: PngSignificantBits
+    private let fillerModeValue: PngFillerMode
+    private let fillerValueValue: UInt16
+    private let swapAlphaEnabledValue: Bool
     private let ownedStages: Array<PngReadTransformStage>
 
     init(
@@ -87,6 +105,12 @@ public class PngReadTransformInitialization {
         quantizePaletteCount: Int64,
         quantizeIndex: Array<Byte>,
         quantizePaletteLookup: Array<Byte>,
+        invertAlphaEnabled: Bool,
+        shiftEnabled: Bool,
+        shiftSignificantBits: PngSignificantBits,
+        fillerMode: PngFillerMode,
+        fillerValue: UInt16,
+        swapAlphaEnabled: Bool,
         stages: Array<PngReadTransformStage>
     ) {
         this.usesPaletteInitializer = usesPaletteInitializer
@@ -107,6 +131,18 @@ public class PngReadTransformInitialization {
         quantizePaletteCountValue = quantizePaletteCount
         ownedQuantizeIndex = quantizeIndex.clone()
         ownedQuantizePaletteLookup = quantizePaletteLookup.clone()
+        invertAlphaEnabledValue = invertAlphaEnabled
+        shiftEnabledValue = shiftEnabled
+        shiftSignificantBitsValue = PngSignificantBits(
+            shiftSignificantBits.gray,
+            shiftSignificantBits.red,
+            shiftSignificantBits.green,
+            shiftSignificantBits.blue,
+            shiftSignificantBits.alpha
+        )
+        fillerModeValue = fillerMode
+        fillerValueValue = fillerValue
+        swapAlphaEnabledValue = swapAlphaEnabled
         ownedStages = stages.clone()
     }
 
@@ -201,6 +237,51 @@ public class PngReadTransformInitialization {
     public func quantizePaletteLookupAvailable(): Bool {
         ownedQuantizePaletteLookup.size != 0
     }
+
+    public func invertAlphaEnabled(): Bool {
+        invertAlphaEnabledValue
+    }
+
+    public func shiftEnabled(): Bool {
+        shiftEnabledValue
+    }
+
+    public func shiftSignificantBits(): PngSignificantBits {
+        if (!shiftEnabledValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no significant-bit shift"
+            )
+        }
+        PngSignificantBits(
+            shiftSignificantBitsValue.gray,
+            shiftSignificantBitsValue.red,
+            shiftSignificantBitsValue.green,
+            shiftSignificantBitsValue.blue,
+            shiftSignificantBitsValue.alpha
+        )
+    }
+
+    public func fillerEnabled(): Bool {
+        fillerModeValue != NoFiller
+    }
+
+    public func fillerMode(): PngFillerMode {
+        fillerModeValue
+    }
+
+    public func fillerValue(): UInt16 {
+        fillerValueValue
+    }
+
+    public func addAlphaEnabled(): Bool {
+        fillerModeValue == AlphaBefore || fillerModeValue == AlphaAfter
+    }
+
+    public func swapAlphaEnabled(): Bool {
+        swapAlphaEnabledValue
+    }
 }
 
 private class PngInputAlphaClassification {
@@ -277,6 +358,18 @@ private func pngReadTransformStages(
     if (state.expand16Enabled()) {
         stages.add(ReadStageExpand16)
     }
+    if (state.invertAlphaEnabled()) {
+        stages.add(ReadStageInvertAlpha)
+    }
+    if (state.shiftEnabled()) {
+        stages.add(ReadStageUnshift)
+    }
+    if (state.fillerEnabled()) {
+        stages.add(ReadStageFiller)
+    }
+    if (state.swapAlphaEnabled()) {
+        stages.add(ReadStageSwapAlpha)
+    }
     stages.toArray()
 }
 
@@ -313,7 +406,9 @@ public func initializePngReadTransformations(
     } else {
         pngInitRgbTransformations(ihdr, metadata, transparencyStripped)
     }
-    let effectiveOutputHasAlpha = if (state.stripAlphaEnabled()) {
+    let effectiveOutputHasAlpha = if (state.addAlphaEnabled()) {
+        true
+    } else if (state.stripAlphaEnabled()) {
         false
     } else {
         classification.hasAlpha ||
@@ -377,6 +472,16 @@ public func initializePngReadTransformations(
     } else {
         Int64(0)
     }
+    let invertAlphaEnabled = state.invertAlphaEnabled()
+    let shiftEnabled = state.shiftEnabled()
+    let shiftSignificantBits = if (shiftEnabled) {
+        state.shiftSignificantBits()
+    } else {
+        PngSignificantBits()
+    }
+    let fillerMode = state.fillerMode()
+    let fillerValue = state.fillerValue()
+    let swapAlphaEnabled = state.swapAlphaEnabled()
     let stages = pngReadTransformStages(state)
     state.markRowInitialized()
 
@@ -399,6 +504,12 @@ public func initializePngReadTransformations(
         quantizePaletteCount,
         quantizeIndex,
         quantizePaletteLookup,
+        invertAlphaEnabled,
+        shiftEnabled,
+        shiftSignificantBits,
+        fillerMode,
+        fillerValue,
+        swapAlphaEnabled,
         stages
     )
 }

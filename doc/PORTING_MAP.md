@@ -292,7 +292,8 @@ are still absent.
 ## Implemented Initialized Non-Gamma Read Pipeline
 
 LP-S004AF adds `png_initialized_read_pipeline.cj` as the first combined row and
-decoded-image entry over the translated initialization snapshot:
+decoded-image entry over the translated initialization snapshot. LP-S004AG
+extends the same entry through the translated late-channel stages:
 
 - one-shot initialization retains an immutable copy of the fixed RGB-to-gray
   policy, coefficients, and accepted-custom-coefficient status
@@ -303,14 +304,22 @@ decoded-image entry over the translated initialization snapshot:
 - `RequireGray` rejects the first nongray pixel while `Convert` returns the
   transformed row and status
 - `applyInitializedPngReadStages` composes Expand, Strip Alpha, RGB-to-gray,
-  Gray-to-RGB, Scale/Strip16, Quantize, and Expand16 in frozen runtime order
+  Gray-to-RGB, Scale/Strip16, Quantize, Expand16, Invert Alpha, Unshift,
+  Filler/Add Alpha, and Swap Alpha in frozen runtime order
+- late-channel state is lifecycle-gated and copied into the immutable one-shot
+  initialization snapshot, including significant-bit values and low-16-bit
+  filler value/placement
+- Invert Alpha precedes Unshift, filler precedes Swap Alpha, plain filler does
+  not become semantic alpha, and added alpha swaps between leading/trailing
+  positions without changing the established filler-stage color-type contract
 - `transformPngRowsInitialized` applies the same snapshot to every decoded
   non-interlaced row, aggregates nongray status, enforces transformed-byte
   limits, and returns copy-owned rows
 
 The public entry covers the currently translated non-gamma stage set. Gamma,
-background composition, packing, user transforms, late channel transforms,
-Adam7 execution, and progressive input are outside this combined path.
+background composition, invert-mono, packing, BGR, packswap, byte swap, user
+transforms, Adam7 execution, and progressive input remain outside this combined
+path.
 
 ## Implemented Direct Gray-To-RGB Row Body
 

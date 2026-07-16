@@ -82,6 +82,12 @@ public class PngReadTransformState {
     private var quantizeMaximumColorsValue: Int64 = 0
     private var quantizeIndexValue: Array<Byte> = Array<Byte>()
     private var quantizePaletteLookupValue: Array<Byte> = Array<Byte>()
+    private var invertAlphaValue: Bool = false
+    private var shiftValue: Bool = false
+    private var shiftSignificantBitsValue: PngSignificantBits = PngSignificantBits()
+    private var fillerModeValue: PngFillerMode = NoFiller
+    private var fillerValueValue: UInt16 = UInt16(0)
+    private var swapAlphaValue: Bool = false
 
     public init() {}
 
@@ -301,6 +307,72 @@ public class PngReadTransformState {
         true
     }
 
+    public func setInvertAlpha(): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        invertAlphaValue = true
+        true
+    }
+
+    public func setShift(significantBits: PngSignificantBits): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        shiftSignificantBitsValue = PngSignificantBits(
+            significantBits.gray,
+            significantBits.red,
+            significantBits.green,
+            significantBits.blue,
+            significantBits.alpha
+        )
+        shiftValue = true
+        true
+    }
+
+    private func pngFillerMode(after: Bool, addAlpha: Bool): PngFillerMode {
+        if (addAlpha) {
+            return if (after) { AlphaAfter } else { AlphaBefore }
+        }
+        if (after) { FillerAfter } else { FillerBefore }
+    }
+
+    public func setFiller(value: UInt16, after: Bool): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        let addAlpha = fillerModeValue == AlphaBefore ||
+            fillerModeValue == AlphaAfter
+        fillerModeValue = pngFillerMode(after, addAlpha)
+        fillerValueValue = value
+        true
+    }
+
+    public func setFiller(value: UInt32, after: Bool): Bool {
+        setFiller(UInt16(value & UInt32(0xffff)), after)
+    }
+
+    public func setAddAlpha(value: UInt16, after: Bool): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        fillerModeValue = pngFillerMode(after, true)
+        fillerValueValue = value
+        true
+    }
+
+    public func setAddAlpha(value: UInt32, after: Bool): Bool {
+        setAddAlpha(UInt16(value & UInt32(0xffff)), after)
+    }
+
+    public func setSwapAlpha(): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        swapAlphaValue = true
+        true
+    }
+
     public func scale16Enabled(): Bool {
         scale16Value
     }
@@ -368,6 +440,51 @@ public class PngReadTransformState {
         quantizePaletteLookupValue.clone()
     }
 
+    public func invertAlphaEnabled(): Bool {
+        invertAlphaValue
+    }
+
+    public func shiftEnabled(): Bool {
+        shiftValue
+    }
+
+    public func shiftSignificantBits(): PngSignificantBits {
+        if (!shiftValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform state has no significant-bit shift"
+            )
+        }
+        PngSignificantBits(
+            shiftSignificantBitsValue.gray,
+            shiftSignificantBitsValue.red,
+            shiftSignificantBitsValue.green,
+            shiftSignificantBitsValue.blue,
+            shiftSignificantBitsValue.alpha
+        )
+    }
+
+    public func fillerEnabled(): Bool {
+        fillerModeValue != NoFiller
+    }
+
+    public func fillerMode(): PngFillerMode {
+        fillerModeValue
+    }
+
+    public func fillerValue(): UInt16 {
+        fillerValueValue
+    }
+
+    public func addAlphaEnabled(): Bool {
+        fillerModeValue == AlphaBefore || fillerModeValue == AlphaAfter
+    }
+
+    public func swapAlphaEnabled(): Bool {
+        swapAlphaValue
+    }
+
     func cancelTransparencyExpansionForInitialization(): Unit {
         expandTransparencyValue = false
     }
@@ -391,7 +508,7 @@ public class PngReadTransformState {
     }
 
     public func rowShapeTransform(): PngRowShapeTransform {
-        PngRowShapeTransform(stripAlphaValue)
+        PngRowShapeTransform(stripAlphaValue, fillerModeValue, fillerValueValue)
     }
 
     public func rgbToGrayTransform(): PngRgbToGrayTransform {

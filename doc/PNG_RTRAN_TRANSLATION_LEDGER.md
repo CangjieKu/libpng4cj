@@ -229,3 +229,13 @@ non-interlaced image with transformed-byte limiting and aggregate nongray
 status. This widens the bounded `png_do_read_transformations` anchor without
 changing the inventory totals, which remain
 `24 translated / 7 partial / 14 pending`.
+
+LP-S004AG snapshots the existing Invert Alpha, significant-bit Unshift,
+Filler/Add Alpha, and Swap Alpha state and connects those translated row bodies
+after Expand16 in the combined initialized pipeline. The adapter preserves
+8/16-bit network-byte rows, exact filler growth, semantic added-alpha versus
+plain-filler behavior, disabled/unsupported copy ownership, malformed-row
+priority, and whole-image transformed-byte limits. This advances the bounded
+`png_do_read_transformations` dispatcher anchor without adding new top-level
+`pngrtran.c` functions, so the ledger remains
+`24 translated / 7 partial / 14 pending`.

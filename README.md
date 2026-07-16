@@ -188,6 +188,11 @@ oracle-test source. Production implementation code belongs directly under
   low 16 filler bits exactly, and updates channels, pixel depth, and row bytes
   while retaining source color type; `PngReadRowInfo` can now represent explicit
   transformed channel counts independently from source color type
+- the one-shot initialized pipeline now snapshots and executes Invert Alpha,
+  significant-bit Unshift, Filler/Add Alpha, and Swap Alpha after Expand16 in
+  frozen upstream-relative order; added alpha participates in swapping while
+  plain filler remains non-alpha, and whole-image transformed-byte limits include
+  filler growth
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
   Strip Alpha, RGB/gray, quantize, 16-to-8, and Expand16 state into output color
   type, bit depth, channels, pixel depth, row bytes, remaining tRNS state, and a
@@ -196,8 +201,9 @@ oracle-test source. Production implementation code belongs directly under
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining
-standard metadata, quantize allocation-warning fallback, complete read-transform
-dispatch, complete transformed-metadata projection, user callbacks, Adam7
+standard metadata, quantize allocation-warning fallback, the remaining
+read-transform dispatch stages, complete transformed-metadata projection, user
+callbacks, Adam7
 execution, progressive reading, and all write/C ABI surfaces remain open work.
 
 The translation-first route is tracked in

@@ -295,9 +295,24 @@ public func applyInitializedPngReadStages(
     let expanded16 = applyInitializedPngExpand16Stage(
         initialization, quantized.info, quantized.row()
     )
+    let invertedAlpha = applyInitializedPngInvertAlphaStage(
+        initialization, expanded16.info, expanded16.row()
+    )
+    let unshifted = applyInitializedPngUnshiftStage(
+        initialization, invertedAlpha.info, invertedAlpha.row()
+    )
+    let filled = applyInitializedPngFillerStage(
+        initialization, unshifted.info, unshifted.row()
+    )
+    let swappedAlpha = applyInitializedPngSwapAlphaAfterFillerStage(
+        initialization,
+        filled.info,
+        filled.row(),
+        filled.info.channels != unshifted.info.channels
+    )
     PngInitializedReadRowResult(
-        expanded16.info,
-        expanded16.row(),
+        swappedAlpha.info,
+        swappedAlpha.row(),
         gray.hadNonGrayPixels
     )
 }
