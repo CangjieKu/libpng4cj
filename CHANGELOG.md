@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Translate floating gamma conversion and delegation into fixed setter state,
+  including already-fixed values, reserved flags, and finite/range checks.
 - Translate fixed gamma flag/range validation and lifecycle-gated file/screen
   setter state with explicit application-error and warning facts.
 - Translate immutable gamma-value initialization with file/screen resolution,

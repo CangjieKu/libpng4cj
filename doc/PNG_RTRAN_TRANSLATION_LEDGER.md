@@ -34,7 +34,7 @@ Status meanings:
 | 461 | `png_set_alpha_mode` | none | pending | floating-point facade |
 | 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | normal lifecycle, both reduction branches, remap, and full lookup translated; allocation-warning fallback, dispatcher, and C ABI deferred |
 | 892 | `png_set_gamma_fixed` | `PngReadTransformState.setGammaFixed` | translated | callback delivery, C ABI, initialization snapshot, and tables deferred |
-| 934 | `png_set_gamma` | none | pending | floating-point facade |
+| 934 | `png_set_gamma` | `PngReadTransformState.setGamma` | translated | callback delivery and C ABI wrapper deferred |
 | 948 | `png_set_expand` | `PngReadTransformState.setExpand` | translated | transformed IHDR projection deferred |
 | 978 | `png_set_palette_to_rgb` | `PngReadTransformState.setPaletteToRgb` | translated | transformed IHDR projection deferred |
 | 990 | `png_set_expand_gray_1_2_4_to_8` | `PngReadTransformState.setExpandGrayOneTwoFourToEight` | translated | transformed IHDR projection deferred |
@@ -346,3 +346,11 @@ record application-error facts, unsupported values record a warning fact, and
 failed calls preserve prior state. Floating conversion, callback delivery,
 initialization snapshot, tables, and row correction remain separate, while the
 ledger advances to `29 translated / 8 partial / 8 pending`.
+
+LP-S004AT translates `convert_gamma_value` and floating `png_set_gamma` as
+`pngConvertGammaValue` plus `PngReadTransformState.setGamma`. Positive values
+below 128 are scaled by `PNG_FP_1`; other finite values remain fixed/flag-shaped
+before nearest rounding. Nonfinite and signed-32-bit overflow fail before state
+mutation, and accepted values delegate into the AS fixed setter. Initialization
+snapshot, tables, row correction, callbacks, and C ABI remain separate, while
+the ledger advances to `30 translated / 8 partial / 7 pending`.

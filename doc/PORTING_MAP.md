@@ -540,6 +540,21 @@ LP-S004AS translates `png_set_gamma_fixed` and its immediate validation helpers:
 Floating conversion, callback delivery, initialization snapshot, gamma tables,
 row correction, background/alpha mode, and C ABI wrappers remain separate.
 
+## Implemented Floating Gamma Setter Facade
+
+LP-S004AT translates `convert_gamma_value` and floating `png_set_gamma`:
+
+- positive values below `128` are multiplied by `PNG_FP_1`
+- other finite values remain already-fixed or negative flag-shaped inputs
+- nearest rounding uses `floor(value + 0.5)` and preserves `-1/-2` exactly
+- NaN, infinities, and signed-32-bit overflow fail before state mutation
+- both arguments convert before delegation into `setGammaFixed`
+- fixed lifecycle, flag/range validation, diagnostics, and failure isolation are
+  reused unchanged
+
+Initialization snapshot, gamma tables, row correction, callback delivery,
+background/alpha mode, and C ABI wrappers remain separate.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

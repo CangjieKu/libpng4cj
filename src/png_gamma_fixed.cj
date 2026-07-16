@@ -68,6 +68,30 @@ public func pngGammaSupported(gammaValue: Int32): Bool {
     gammaValue >= PNG_LIB_GAMMA_MIN && gammaValue <= PNG_LIB_GAMMA_MAX
 }
 
+public func pngConvertGammaValue(value: Float64, label: String): Int32 {
+    if (value.isNaN() || value.isInf()) {
+        throw PngFormatException(
+            InvalidArgument,
+            -1,
+            "PNG ${label} must be finite"
+        )
+    }
+
+    var converted = value
+    if (converted > 0.0 && converted < 128.0) {
+        converted = converted * Float64(PNG_FP_1)
+    }
+    let rounded = floor(converted + 0.5)
+    if (rounded > 2147483647.0 || rounded < -2147483648.0) {
+        throw PngFormatException(
+            InvalidArgument,
+            -1,
+            "PNG ${label} exceeds the signed 32-bit fixed-point range"
+        )
+    }
+    Int32(rounded)
+}
+
 // Direct translation of upstream png_gamma_threshold.
 public func pngGammaThreshold(screenGamma: Int32, fileGamma: Int32): Bool {
     let product = pngMulDivFixed(

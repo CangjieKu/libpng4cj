@@ -89,6 +89,12 @@ read-transform lifecycle gate succeeds. Invalid nonpositive inputs expose
 application-error facts; unsupported values expose a warning fact. Failed calls
 do not replace the last accepted gamma state.
 
+`PngReadTransformState.setGamma(screenGamma, fileGamma)` accepts `Float64`.
+Positive values below `128` are multiplied by `PNG_FP_1`; other finite values
+are treated as already-fixed or flag-shaped inputs. The conversion then applies
+`floor(value + 0.5)`, rejects nonfinite/signed-32-bit overflow before mutation,
+and delegates both converted values into `setGammaFixed`.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

@@ -26,6 +26,13 @@ main(): Int64 {
         println("libpng4cj fixed gamma setter check failed")
         return 1
     }
+    let floatingGammaState = PngReadTransformState()
+    if (!floatingGammaState.setGamma(2.2, 0.45455) ||
+        floatingGammaState.screenGamma() != PNG_GAMMA_SRGB ||
+        floatingGammaState.fileGamma() != PNG_GAMMA_SRGB_INVERSE) {
+        println("libpng4cj floating gamma setter check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

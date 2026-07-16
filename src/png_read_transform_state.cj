@@ -295,6 +295,12 @@ public class PngReadTransformState {
         true
     }
 
+    public func setGamma(screenGamma: Float64, fileGamma: Float64): Bool {
+        let screenFixed = pngConvertGammaValue(screenGamma, "screen gamma")
+        let fileFixed = pngConvertGammaValue(fileGamma, "file gamma")
+        setGammaFixed(screenFixed, fileFixed)
+    }
+
     public func setQuantize(
         palette: Array<Byte>,
         numPalette: Int64,

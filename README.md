@@ -168,6 +168,8 @@ oracle-test source. Production implementation code belongs directly under
   whether file-to-screen correction is required before table generation
 - lifecycle-gated fixed gamma configuration translates frozen sRGB/old-Mac
   flags, validates the supported range, and preserves failed-call state
+- floating gamma configuration preserves already-fixed/flag-shaped values,
+  scales ordinary decimals, and delegates into the fixed setter
 - source-shaped `pngDoRgbToGray` converts 8/16-bit RGB/RGBA byte rows into
   Gray/GA with fixed coefficients, PNG network-order preservation, exact row
   information, copy ownership, and aggregate nongray status
@@ -242,7 +244,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `29 translated / 8 partial / 8 pending`.
+The current ledger is `30 translated / 8 partial / 7 pending`.
 
 ## Native Dependency
 
