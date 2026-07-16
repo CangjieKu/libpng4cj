@@ -227,6 +227,12 @@ external by design, matching upstream libpng. The current receipt is for
 Cangjie `1.1.0` on macOS arm64; other hosts still require native build and
 runtime receipts.
 
+Run `./tools/doctor.sh` before build or test to verify the active Cangjie
+toolchain and the host zlib link surface. The platform receipts, the
+administrator-reported Cangjie 1.0.5 observation, uncovered large-input and
+concurrency cases, and the exact pending capability matrix are recorded in
+[Compatibility And Dependency Matrix](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md).
+
 ## Port Boundary
 
 zlib remains a dependency, matching upstream libpng. The future compatibility
@@ -234,4 +240,5 @@ layer may use a minimal C shim for exported symbols, `setjmp`/`longjmp`, and
 callback trampolines; PNG behavior and ownership logic remain Cangjie-owned.
 
 See [README.OpenSource](README.OpenSource), [Feature API](doc/feature_api.md),
+[Compatibility And Dependency Matrix](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md),
 and [Porting Map](doc/PORTING_MAP.md).

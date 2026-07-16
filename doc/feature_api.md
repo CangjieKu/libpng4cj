@@ -11,7 +11,8 @@ libpng4cj = { git = "https://gitcode.com/cinyu/libpng4cj.git" }
 ```
 
 The final executable links the system zlib because libpng4cj is currently
-published as a static Cangjie library.
+published as a static Cangjie library. Run `./tools/doctor.sh` from the member
+root to verify the local Cangjie and zlib surfaces before consuming the package.
 
 ## Import
 

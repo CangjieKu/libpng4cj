@@ -8,4 +8,4 @@
   link-option = "-lz"
   license = "Libpng-2.0"
   description = "Full libpng port program for Cangjie with a future libpng16 C ABI surface"
-  include = ["src", "test", "doc", "README.md", "README.OpenSource", "CHANGELOG.md", "LICENSE", "vendor/libpng-1.6.58/LICENSE"]
+  include = ["src", "test", "doc", "tools", "README.md", "README.OpenSource", "CHANGELOG.md", "LICENSE", "vendor/libpng-1.6.58/LICENSE"]

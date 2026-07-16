@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Convert `README.OpenSource` to the repository-required JSON dependency list,
+  covering the frozen libpng source and external system zlib dependency.
+- Add a local Cangjie/zlib doctor and a public compatibility, capability,
+  platform, large-input, and concurrency evidence matrix.
 - Use the direct `src/` package root so consumers import `libpng4cj.*`.
 - Add a standalone external-consumer project under `test/consumer`.
 - Organize public design, API, porting, and upstream baseline material under
