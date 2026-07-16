@@ -61,6 +61,8 @@ public enum PngReadTransformApplicationError <:
 public class PngReadTransformState {
     private var ihdrReadValue: Bool = false
     private var ihdrColorTypeValue: PngColorType = Grayscale
+    private var ihdrBitDepthValue: UInt8 = UInt8(0)
+    private var ihdrBitDepthKnownValue: Bool = false
     private var rowInitializedValue: Bool = false
     private var detectUninitializedValue: Bool = false
     private var lastApplicationErrorValue: PngReadTransformApplicationError =
@@ -86,6 +88,7 @@ public class PngReadTransformState {
     private var invertAlphaValue: Bool = false
     private var shiftValue: Bool = false
     private var shiftSignificantBitsValue: PngSignificantBits = PngSignificantBits()
+    private var packingValue: Bool = false
     private var bgrValue: Bool = false
     private var fillerModeValue: PngFillerMode = NoFiller
     private var fillerValueValue: UInt16 = UInt16(0)
@@ -94,12 +97,17 @@ public class PngReadTransformState {
     public init() {}
 
     public func markIhdrRead(ihdr: PngIhdr): Unit {
-        markIhdrRead(ihdr.colorType)
+        ihdrReadValue = true
+        ihdrColorTypeValue = ihdr.colorType
+        ihdrBitDepthValue = ihdr.bitDepth
+        ihdrBitDepthKnownValue = true
     }
 
     public func markIhdrRead(colorType: PngColorType): Unit {
         ihdrReadValue = true
         ihdrColorTypeValue = colorType
+        ihdrBitDepthValue = UInt8(0)
+        ihdrBitDepthKnownValue = false
     }
 
     public func markRowInitialized(): Unit {
@@ -340,6 +348,14 @@ public class PngReadTransformState {
         true
     }
 
+    public func setPacking(): Bool {
+        if (!pngRtranOk(true)) {
+            return false
+        }
+        packingValue = ihdrBitDepthKnownValue && ihdrBitDepthValue < UInt8(8)
+        true
+    }
+
     public func setBgr(): Bool {
         if (!pngRtranOk(false)) {
             return false
@@ -485,6 +501,10 @@ public class PngReadTransformState {
             shiftSignificantBitsValue.blue,
             shiftSignificantBitsValue.alpha
         )
+    }
+
+    public func packingEnabled(): Bool {
+        packingValue
     }
 
     public func bgrEnabled(): Bool {

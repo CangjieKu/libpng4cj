@@ -160,6 +160,10 @@ public func projectPngReadTransformInfo(
         bitDepth = UInt8(16)
     }
 
+    if (initialization.hasStage(ReadStageUnpack) && bitDepth < UInt8(8)) {
+        bitDepth = UInt8(8)
+    }
+
     if (initialization.hasStage(ReadStageStripAlpha)) {
         colorType = pngColorTypeWithoutAlpha(colorType)
         hasTransparency = false

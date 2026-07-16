@@ -14,3 +14,6 @@
   natural RGB/RGBA 8-bit and network-order 16-bit rows.
 - Translate `pngtrans.c::png_do_invert` as direct `pngDoInvertMono` behavior for
   packed/8/16-bit Gray and 8/16-bit Gray Alpha rows.
+- Translate read-side `pngtrans.c::png_set_packing`, snapshot it in one-shot
+  initialization, and execute direct `pngDoUnpack` after Unshift and before BGR
+  with exact row growth and transformed-byte limiting.

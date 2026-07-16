@@ -28,7 +28,8 @@ import libpng4cj.*
 - fixed RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit reduction,
   quantize, filler, and significant-bit row operations
 - initialized late-channel setters and stages for invert mono, invert alpha,
-  significant-bit unshift, BGR, filler/add alpha placement, and alpha swapping
+  significant-bit unshift, packed-sample unpack, BGR, filler/add alpha
+  placement, and alpha swapping
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).

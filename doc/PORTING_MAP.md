@@ -293,7 +293,7 @@ are still absent.
 
 LP-S004AF adds `png_initialized_read_pipeline.cj` as the first combined row and
 decoded-image entry over the translated initialization snapshot. LP-S004AG,
-LP-S004AH, and LP-S004AI extend the same entry through the translated
+LP-S004AH, LP-S004AI, and LP-S004AJ extend the same entry through the translated
 late-channel stages:
 
 - one-shot initialization retains an immutable copy of the fixed RGB-to-gray
@@ -306,22 +306,42 @@ late-channel stages:
   transformed row and status
 - `applyInitializedPngReadStages` composes Expand, Strip Alpha, RGB-to-gray,
   Gray-to-RGB, Scale/Strip16, Quantize, Expand16, Invert Mono, Invert Alpha,
-  Unshift, BGR, Filler/Add Alpha, and Swap Alpha in frozen runtime order
+  Unshift, Unpack, BGR, Filler/Add Alpha, and Swap Alpha in frozen runtime order
 - late-channel state is lifecycle-gated and copied into the immutable one-shot
   initialization snapshot, including significant-bit values and low-16-bit
   filler value/placement
-- Invert Mono precedes Invert Alpha, Invert Alpha precedes Unshift, BGR
-  exchanges red/blue before filler growth, filler precedes Swap Alpha, plain
-  filler does not become semantic alpha, and added alpha swaps between
-  leading/trailing positions without changing the filler-stage color-type
-  contract
+- Invert Mono precedes Invert Alpha, Invert Alpha precedes Unshift, Unpack
+  grows sub-byte Gray/Indexed rows before BGR, BGR exchanges red/blue before
+  filler growth, filler precedes Swap Alpha, plain filler does not become
+  semantic alpha, and added alpha swaps between leading/trailing positions
+  without changing the filler-stage color-type contract
 - `transformPngRowsInitialized` applies the same snapshot to every decoded
   non-interlaced row, aggregates nongray status, enforces transformed-byte
   limits, and returns copy-owned rows
 
 The public entry covers the currently translated non-gamma stage set. Gamma,
-background composition, packing, packswap, byte swap, user transforms, Adam7
+background composition, packswap, byte swap, user transforms, Adam7
 execution, and progressive input remain outside this combined path.
+
+## Implemented Read Packing Setter And Initialized Unpack
+
+LP-S004AJ connects the direct packed-row body to translated read state:
+
+- `setPacking()` requires a known IHDR and enables only for 1/2/4-bit source
+  rows, matching the read-side branch of `pngtrans.c::png_set_packing`
+- 8/16-bit and color-only IHDR markers accept the setter without fabricating an
+  active packing stage
+- the immutable initialization snapshot places Unpack after Unshift and before
+  BGR without changing existing stage ordinal values
+- initialized Gray and Indexed rows retain raw sample values while bit depth,
+  pixel depth, and row bytes grow exactly to one byte per sample
+- disabled and unsupported rows stay copy-owned, malformed rows fail before
+  stage selection, and whole-image transformed-byte limits include unpack growth
+- `projectPngReadTransformInfo` now projects active packing to 8-bit row shape
+
+PackSwap, palette-index diagnostics, byte swap, user callbacks, write packing,
+gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
+separate work.
 
 ## Implemented Direct Invert-Monochrome Row Body
 
@@ -516,9 +536,10 @@ LP-S004R adds `png_unpack_transform.cj` as the direct translation of
   mismatch, and zero-width rows safely no-op after row-length validation
 - malformed packed row lengths fail before source bytes are read
 
-The direct body does not scale grayscale values, expand palette entries to RGB,
-translate `png_set_packing`, execute packswap, or claim the complete row
-dispatcher.
+The direct body does not scale grayscale values or expand palette entries to
+RGB. LP-S004AJ now provides read-side `png_set_packing` state and bounded
+initialized dispatch; packswap, write packing, and the complete dispatcher
+remain separate work.
 
 ## Implemented Direct Palette Expansion
 

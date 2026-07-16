@@ -304,8 +304,11 @@ public func applyInitializedPngReadStages(
     let unshifted = applyInitializedPngUnshiftStage(
         initialization, invertedAlpha.info, invertedAlpha.row()
     )
-    let bgr = applyInitializedPngBgrStage(
+    let unpacked = applyInitializedPngUnpackStage(
         initialization, unshifted.info, unshifted.row()
+    )
+    let bgr = applyInitializedPngBgrStage(
+        initialization, unpacked.info, unpacked.row()
     )
     let filled = applyInitializedPngFillerStage(
         initialization, bgr.info, bgr.row()

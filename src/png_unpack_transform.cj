@@ -108,3 +108,15 @@ public func pngDoUnpack(
     }
     PngReadTransformRow(pngUnpackedRowInfo(rowInfo), output)
 }
+
+public func applyInitializedPngUnpackStage(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>
+): PngReadTransformRow {
+    validatePngTransformRowLength(rowInfo, row)
+    if (!initialization.hasStage(ReadStageUnpack)) {
+        return PngReadTransformRow(rowInfo, row)
+    }
+    pngDoUnpack(rowInfo, row)
+}
