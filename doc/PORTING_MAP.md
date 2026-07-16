@@ -470,6 +470,23 @@ The direct C ABI floating setter wrapper, warning callback delivery,
 gamma-aware RGB-to-gray branches, background/alpha mode, and release packaging
 remain separate work.
 
+## Implemented Gamma Threshold Fixed Substrate
+
+LP-S004AP translates the first frozen gamma substrate:
+
+- `pngMulDivFixed` mirrors the default floating-arithmetic `png_muldiv` branch
+  for signed 32-bit inputs and output
+- `pngGammaSignificant` preserves the strict
+  `PNG_FP_1 +/- PNG_GAMMA_THRESHOLD_FIXED` boundary
+- `pngGammaThreshold` multiplies screen/file gamma on the 100000 scale and
+  forces correction when multiply/divide fails
+- divide-by-zero, positive overflow, negative overflow, zero products,
+  reciprocal products, and exact significance edges are covered directly
+
+This packet does not add gamma setter state, file-gamma precedence, table
+generation, gamma-aware RGB-to-gray, pixel-row correction, background/alpha
+mode, or C ABI wrappers.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

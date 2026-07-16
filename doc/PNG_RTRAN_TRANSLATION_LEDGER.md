@@ -44,7 +44,7 @@ Status meanings:
 | 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
-| 1151 | `png_gamma_threshold` | none | pending | gamma fixed-point substrate |
+| 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | gamma setter/state/table integration deferred |
 | 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | retained gAMA/sRGB/cHRM | pending | precedence and fixed-point resolution |
@@ -313,3 +313,12 @@ overflow values before mutation, and delegates accepted fixed values into the
 existing lifecycle-gated `setRgbToGrayFixed` path. The direct C ABI wrapper and
 warning callback delivery remain separate, while the ledger advances to
 `25 translated / 8 partial / 12 pending`.
+
+LP-S004AP translates the frozen-default floating-arithmetic branch of
+`png_muldiv`, the shared `png_gamma_significant` predicate, and direct
+`png_gamma_threshold`. The fixed substrate preserves nearest rounding,
+divide-by-zero and signed-32-bit overflow failure, strict
+`100000 +/- 5000` significance boundaries, and the upstream rule that failed
+multiplication forces gamma correction. Gamma setters, file-gamma resolution,
+tables, and row correction remain separate, while the ledger advances to
+`26 translated / 8 partial / 11 pending`.

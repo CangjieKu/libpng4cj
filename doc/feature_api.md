@@ -28,6 +28,7 @@ import libpng4cj.*
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
+- fixed-point multiply/divide and gamma significance/threshold helpers
 - initialized late-channel setters and stages for invert mono, invert alpha,
   significant-bit unshift, packed-sample unpack, invalid palette-index
   diagnosis, BGR, 1/2/4-bit PackSwap, filler/add alpha placement, alpha
@@ -52,6 +53,19 @@ The converted signed fixed-point weights delegate into
 retain historical defaults; nonnegative red/green pairs whose sum exceeds
 `100000` are ignored by the fixed setter while RGB-to-gray remains selected,
 matching the upstream setter behavior.
+
+## Gamma Threshold Helpers
+
+`pngMulDivFixed(value, multiplier, divisor)` mirrors frozen libpng's default
+floating-arithmetic `png_muldiv` branch for signed 32-bit values. It returns an
+explicit success flag plus value, preserving divide-by-zero and signed-32-bit
+overflow failure.
+
+`pngGammaSignificant(gammaValue)` uses the strict frozen range from `95000`
+through `105000`, inclusive, as not significant. `pngGammaThreshold` evaluates
+the screen/file product on the `100000` scale and returns `true` when that
+product is significant or cannot be represented, matching upstream's
+correction-enabling failure behavior.
 
 ## Invalid Palette Index Diagnosis
 

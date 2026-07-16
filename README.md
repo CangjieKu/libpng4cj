@@ -135,6 +135,9 @@ oracle-test source. Production implementation code belongs directly under
   `Convert` and `RequireGray` policy, a result-level nongray status, and
   explicit reporting of whether custom coefficients were accepted;
   upstream-style out-of-range custom weights retain the historical defaults
+- frozen-default signed fixed-point multiply/divide plus direct gamma
+  significance/threshold evaluation with exact `100000 +/- 5000` boundaries
+  and correction forced on divide or signed-32-bit overflow failure
 - copy-owned `G`, `GA`, `AG`, `GX`, and `XG` rows across native 8-bit, native
   UInt16, and explicit Strip/Scale 16-to-8 output; conversion preserves alpha,
   equal RGB samples, frozen transform order, and final one/two-channel limits
@@ -233,7 +236,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `25 translated / 8 partial / 12 pending`.
+The current ledger is `26 translated / 8 partial / 11 pending`.
 
 ## Native Dependency
 

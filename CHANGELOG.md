@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Translate the frozen fixed-point multiply/divide substrate, gamma
+  significance predicate, and direct `png_gamma_threshold` behavior.
 - Translate the floating-point `png_set_rgb_to_gray` facade with exact
   `png_fixed` rounding, finite/signed-32-bit validation, and delegation into
   the existing fixed RGB-to-gray state path.
