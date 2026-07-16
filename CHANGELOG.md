@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Translate packed 2/4-bit and byte-depth `png_do_gamma` row execution with
+  initialized gating, alpha preservation, and stable prior stage ordinals.
 - Attach immutable initialized 8-bit direct and optional RGB-to-gray linear
   gamma table snapshots after exact reciprocal2 correction derivation.
 - Translate frozen floating-arithmetic 8-bit gamma correction and immutable

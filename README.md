@@ -177,7 +177,10 @@ oracle-test source. Production implementation code belongs directly under
   copy-owned table access
 - initialized 8-bit gamma snapshots derive exact reciprocal2 correction and
   retain direct plus optional RGB-to-gray to-linear/from-linear tables without
-  adding an executable Gamma row stage
+  changing prior stage identities
+- packed 2/4-bit grayscale and 8-bit Gray/GA/RGB/RGBA Gamma rows execute from
+  initialized direct tables, preserve alpha and packed padding behavior, and
+  run after Gray-to-RGB before 16-to-8 reduction
 - source-shaped `pngDoRgbToGray` converts 8/16-bit RGB/RGBA byte rows into
   Gray/GA with fixed coefficients, PNG network-order preservation, exact row
   information, copy ownership, and aggregate nongray status

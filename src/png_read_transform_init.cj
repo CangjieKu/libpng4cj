@@ -22,6 +22,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageByteSwap
     | ReadStagePaletteIndexCheck
     | ReadStageUserTransform
+    | ReadStageGamma
 
     public operator func ==(right: PngReadTransformStage): Bool {
         ordinalValue() == right.ordinalValue()
@@ -52,6 +53,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageByteSwap => 16
             case ReadStagePaletteIndexCheck => 17
             case ReadStageUserTransform => 18
+            case ReadStageGamma => 19
         }
     }
 
@@ -76,6 +78,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageByteSwap => "BYTE_SWAP"
             case ReadStagePaletteIndexCheck => "PALETTE_INDEX_CHECK"
             case ReadStageUserTransform => "USER_TRANSFORM"
+            case ReadStageGamma => "GAMMA"
         }
     }
 }
@@ -507,7 +510,8 @@ private func pngInitRgbTransformations(
 
 private func pngReadTransformStages(
     state: PngReadTransformState,
-    checkForInvalidIndexEnabled: Bool
+    checkForInvalidIndexEnabled: Bool,
+    gammaStageEnabled: Bool
 ): Array<PngReadTransformStage> {
     let stages = ArrayList<PngReadTransformStage>()
     if (state.expandEnabled()) {
@@ -521,6 +525,9 @@ private func pngReadTransformStages(
     }
     if (state.grayToRgbEnabled()) {
         stages.add(ReadStageGrayToRgb)
+    }
+    if (gammaStageEnabled) {
+        stages.add(ReadStageGamma)
     }
     if (state.scale16Enabled()) {
         stages.add(ReadStageScale16To8)
@@ -716,7 +723,14 @@ public func initializePngReadTransformations(
     } else {
         pngIdentityReadUserTransform
     }
-    let stages = pngReadTransformStages(state, checkForInvalidIndexEnabled)
+    let gammaStageEnabled = initializedGamma8BitTables.built() &&
+        initializedGammaValues.correctionRequired && !rgbToGrayEnabled &&
+        ihdr.colorType != Indexed
+    let stages = pngReadTransformStages(
+        state,
+        checkForInvalidIndexEnabled,
+        gammaStageEnabled
+    )
     state.markRowInitialized()
 
     PngReadTransformInitialization(

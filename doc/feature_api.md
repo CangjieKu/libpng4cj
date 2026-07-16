@@ -113,7 +113,7 @@ use `floor(255 * pow(value / 255, gammaValue * 0.00001) + 0.5)`.
 the exact identity table; significant values apply scalar correction to all
 256 entries. The table builder is intended for positive gamma values already
 resolved from validated setter/metadata state. Initialization attachment,
-16-bit tables, and row execution remain separate work.
+16-bit tables and row execution were separate at the LP-S004AV checkpoint.
 
 `pngReciprocal2Fixed(a, b)` preserves the frozen floating arithmetic used for
 file-to-screen correction: nonzero inputs calculate `floor(1E15/a/b + 0.5)`,
@@ -127,8 +127,20 @@ unknown-screen fallback. `PngGamma8BitTables` owns every table copy.
 `PngReadTransformInitialization.gamma8BitTablesBuilt()` and
 `gamma8BitLinearTablesBuilt()` report the initialized snapshot. Direct tables
 are retained only for required correction or linear RGB-to-gray work at source
-depths up to 8. Existing row-stage ordinals remain unchanged; no row gamma is
-executed yet.
+depths up to 8. LP-S004AW retained these snapshots without row execution;
+LP-S004AX below consumes the direct table for bounded packed/8-bit rows.
+
+`pngDoGamma(rowInfo, row, table)` translates the frozen packed and 8-bit
+branches of `png_do_gamma`. It corrects 2/4-bit packed grayscale and 8-bit
+Gray/GA/RGB/RGBA color samples, preserves alpha, leaves 1-bit grayscale,
+palette, and 16-bit rows copy-owned and unchanged, and validates row length
+before transform selection.
+
+`applyInitializedPngGammaStage(...)` executes only when direct correction is
+required and neither palette initialization nor RGB-to-gray owns gamma work.
+`ReadStageGamma` has stable identity `19`, leaving all prior stage identities
+unchanged while executing after Gray-to-RGB and before 16-to-8 reduction.
+Sixteen-bit Gamma rows and gamma-aware RGB-to-gray remain separate work.
 
 ## Invalid Palette Index Diagnosis
 

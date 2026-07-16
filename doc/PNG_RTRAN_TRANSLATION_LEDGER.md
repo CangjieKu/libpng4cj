@@ -49,7 +49,7 @@ Status meanings:
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, native user-transform, configured/chunk gamma values, and 8-bit gamma tables are snapshotted; executable gamma/background, coefficient defaulting, remaining palette mutation, 16-bit tables, and complete dispatcher state remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, native user-transform, configured/chunk gamma values, 8-bit gamma tables, and bounded direct Gamma dispatch are snapshotted; background, coefficient defaulting, remaining palette mutation, 16-bit tables, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -61,7 +61,7 @@ Status meanings:
 | 3000 | `png_do_gray_to_rgb` | `pngDoGrayToRgb` | translated | initialized stage adapter is narrow; complete dispatcher remains partial |
 | 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray` plus fixed 8/16-bit cores | translated | gamma-table branches deferred |
 | 3340 | `png_do_compose` | none | pending | background/alpha/gamma composition |
-| 4084 | `png_do_gamma` | none | pending | gamma tables |
+| 4084 | `png_do_gamma` | `pngDoGamma` | partial | packed 2/4-bit and 8-bit Gray/GA/RGB/RGBA branches plus initialized direct dispatch translated; 16-bit table branches remain |
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
@@ -382,3 +382,10 @@ ordinals remain unchanged. These helpers remain outside the generated
 45-function `pngrtran.c` inventory; executable `png_do_gamma`, gamma-aware
 RGB-to-gray row arithmetic, and 16-bit tables remain separate, so the ledger
 remains `30 translated / 8 partial / 7 pending`.
+
+LP-S004AX translates packed 2/4-bit and 8-bit `png_do_gamma` row execution,
+including alpha preservation, 1-bit/palette/16-bit bounded no-ops, initialized
+direct-table gating, whole-image execution, and stable prior stage identities.
+The inventoried `png_do_gamma` row advances from pending to partial; 16-bit
+segmented-table branches and gamma-aware RGB-to-gray remain separate. The
+ledger advances to `30 translated / 9 partial / 6 pending`.

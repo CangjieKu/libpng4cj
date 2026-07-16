@@ -124,6 +124,21 @@ main(): Int64 {
         println("libpng4cj initialized 8-bit gamma table check failed")
         return 1
     }
+    let gammaRow = applyInitializedPngGammaStage(
+        initializedGamma,
+        PngReadRowInfo(UInt32(1), UInt8(8), TruecolorAlpha),
+        [64, 128, 192, 77]
+    )
+    if (!initializedGamma.hasStage(ReadStageGamma) ||
+        gammaRow.row() != [
+            gammaTables.direct().value(UInt8(64)),
+            gammaTables.direct().value(UInt8(128)),
+            gammaTables.direct().value(UInt8(192)),
+            UInt8(77)
+        ]) {
+        println("libpng4cj initialized gamma row check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

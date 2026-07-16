@@ -144,7 +144,7 @@ public class PngGammaInitializationSnapshotTestSuite {
     }
 
     @TestCase
-    public func snapshotsConfiguredDirectGammaTableWithoutAddingAStage(): Unit {
+    public func snapshotsConfiguredDirectGammaTableAndGammaStage(): Unit {
         let state = PngReadTransformState()
         @Assert(state.setGammaFixed(Int32(106000), Int32(100000)), true)
         let initialized = initializePngReadTransformations(
@@ -153,7 +153,8 @@ public class PngGammaInitializationSnapshotTestSuite {
         )
         @Assert(initialized.gamma8BitTablesBuilt(), true)
         @Assert(initialized.gamma8BitLinearTablesBuilt(), false)
-        @Assert(initialized.stageCount(), Int64(0))
+        @Assert(initialized.stageCount(), Int64(1))
+        @Assert(initialized.stage(0), ReadStageGamma)
         let correction = pngReciprocal2Fixed(Int32(106000), Int32(100000))
         @Assert(correction, Int32(94340))
         @Assert(
@@ -222,5 +223,50 @@ public class PngGammaInitializationSnapshotTestSuite {
             pngReciprocal2Fixed(Int32(-100000), Int32(100000)),
             Int32(-100000)
         )
+    }
+
+    @TestCase
+    public func gatesAndExecutesInitializedGammaBeforeReduction(): Unit {
+        let decoded = gammaInitDecoded(UInt32(45455))
+        let state = PngReadTransformState()
+        @Assert(state.setGammaFixed(Int32(106000), Int32(100000)), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.stageCount(), Int64(1))
+        @Assert(initialized.stage(0), ReadStageGamma)
+        @Assert(ReadStageGamma.ordinalValue(), Int64(19))
+        @Assert(ReadStageScale16To8.ordinalValue(), Int64(4))
+
+        let source = decoded.row(0)
+        let transformed = applyInitializedPngGammaStage(
+            initialized,
+            PngReadRowInfo(decoded.ihdr),
+            source
+        )
+        let table = initialized.gamma8BitTables().direct()
+        var offset: Int64 = 0
+        while (offset < source.size) {
+            @Assert(transformed.row()[offset], table.value(source[offset]))
+            @Assert(transformed.row()[offset + 1], table.value(source[offset + 1]))
+            @Assert(transformed.row()[offset + 2], table.value(source[offset + 2]))
+            @Assert(transformed.row()[offset + 3], source[offset + 3])
+            offset += 4
+        }
+
+        let wholeState = PngReadTransformState()
+        @Assert(wholeState.setGammaFixed(Int32(106000), Int32(100000)), true)
+        let whole = transformPngRowsInitialized(decoded, wholeState)
+        @Assert(whole.row(0), transformed.row())
+
+        let orderedState = PngReadTransformState()
+        @Assert(orderedState.setGrayToRgb(), true)
+        @Assert(
+            orderedState.setGammaFixed(Int32(106000), Int32(100000)),
+            true
+        )
+        let ordered = initializePngReadTransformations(orderedState, decoded)
+        @Assert(ordered.stageCount(), Int64(3))
+        @Assert(ordered.stage(0), ReadStageExpand)
+        @Assert(ordered.stage(1), ReadStageGrayToRgb)
+        @Assert(ordered.stage(2), ReadStageGamma)
     }
 }

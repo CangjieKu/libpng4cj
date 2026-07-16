@@ -610,8 +610,28 @@ LP-S004AW translates frozen `png_reciprocal2` and the 8-bit branch of
   or linear RGB-to-gray processing needs them
 - existing row-stage ordinals remain unchanged
 
-Executable `png_do_gamma`, gamma-aware RGB-to-gray row arithmetic, 16-bit
-tables, background/alpha mode, and C ABI wrappers remain separate.
+LP-S004AW itself retained tables without executable row gamma. LP-S004AX below
+adds the bounded packed/8-bit row path; gamma-aware RGB-to-gray row arithmetic,
+16-bit tables, background/alpha mode, and C ABI wrappers remain separate.
+
+## Implemented Packed And 8-Bit Gamma Row Body
+
+LP-S004AX translates the non-16-bit branches of frozen `png_do_gamma`:
+
+- 8-bit Gray, GrayAlpha, RGB, and RGBA correct color samples only
+- alpha bytes remain unchanged
+- 2-bit and 4-bit grayscale preserve frozen sample replication, corrected
+  high-bit masking, repacking, and final-byte padding behavior
+- 1-bit grayscale remains a copy-owned no-op, matching the absent upstream
+  branch
+- palette and 16-bit rows remain bounded no-ops in this packet
+- initialized Gamma dispatch is suppressed when palette initialization or
+  RGB-to-gray owns gamma processing
+- Gamma executes after Gray-to-RGB and before 16-to-8 reduction while retaining
+  all previous stable stage identities
+
+The 16-bit `png_do_gamma` branches, segmented tables, and gamma-aware
+RGB-to-gray row arithmetic remain separate.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

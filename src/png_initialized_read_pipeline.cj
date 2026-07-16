@@ -300,8 +300,11 @@ private func applyInitializedPngReadStagesWithPaletteMaximum(
     let grayToRgb = applyInitializedPngGrayToRgbStage(
         initialization, gray.info, gray.row()
     )
-    let reduced = applyInitializedPng16To8Stages(
+    let gammaCorrected = applyInitializedPngGammaStage(
         initialization, grayToRgb.info, grayToRgb.row()
+    )
+    let reduced = applyInitializedPng16To8Stages(
+        initialization, gammaCorrected.info, gammaCorrected.row()
     )
     let quantized = applyInitializedPngQuantizeStage(
         initialization, reduced.info, reduced.row()
