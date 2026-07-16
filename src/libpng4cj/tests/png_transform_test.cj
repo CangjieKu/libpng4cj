@@ -599,6 +599,194 @@ public class PngTransformTestSuite {
     }
 
     @TestCase
+    public func snapshotsAndAppliesInitializedPaletteExpandPayload(): Unit {
+        let palette: Array<Byte> = [
+            0xff, 0x00, 0x00,
+            0x00, 0xff, 0x00,
+            0x00, 0x00, 0xff,
+            0xff, 0xff, 0xff
+        ]
+        let alpha: Array<Byte> = [0x00, 0x80]
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [
+                makeTransformChunk(PNG_CHUNK_PLTE, palette),
+                makeTransformChunk(PNG_CHUNK_tRNS, alpha)
+            ],
+            PALETTE_GRAY_ZLIB
+        ))
+
+        let alphaState = PngReadTransformState()
+        @Assert(alphaState.setExpand(), true)
+        let alphaInitialized = initializePngReadTransformations(
+            alphaState, decoded
+        )
+        @Assert(alphaInitialized.expandPalette(), palette)
+        @Assert(alphaInitialized.expandPaletteAlpha(), alpha)
+        let mutablePalette = alphaInitialized.expandPalette()
+        mutablePalette[0] = UInt8(0)
+        let mutableAlpha = alphaInitialized.expandPaletteAlpha()
+        mutableAlpha[0] = UInt8(0xff)
+        @Assert(alphaInitialized.expandPalette(), palette)
+        @Assert(alphaInitialized.expandPaletteAlpha(), alpha)
+
+        let expanded = applyInitializedPngExpandStage(
+            alphaInitialized,
+            PngReadRowInfo(UInt32(4), UInt8(2), Indexed),
+            [0x1b]
+        )
+        let rgbaExpected: Array<Byte> = [
+            0xff, 0x00, 0x00, 0x00,
+            0x00, 0xff, 0x00, 0x80,
+            0x00, 0x00, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff
+        ]
+        @Assert(expanded.row(), rgbaExpected)
+        @Assert(expanded.info.colorType.toString(), "TRUECOLOR_ALPHA")
+
+        let rgbState = PngReadTransformState()
+        @Assert(rgbState.setPaletteToRgb(), true)
+        @Assert(rgbState.setStripAlpha(), true)
+        let rgbInitialized = initializePngReadTransformations(rgbState, decoded)
+        @Assert(rgbInitialized.expandPaletteAlpha().size, Int64(0))
+        let rgb = applyInitializedPngExpandStage(
+            rgbInitialized,
+            PngReadRowInfo(UInt32(4), UInt8(2), Indexed),
+            [0x1b]
+        )
+        let rgbExpected: Array<Byte> = [
+            0xff, 0x00, 0x00,
+            0x00, 0xff, 0x00,
+            0x00, 0x00, 0xff,
+            0xff, 0xff, 0xff
+        ]
+        @Assert(rgb.row(), rgbExpected)
+        @Assert(rgb.info.colorType.toString(), "TRUECOLOR")
+        @Assert(decoded.metadata.palette(), palette)
+        @Assert(decoded.metadata.paletteAlpha(), alpha)
+    }
+
+    @TestCase
+    public func appliesInitializedPackedGrayAndColorKeyExpansion(): Unit {
+        let grayTransparency: Array<Byte> = [0x00, 0x01]
+        let gray = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(1),
+            UInt8(0),
+            [makeTransformChunk(PNG_CHUNK_tRNS, grayTransparency)],
+            GRAY1_ZLIB
+        ))
+        let grayState = PngReadTransformState()
+        @Assert(grayState.setExpand(), true)
+        let grayInitialized = initializePngReadTransformations(grayState, gray)
+        @Assert(grayInitialized.expandTransparency().present, true)
+        @Assert(grayInitialized.expandTransparency().gray, UInt16(1))
+        let grayExpanded = applyInitializedPngExpandStage(
+            grayInitialized,
+            PngReadRowInfo(UInt32(4), UInt8(1), Grayscale),
+            [0x50]
+        )
+        let grayExpected: Array<Byte> = [
+            0x00, 0xff,
+            0xff, 0x00,
+            0x00, 0xff,
+            0xff, 0x00
+        ]
+        @Assert(grayExpanded.row(), grayExpected)
+        @Assert(grayExpanded.info.colorType.toString(), "GRAYSCALE_ALPHA")
+
+        let rgbTransparency: Array<Byte> = [0x00, 0x0a, 0x00, 0x14, 0x00, 0x1e]
+        let rgb = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [makeTransformChunk(PNG_CHUNK_tRNS, rgbTransparency)],
+            RGB8_ZLIB
+        ))
+        let rgbState = PngReadTransformState()
+        @Assert(rgbState.setTransparencyToAlpha(), true)
+        let rgbInitialized = initializePngReadTransformations(rgbState, rgb)
+        let rgbExpanded = applyInitializedPngExpandStage(
+            rgbInitialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            [10, 20, 30, 40, 50, 60]
+        )
+        let rgbExpected: Array<Byte> = [10, 20, 30, 0, 40, 50, 60, 0xff]
+        @Assert(rgbExpanded.row(), rgbExpected)
+
+        let gray16 = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2),
+            UInt8(16),
+            UInt8(0),
+            [makeTransformChunk(PNG_CHUNK_tRNS, [0x12, 0x34])],
+            GRAY16_TWO_ZLIB
+        ))
+        let gray16State = PngReadTransformState()
+        @Assert(gray16State.setTransparencyToAlpha(), true)
+        let gray16Expanded = applyInitializedPngExpandStage(
+            initializePngReadTransformations(gray16State, gray16),
+            PngReadRowInfo(UInt32(2), UInt8(16), Grayscale),
+            [0x12, 0x34, 0x56, 0x78]
+        )
+        let gray16Expected: Array<Byte> = [
+            0x12, 0x34, 0x00, 0x00,
+            0x56, 0x78, 0xff, 0xff
+        ]
+        @Assert(gray16Expanded.row(), gray16Expected)
+    }
+
+    @TestCase
+    public func keepsDisabledAndStrippedInitializedExpandBounded(): Unit {
+        let rgbTransparency: Array<Byte> = [0x00, 0x0a, 0x00, 0x14, 0x00, 0x1e]
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [makeTransformChunk(PNG_CHUNK_tRNS, rgbTransparency)],
+            RGB8_ZLIB
+        ))
+        let disabled = initializePngReadTransformations(
+            PngReadTransformState(), decoded
+        )
+        let input: Array<Byte> = [10, 20, 30, 40, 50, 60]
+        let unchanged = applyInitializedPngExpandStage(
+            disabled,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            input
+        )
+        let unchangedExpected: Array<Byte> = [10, 20, 30, 40, 50, 60]
+        @Assert(unchanged.row(), unchangedExpected)
+        input[0] = UInt8(99)
+        @Assert(unchanged.row(), unchangedExpected)
+
+        let strippedState = PngReadTransformState()
+        @Assert(strippedState.setExpand(), true)
+        @Assert(strippedState.setStripAlpha(), true)
+        let stripped = initializePngReadTransformations(strippedState, decoded)
+        @Assert(stripped.expandTransparency().present, false)
+        let rgb = applyInitializedPngExpandStage(
+            stripped,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            [10, 20, 30, 40, 50, 60]
+        )
+        @Assert(rgb.row(), unchangedExpected)
+        @Assert(rgb.info.colorType.toString(), "TRUECOLOR")
+
+        try {
+            applyInitializedPngExpandStage(
+                stripped,
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+                [1, 2, 3, 4, 5]
+            )
+            @Fail("initialized Expand should reject malformed rows first")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
+
+    @TestCase
     public func freezesTranslatedReadStageOrderAndOneShotLifecycle(): Unit {
         let decoded = decodePngNonInterlaced(makeTransformImage(
             UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB

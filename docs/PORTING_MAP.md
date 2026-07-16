@@ -462,8 +462,21 @@ non-palette `png_do_expand`:
 - transformed and no-op rows are copy-owned, and malformed row lengths fail
   before component reads
 
-The direct body does not execute an initialized Expand stage, translate
-`png_do_expand_16`, mutate palette state, or claim the complete row dispatcher.
+LP-S004AD connects both direct expansion bodies to one bounded initialized
+Expand stage:
+
+- one-shot initialization snapshots a copy-owned PLTE and only the effective
+  palette-alpha prefix that survives Strip Alpha
+- non-palette initialization snapshots immutable Gray or RGB color-key state
+- Indexed rows dispatch to `pngDoExpandPalette`; all other rows dispatch to
+  `pngDoExpand`
+- `png_set_palette_to_rgb` retains the frozen shared tRNS expansion bits, so
+  palette alpha is suppressed only when effective transparency is stripped
+- disabled and unsupported rows remain validated copy-owned no-ops
+- source metadata and post-initialization setter isolation remain unchanged
+
+The adapter does not mutate palette state, execute preceding or following
+stages automatically, or claim the complete row dispatcher.
 
 ## Implemented Direct Expand16
 

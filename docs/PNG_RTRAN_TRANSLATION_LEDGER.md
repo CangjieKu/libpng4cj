@@ -64,10 +64,10 @@ Status meanings:
 | 4084 | `png_do_gamma` | none | pending | gamma tables |
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
-| 4523 | `png_do_expand` | `pngDoExpand` | translated | initializer adapter and complete dispatcher remain partial |
+| 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | Scale/Strip, Quantize, and Expand16 have bounded initialized composition; complete stateful dispatcher and pending bodies remain |
+| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | Expand, Scale/Strip, Quantize, and Expand16 have bounded initialized composition; complete stateful dispatcher and pending bodies remain |
 
 ## Translation Rule
 
@@ -200,4 +200,13 @@ Disabled stages remain validated copy-owned no-ops; Scale/Strip output expands
 back to network-order 16-bit pairs, while preceding Quantize produces Indexed
 rows that correctly block Expand16. The adapter proves the local frozen order
 without claiming automatic execution of preceding transforms or the complete
+dispatcher, so the ledger remains `24 translated / 7 partial / 14 pending`.
+
+LP-S004AD snapshots the retained payload required by `ReadStageExpand` and
+connects both direct expansion bodies through `applyInitializedPngExpandStage`.
+Indexed rows receive a copy-owned PLTE plus only the effective palette-alpha
+prefix that survives Strip Alpha; non-Indexed rows receive immutable Gray/RGB
+color-key state. The adapter preserves the frozen shared transform bits behind
+`png_set_palette_to_rgb`, validates disabled no-op rows, and leaves source
+metadata isolated. It does not execute adjacent stages or complete the stateful
 dispatcher, so the ledger remains `24 translated / 7 partial / 14 pending`.

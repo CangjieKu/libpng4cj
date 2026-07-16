@@ -55,6 +55,9 @@ public class PngReadTransformInitialization {
     public let transparencyStripped: Bool
     public let effectiveTransparencyExpansion: Bool
     public let effectiveOutputHasAlpha: Bool
+    private let ownedExpandPalette: Array<Byte>
+    private let ownedExpandPaletteAlpha: Array<Byte>
+    private let expandTransparencyValue: PngExpandTransparency
     private let quantizeEnabledValue: Bool
     private let quantizeModeValue: PngQuantizeMode
     private let ownedQuantizePalette: Array<Byte>
@@ -71,6 +74,9 @@ public class PngReadTransformInitialization {
         transparencyStripped: Bool,
         effectiveTransparencyExpansion: Bool,
         effectiveOutputHasAlpha: Bool,
+        expandPalette: Array<Byte>,
+        expandPaletteAlpha: Array<Byte>,
+        expandTransparency: PngExpandTransparency,
         quantizeEnabled: Bool,
         quantizeMode: PngQuantizeMode,
         quantizePalette: Array<Byte>,
@@ -86,6 +92,9 @@ public class PngReadTransformInitialization {
         this.transparencyStripped = transparencyStripped
         this.effectiveTransparencyExpansion = effectiveTransparencyExpansion
         this.effectiveOutputHasAlpha = effectiveOutputHasAlpha
+        ownedExpandPalette = expandPalette.clone()
+        ownedExpandPaletteAlpha = expandPaletteAlpha.clone()
+        expandTransparencyValue = expandTransparency
         quantizeEnabledValue = quantizeEnabled
         quantizeModeValue = quantizeMode
         ownedQuantizePalette = quantizePalette.clone()
@@ -127,6 +136,18 @@ public class PngReadTransformInitialization {
 
     public func quantizeEnabled(): Bool {
         quantizeEnabledValue
+    }
+
+    public func expandPalette(): Array<Byte> {
+        ownedExpandPalette.clone()
+    }
+
+    public func expandPaletteAlpha(): Array<Byte> {
+        ownedExpandPaletteAlpha.clone()
+    }
+
+    public func expandTransparency(): PngExpandTransparency {
+        expandTransparencyValue
     }
 
     public func quantizeMode(): PngQuantizeMode {
@@ -277,6 +298,32 @@ public func initializePngReadTransformations(
         classification.hasAlpha ||
             (classification.hasTransparency && state.expandTransparencyEnabled())
     }
+    let expandEnabled = state.expandEnabled()
+    let expandPalette = if (expandEnabled && usesPaletteInitializer) {
+        metadata.palette()
+    } else {
+        Array<Byte>()
+    }
+    let expandPaletteAlpha = if (expandEnabled && usesPaletteInitializer &&
+        state.expandTransparencyEnabled()) {
+        metadata.paletteAlpha()
+    } else {
+        Array<Byte>()
+    }
+    let expandTransparency = if (expandEnabled && !usesPaletteInitializer &&
+        state.expandTransparencyEnabled() && metadata.hasTransparency) {
+        match (ihdr.colorType) {
+            case Grayscale => PngExpandTransparency(metadata.transparentGray)
+            case Truecolor => PngExpandTransparency(
+                metadata.transparentRed,
+                metadata.transparentGreen,
+                metadata.transparentBlue
+            )
+            case _ => PngExpandTransparency()
+        }
+    } else {
+        PngExpandTransparency()
+    }
     let quantizeEnabled = state.quantizeEnabled()
     let quantizeMode = if (quantizeEnabled) {
         state.quantizeMode()
@@ -314,6 +361,9 @@ public func initializePngReadTransformations(
         transparencyStripped,
         state.expandTransparencyEnabled(),
         effectiveOutputHasAlpha,
+        expandPalette,
+        expandPaletteAlpha,
+        expandTransparency,
         quantizeEnabled,
         quantizeMode,
         quantizePalette,

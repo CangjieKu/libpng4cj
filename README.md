@@ -84,6 +84,10 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - direct `pngDoExpand` translates packed Gray replication plus Gray/RGB
   8/16-bit tRNS color-key alpha growth with explicit absent-key state, reverse
   traversal, PNG network order, copy ownership, and exact row information
+- `applyInitializedPngExpandStage` snapshots and applies copy-owned PLTE and
+  effective palette-alpha data for Indexed rows or immutable Gray/RGB color
+  keys for non-Indexed rows; Strip Alpha suppresses only effective tRNS while
+  preserving upstream palette-to-RGB setter alias behavior
 - direct `pngDoExpand16` replicates every 8-bit non-palette runtime row byte
   into a 16-bit high/low pair with reverse growth, retained color type/current
   channels, copy ownership, and exact row-information updates;
@@ -123,8 +127,9 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   bidirectional palette identity maps, and exact full/non-full outputs
 - one-shot `PngReadTransformInitialization` classifies palette partial alpha,
   binary transparency, inherent source alpha, and effective tRNS after Strip
-  Alpha, snapshots the quantize palette/count plus generated lookup/remap
-  tables, and exposes the translated read stages in frozen upstream order
+  Alpha, snapshots the Expand palette/alpha/color-key payload and quantize
+  palette/count plus generated lookup/remap tables, and exposes the translated
+  read stages in frozen upstream order
 - `applyInitializedPngQuantizeStage` executes the snapshotted full-color or
   Indexed remap state after Strip16 and before Expand16 while keeping disabled
   and unsupported rows copy-owned no-ops
