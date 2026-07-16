@@ -26,8 +26,8 @@ import libpng4cj.*
 - bounded chunk and metadata reading
 - non-interlaced packed-row decoding
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
-- fixed RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit reduction,
-  quantize, filler, and significant-bit row operations
+- fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
+  reduction, quantize, filler, and significant-bit row operations
 - initialized late-channel setters and stages for invert mono, invert alpha,
   significant-bit unshift, packed-sample unpack, invalid palette-index
   diagnosis, BGR, 1/2/4-bit PackSwap, filler/add alpha placement, alpha
@@ -35,6 +35,23 @@ import libpng4cj.*
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).
+
+## Floating RGB To Gray Setter
+
+`PngReadTransformState.setRgbToGray(policy, redWeight, greenWeight)` accepts
+`Float64` coefficients. Each value is converted with the frozen
+`png_fixed` rule:
+
+```text
+floor(100000 * value + 0.5)
+```
+
+The converted signed fixed-point weights delegate into
+`setRgbToGrayFixed`. Non-finite values and converted values outside signed
+32-bit range fail before transform state changes. Negative converted values
+retain historical defaults; nonnegative red/green pairs whose sum exceeds
+`100000` are ignored by the fixed setter while RGB-to-gray remains selected,
+matching the upstream setter behavior.
 
 ## Invalid Palette Index Diagnosis
 

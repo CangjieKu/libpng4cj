@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Translate the floating-point `png_set_rgb_to_gray` facade with exact
+  `png_fixed` rounding, finite/signed-32-bit validation, and delegation into
+  the existing fixed RGB-to-gray state path.
 - Convert `README.OpenSource` to the repository-required JSON dependency list,
   covering the frozen libpng source and external system zlib dependency.
 - Add a local Cangjie/zlib doctor and a public compatibility, capability,

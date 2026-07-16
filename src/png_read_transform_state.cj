@@ -257,6 +257,16 @@ public class PngReadTransformState {
         setRgbToGrayFixed(policy, Int64(redWeight), Int64(greenWeight))
     }
 
+    public func setRgbToGray(
+        policy: PngRgbToGrayPolicy,
+        redWeight: Float64,
+        greenWeight: Float64
+    ): Bool {
+        let redFixed = pngFixedFromFloat64(redWeight, "RGB-to-gray red coefficient")
+        let greenFixed = pngFixedFromFloat64(greenWeight, "RGB-to-gray green coefficient")
+        setRgbToGrayFixed(policy, redFixed, greenFixed)
+    }
+
     public func setQuantize(
         palette: Array<Byte>,
         numPalette: Int64,

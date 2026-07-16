@@ -129,11 +129,12 @@ oracle-test source. Production implementation code belongs directly under
 - direct `pngDoUnshift` source-row translation covers packed 2/4-bit grayscale,
   8-bit and network-order 16-bit G/GA/RGB/RGBA channel cycling with unchanged
   row information, copy ownership, and a narrow existing-selection adapter
-- explicit RGB-to-gray output with the historical libpng fixed coefficients or
-  caller-supplied red/green weights on the 100000 scale, `Convert` and
-  `RequireGray` policy, a result-level nongray status, and explicit reporting of
-  whether custom coefficients were accepted; upstream-style out-of-range
-  custom weights retain the historical defaults
+- explicit RGB-to-gray output with the historical libpng fixed coefficients,
+  caller-supplied red/green weights on the 100000 scale, or floating-point
+  weights converted through exact `floor(100000 * value + 0.5)` semantics;
+  `Convert` and `RequireGray` policy, a result-level nongray status, and
+  explicit reporting of whether custom coefficients were accepted;
+  upstream-style out-of-range custom weights retain the historical defaults
 - copy-owned `G`, `GA`, `AG`, `GX`, and `XG` rows across native 8-bit, native
   UInt16, and explicit Strip/Scale 16-to-8 output; conversion preserves alpha,
   equal RGB samples, frozen transform order, and final one/two-channel limits
@@ -232,7 +233,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `24 translated / 8 partial / 13 pending`.
+The current ledger is `25 translated / 8 partial / 12 pending`.
 
 ## Native Dependency
 

@@ -321,8 +321,8 @@ late-channel stages:
   limits, and returns copy-owned rows
 
 The public entry covers the currently translated non-gamma stage set. Gamma,
-background composition, user transforms, Adam7
-execution, and progressive input remain outside this combined path.
+background composition, C ABI/raw-pointer user transforms, Adam7 execution,
+and progressive input remain outside this combined path.
 
 ## Implemented Read Packing Setter And Initialized Unpack
 
@@ -450,6 +450,26 @@ semantics, late callback mutation, the C ABI callback trampoline, and raw
 execution, gamma/background, C ABI export, and release packaging remain
 separate work.
 
+## Implemented Floating RGB To Gray Facade
+
+LP-S004AO translates `png_set_rgb_to_gray` and its `png_fixed` dependency into
+the existing read-transform state:
+
+- `setRgbToGray` accepts `Float64` red/green weights and delegates converted
+  signed fixed-point values to `setRgbToGrayFixed`
+- `pngFixedFromFloat64` applies exact `floor(100000 * value + 0.5)` semantics
+- non-finite values and converted values outside signed 32-bit range fail
+  before transform state changes
+- negative converted coefficients retain the historical defaults, while
+  nonnegative pairs whose sum exceeds `100000` are ignored by the existing
+  fixed setter
+- valid floating calls preserve the fixed setter's IHDR lifecycle,
+  Indexed-expand selection, policy, initialization snapshot, and row behavior
+
+The direct C ABI floating setter wrapper, warning callback delivery,
+gamma-aware RGB-to-gray branches, background/alpha mode, and release packaging
+remain separate work.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
@@ -533,9 +553,9 @@ LP-S004M adds `png_read_transform_info.cj` as a bounded translation of
   differently
 - final color type determines channels, pixel depth, and PNG row bytes
 
-The ledger entry remains partial. Palette byte synchronization,
-gamma/file-gamma, background, filler/add-alpha, quantize, pack, user-transform,
-and complete metadata projection are still deferred.
+The ledger entry remains partial. Gamma/file-gamma, background,
+filler/add-alpha color-type projection, complete metadata projection, and C ABI
+user-transform fidelity are still deferred.
 
 ## Implemented Direct Scale16 And Strip16 Row Bodies
 

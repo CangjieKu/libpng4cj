@@ -42,7 +42,7 @@ Status meanings:
 | 1018 | `png_set_expand_16` | `PngReadTransformState.setExpand16` | translated | direct C ABI setter deferred |
 | 1031 | `png_set_gray_to_rgb` | `PngReadTransformState.setGrayToRgb` | translated | direct C ABI setter and transformed-info projection deferred |
 | 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
-| 1118 | `png_set_rgb_to_gray` | none | pending | floating-point fixed conversion facade |
+| 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | none | pending | gamma fixed-point substrate |
 | 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
@@ -305,3 +305,11 @@ and exact final row bytes are validated before acceptance. The frozen top-level
 setter moves from pending to partial because null callback semantics, late
 mutation, raw user pointers, and the C ABI trampoline remain open. The current
 ledger is `24 translated / 8 partial / 13 pending`.
+
+LP-S004AO translates the floating-point `png_set_rgb_to_gray` facade and its
+`png_fixed` dependency. `pngFixedFromFloat64` applies exact
+`floor(100000 * value + 0.5)` conversion, rejects non-finite and signed-32-bit
+overflow values before mutation, and delegates accepted fixed values into the
+existing lifecycle-gated `setRgbToGrayFixed` path. The direct C ABI wrapper and
+warning callback delivery remain separate, while the ledger advances to
+`25 translated / 8 partial / 12 pending`.

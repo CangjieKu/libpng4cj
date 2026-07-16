@@ -1,5 +1,7 @@
 package libpng4cj
 
+import std.math.floor
+
 public enum PngRgbToGrayPolicy <: Equatable<PngRgbToGrayPolicy> & ToString {
     | Convert
     | RequireGray
@@ -64,6 +66,26 @@ private func pngSetRgbToGrayFixed(
     PngSetRgbToGrayFixedResult(
         UInt16(6968), UInt16(23434), UInt16(2366), false
     )
+}
+
+// Exact floating-point conversion used by upstream png_set_rgb_to_gray.
+func pngFixedFromFloat64(value: Float64, label: String): Int64 {
+    if (value.isNaN() || value.isInf()) {
+        throw PngFormatException(
+            InvalidArgument,
+            -1,
+            "PNG ${label} must be finite"
+        )
+    }
+    let fixed = floor(100000.0 * value + 0.5)
+    if (fixed > 2147483647.0 || fixed < -2147483648.0) {
+        throw PngFormatException(
+            InvalidArgument,
+            -1,
+            "PNG ${label} exceeds the signed 32-bit fixed-point range"
+        )
+    }
+    Int64(fixed)
 }
 
 public class PngRgbToGrayTransform {
