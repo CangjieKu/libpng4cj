@@ -20,6 +20,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageUnpack
     | ReadStagePackSwap
     | ReadStageByteSwap
+    | ReadStagePaletteIndexCheck
 
     public operator func ==(right: PngReadTransformStage): Bool {
         ordinalValue() == right.ordinalValue()
@@ -48,6 +49,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageUnpack => 14
             case ReadStagePackSwap => 15
             case ReadStageByteSwap => 16
+            case ReadStagePaletteIndexCheck => 17
         }
     }
 
@@ -70,6 +72,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageFiller => "FILLER"
             case ReadStageSwapAlpha => "SWAP_ALPHA"
             case ReadStageByteSwap => "BYTE_SWAP"
+            case ReadStagePaletteIndexCheck => "PALETTE_INDEX_CHECK"
         }
     }
 }
@@ -104,6 +107,8 @@ public class PngReadTransformInitialization {
     private let fillerValueValue: UInt16
     private let swapAlphaEnabledValue: Bool
     private let byteSwapEnabledValue: Bool
+    private let checkForInvalidIndexEnabledValue: Bool
+    private let paletteEntryCountValue: Int64
     private let ownedStages: Array<PngReadTransformStage>
 
     init(
@@ -136,6 +141,8 @@ public class PngReadTransformInitialization {
         fillerValue: UInt16,
         swapAlphaEnabled: Bool,
         byteSwapEnabled: Bool,
+        checkForInvalidIndexEnabled: Bool,
+        paletteEntryCount: Int64,
         stages: Array<PngReadTransformStage>
     ) {
         this.usesPaletteInitializer = usesPaletteInitializer
@@ -173,6 +180,8 @@ public class PngReadTransformInitialization {
         fillerValueValue = fillerValue
         swapAlphaEnabledValue = swapAlphaEnabled
         byteSwapEnabledValue = byteSwapEnabled
+        checkForInvalidIndexEnabledValue = checkForInvalidIndexEnabled
+        paletteEntryCountValue = paletteEntryCount
         ownedStages = stages.clone()
     }
 
@@ -332,6 +341,14 @@ public class PngReadTransformInitialization {
     public func byteSwapEnabled(): Bool {
         byteSwapEnabledValue
     }
+
+    public func checkForInvalidIndexEnabled(): Bool {
+        checkForInvalidIndexEnabledValue
+    }
+
+    public func paletteEntryCount(): Int64 {
+        paletteEntryCountValue
+    }
 }
 
 private class PngInputAlphaClassification {
@@ -381,7 +398,8 @@ private func pngInitRgbTransformations(
 }
 
 private func pngReadTransformStages(
-    state: PngReadTransformState
+    state: PngReadTransformState,
+    checkForInvalidIndexEnabled: Bool
 ): Array<PngReadTransformStage> {
     let stages = ArrayList<PngReadTransformStage>()
     if (state.expandEnabled()) {
@@ -419,6 +437,9 @@ private func pngReadTransformStages(
     }
     if (state.packingEnabled()) {
         stages.add(ReadStageUnpack)
+    }
+    if (checkForInvalidIndexEnabled) {
+        stages.add(ReadStagePaletteIndexCheck)
     }
     if (state.bgrEnabled()) {
         stages.add(ReadStageBgr)
@@ -552,7 +573,14 @@ public func initializePngReadTransformations(
     let fillerValue = state.fillerValue()
     let swapAlphaEnabled = state.swapAlphaEnabled()
     let byteSwapEnabled = state.byteSwapEnabled()
-    let stages = pngReadTransformStages(state)
+    let checkForInvalidIndexEnabled = ihdr.colorType == Indexed &&
+        state.checkForInvalidIndexEnabled()
+    let paletteEntryCount = if (checkForInvalidIndexEnabled) {
+        metadata.paletteEntryCount()
+    } else {
+        Int64(0)
+    }
+    let stages = pngReadTransformStages(state, checkForInvalidIndexEnabled)
     state.markRowInitialized()
 
     PngReadTransformInitialization(
@@ -585,6 +613,8 @@ public func initializePngReadTransformations(
         fillerValue,
         swapAlphaEnabled,
         byteSwapEnabled,
+        checkForInvalidIndexEnabled,
+        paletteEntryCount,
         stages
     )
 }

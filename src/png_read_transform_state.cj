@@ -95,6 +95,7 @@ public class PngReadTransformState {
     private var fillerValueValue: UInt16 = UInt16(0)
     private var swapAlphaValue: Bool = false
     private var byteSwapValue: Bool = false
+    private var checkForInvalidIndexValue: Bool = true
 
     public init() {}
 
@@ -425,6 +426,15 @@ public class PngReadTransformState {
         true
     }
 
+    public func setCheckForInvalidIndex(allowed: Bool): Bool {
+        checkForInvalidIndexValue = allowed
+        true
+    }
+
+    public func setCheckForInvalidIndex(allowed: Int64): Bool {
+        setCheckForInvalidIndex(allowed > 0)
+    }
+
     public func scale16Enabled(): Bool {
         scale16Value
     }
@@ -555,6 +565,10 @@ public class PngReadTransformState {
 
     public func byteSwapEnabled(): Bool {
         byteSwapValue
+    }
+
+    public func checkForInvalidIndexEnabled(): Bool {
+        checkForInvalidIndexValue
     }
 
     func cancelTransparencyExpansionForInitialization(): Unit {

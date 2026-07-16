@@ -29,3 +29,8 @@
   every adjacent byte in 16-bit rows, and execute the immutable stage after
   Swap Alpha; prior Scale16/Strip16 reduction makes Byte Swap a validated
   copy-owned no-op after output depth reaches 8.
+- Translate `png_set_check_for_invalid_index` and
+  `png_do_check_palette_indexes`, preserve default-enabled checking, scan
+  logical 1/2/4/8-bit Indexed samples without reading padding, and expose the
+  accumulated maximum index plus retained-PLTE range status after Unpack and
+  before BGR without mutating row bytes.

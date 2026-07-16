@@ -51,7 +51,7 @@ Status meanings:
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
 | 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, and packswap state are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, and packing depth are projected; gamma/background, filler, user-transform, and full metadata projection remain |
-| 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch is connected; palette-index diagnostics, C ABI, and complete dispatcher remain partial |
+| 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
 | 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
 | 2590 | `png_do_chop` | `pngDoChop` | translated | initialized adapter is narrow; complete dispatcher remains partial |
@@ -67,7 +67,7 @@ Status meanings:
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated non-gamma stages through Invert/Unshift/Unpack/BGR/PackSwap/Filler/Swap Alpha/Byte Swap have bounded composition; callbacks, gamma/background, and pending bodies remain |
+| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated non-gamma stages through Invert/Unshift/Unpack/Palette Index Check/BGR/PackSwap/Filler/Swap Alpha/Byte Swap have bounded composition; callbacks, gamma/background, and pending bodies remain |
 
 ## Translation Rule
 
@@ -287,3 +287,12 @@ transform. Earlier Scale16/Strip16 output is 8-bit, so Byte Swap becomes a
 validated copy-owned no-op in those combinations. These anchors live in
 `pngtrans.c`, not the generated 45-function `pngrtran.c` inventory, so the
 ledger remains `24 translated / 7 partial / 14 pending`.
+
+LP-S004AM translates `pngset.c::png_set_check_for_invalid_index` state plus the
+shared `pngtrans.c::png_do_check_palette_indexes` body. Default-enabled state is
+snapshotted with retained PLTE count, and direct 1/2/4/8-bit Indexed scanning
+updates only an accumulated maximum while excluding final-byte padding. The
+bounded dispatcher places the diagnostic after Unpack and before BGR, and row
+plus whole-image results expose whether the maximum exceeds the retained PLTE.
+The setter/body live outside the generated 45-function `pngrtran.c` inventory,
+so the ledger remains `24 translated / 7 partial / 14 pending`.

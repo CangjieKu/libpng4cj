@@ -340,9 +340,10 @@ LP-S004AJ connects the direct packed-row body to translated read state:
   stage selection, and whole-image transformed-byte limits include unpack growth
 - `projectPngReadTransformInfo` now projects active packing to 8-bit row shape
 
-PackSwap is connected by LP-S004AK and read-side byte swap by LP-S004AL.
-Palette-index diagnostics, user callbacks, write packing, gamma/background,
-Adam7, progressive IO, C ABI, and release packaging remain separate work.
+PackSwap is connected by LP-S004AK, read-side byte swap by LP-S004AL, and
+palette-index diagnosis by LP-S004AM. User callbacks, write packing,
+gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
+separate work.
 
 ## Implemented Read PackSwap Setter And Initialized Stage
 
@@ -389,9 +390,34 @@ LP-S004AL translates `pngtrans.c::png_set_swap` and
 - whole-image initialized execution uses the same stage and existing final-row
   transformed-byte limit
 
-User callbacks, write-side byte swap, palette-index diagnostics,
-gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
-separate work.
+User callbacks, write-side byte swap, palette-expansion zero-fill compatibility,
+benign-error callback delivery, gamma/background, Adam7, progressive IO, C ABI,
+and release packaging remain separate work.
+
+## Implemented Invalid Palette Index Diagnostic Stage
+
+LP-S004AM translates `pngset.c::png_set_check_for_invalid_index` and
+`pngtrans.c::png_do_check_palette_indexes` into immutable read diagnosis:
+
+- checking is enabled by default; positive/true enables it and zero, negative,
+  or false disables it
+- 1/2/4-bit rows scan only the logical width, excluding low padding bits in the
+  final byte; 8-bit rows scan one index byte per pixel
+- the direct body preserves row bytes and row information while accumulating
+  the maximum observed index across rows
+- scanning is skipped when the row is not Indexed, the retained PLTE is empty,
+  or the PLTE already fills the complete bit-depth index domain
+- initialization snapshots the retained PLTE count and appends ordinal `17`
+  without renumbering prior stages
+- combined execution places Palette Index Check after Unpack and before BGR;
+  initialized row and whole-image results report the maximum and whether it is
+  outside the retained PLTE
+- malformed rows fail before diagnostic argument checks, and all returned rows
+  are copy-owned
+
+The read-end benign-error callback, zero-filled palette expansion for invalid
+indexes, write-side index diagnosis, user callbacks, gamma/background, Adam7,
+progressive IO, C ABI, and release packaging remain separate work.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

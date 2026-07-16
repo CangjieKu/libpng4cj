@@ -195,14 +195,19 @@ oracle-test source. Production implementation code belongs directly under
   8-bit, and network-order 16-bit grayscale rows plus GA8/GA16 color bytes;
   packed padding bits invert with the complete stored byte and alpha is retained
 - the one-shot initialized pipeline now snapshots and executes Invert Mono,
-  Invert Alpha, significant-bit Unshift, packed-sample Unpack, BGR, PackSwap,
-  Filler/Add Alpha, Swap Alpha, and 16-bit Byte Swap after Expand16 in frozen
-  upstream-relative order; `setPacking()` and `setPackSwap()` only enable for a
-  known sub-byte IHDR while `setSwap()` only enables for a known 16-bit IHDR,
-  PackSwap reverses complete stored bytes, Byte Swap exchanges every adjacent
-  component byte without changing row info, and earlier depth-changing stages
-  produce validated copy-owned no-ops when their output no longer matches the
-  selected stage depth
+  Invert Alpha, significant-bit Unshift, packed-sample Unpack, invalid
+  palette-index diagnosis, BGR, PackSwap, Filler/Add Alpha, Swap Alpha, and
+  16-bit Byte Swap after Expand16 in frozen upstream-relative order;
+  `setPacking()` and `setPackSwap()` only enable for a known sub-byte IHDR while
+  `setSwap()` only enables for a known 16-bit IHDR, PackSwap reverses complete
+  stored bytes, Byte Swap exchanges every adjacent component byte without
+  changing row info, and earlier depth-changing stages produce validated
+  copy-owned no-ops when their output no longer matches the selected stage depth
+- invalid palette-index checking is enabled by default like frozen libpng and
+  can be disabled explicitly; `pngDoCheckPaletteIndexes` scans only logical
+  1/2/4/8-bit Indexed samples, excludes final-byte padding, preserves row bytes
+  and information, and the initialized row/image results expose the maximum
+  observed index plus whether it exceeds the retained PLTE
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
   Strip Alpha, RGB/gray, quantize, 16-to-8, Expand16, and packing state into
   output color type, bit depth, channels, pixel depth, row bytes, remaining tRNS
@@ -211,8 +216,9 @@ oracle-test source. Production implementation code belongs directly under
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining
-standard metadata, quantize allocation-warning fallback, the remaining
-read-transform dispatch stages, complete transformed-metadata projection, user
+standard metadata, quantize allocation-warning fallback, benign-error callback
+delivery for invalid palette indexes, the remaining read-transform dispatch
+stages, complete transformed-metadata projection, user
 callbacks, Adam7
 execution, progressive reading, and all write/C ABI surfaces remain open work.
 

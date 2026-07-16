@@ -23,15 +23,21 @@ public class PngRgbToGrayRowResult {
 public class PngInitializedReadRowResult {
     public let info: PngReadRowInfo
     public let hadNonGrayPixels: Bool
+    public let maximumPaletteIndex: Int64
+    public let hasInvalidPaletteIndex: Bool
     private let ownedRow: Array<Byte>
 
     init(
         info: PngReadRowInfo,
         row: Array<Byte>,
-        hadNonGrayPixels: Bool
+        hadNonGrayPixels: Bool,
+        maximumPaletteIndex: Int64,
+        hasInvalidPaletteIndex: Bool
     ) {
         this.info = info
         this.hadNonGrayPixels = hadNonGrayPixels
+        this.maximumPaletteIndex = maximumPaletteIndex
+        this.hasInvalidPaletteIndex = hasInvalidPaletteIndex
         ownedRow = row.clone()
     }
 
@@ -43,15 +49,21 @@ public class PngInitializedReadRowResult {
 public class PngInitializedReadRowsResult {
     public let info: PngReadRowInfo
     public let hadNonGrayPixels: Bool
+    public let maximumPaletteIndex: Int64
+    public let hasInvalidPaletteIndex: Bool
     private let ownedRows: Array<Array<Byte>>
 
     init(
         info: PngReadRowInfo,
         rows: Array<Array<Byte>>,
-        hadNonGrayPixels: Bool
+        hadNonGrayPixels: Bool,
+        maximumPaletteIndex: Int64,
+        hasInvalidPaletteIndex: Bool
     ) {
         this.info = info
         this.hadNonGrayPixels = hadNonGrayPixels
+        this.maximumPaletteIndex = maximumPaletteIndex
+        this.hasInvalidPaletteIndex = hasInvalidPaletteIndex
         ownedRows = Array<Array<Byte>>(rows.size, repeat: Array<Byte>())
         var index: Int64 = 0
         while (index < rows.size) {
@@ -271,10 +283,11 @@ public func applyInitializedPngRgbToGrayStage(
     pngDoRgbToGray(rowInfo, row, initialization.rgbToGrayTransform())
 }
 
-public func applyInitializedPngReadStages(
+private func applyInitializedPngReadStagesWithPaletteMaximum(
     initialization: PngReadTransformInitialization,
     rowInfo: PngReadRowInfo,
-    row: Array<Byte>
+    row: Array<Byte>,
+    currentMaximumPaletteIndex: Int64
 ): PngInitializedReadRowResult {
     let expanded = applyInitializedPngExpandStage(initialization, rowInfo, row)
     let stripped = applyInitializedPngStripAlphaStage(
@@ -307,8 +320,14 @@ public func applyInitializedPngReadStages(
     let unpacked = applyInitializedPngUnpackStage(
         initialization, unshifted.info, unshifted.row()
     )
+    let paletteChecked = applyInitializedPngPaletteIndexCheckStage(
+        initialization,
+        unpacked.info,
+        unpacked.row(),
+        currentMaximumPaletteIndex
+    )
     let bgr = applyInitializedPngBgrStage(
-        initialization, unpacked.info, unpacked.row()
+        initialization, paletteChecked.info, paletteChecked.row()
     )
     let packSwapped = applyInitializedPngPackSwapStage(
         initialization, bgr.info, bgr.row()
@@ -328,7 +347,19 @@ public func applyInitializedPngReadStages(
     PngInitializedReadRowResult(
         byteSwapped.info,
         byteSwapped.row(),
-        gray.hadNonGrayPixels
+        gray.hadNonGrayPixels,
+        paletteChecked.maximumPaletteIndex,
+        paletteChecked.hasInvalidIndex(initialization.paletteEntryCount())
+    )
+}
+
+public func applyInitializedPngReadStages(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>
+): PngInitializedReadRowResult {
+    applyInitializedPngReadStagesWithPaletteMaximum(
+        initialization, rowInfo, row, Int64(0)
     )
 }
 
@@ -361,12 +392,15 @@ public func transformPngRowsInitialized(
     )
     var outputInfo = sourceInfo
     var hadNonGrayPixels = false
+    var maximumPaletteIndex: Int64 = 0
+    var hasInvalidPaletteIndex = false
     var index: Int64 = 0
     while (index < rows.size) {
-        let transformed = applyInitializedPngReadStages(
+        let transformed = applyInitializedPngReadStagesWithPaletteMaximum(
             initialization,
             sourceInfo,
-            decoded.row(index)
+            decoded.row(index),
+            maximumPaletteIndex
         )
         if (index == 0) {
             validateInitializedRowsLimit(
@@ -378,9 +412,18 @@ public func transformPngRowsInitialized(
         outputInfo = transformed.info
         rows[index] = transformed.row()
         hadNonGrayPixels = hadNonGrayPixels || transformed.hadNonGrayPixels
+        maximumPaletteIndex = transformed.maximumPaletteIndex
+        hasInvalidPaletteIndex = hasInvalidPaletteIndex ||
+            transformed.hasInvalidPaletteIndex
         index += 1
     }
-    PngInitializedReadRowsResult(outputInfo, rows, hadNonGrayPixels)
+    PngInitializedReadRowsResult(
+        outputInfo,
+        rows,
+        hadNonGrayPixels,
+        maximumPaletteIndex,
+        hasInvalidPaletteIndex
+    )
 }
 
 public func transformPngRowsInitialized(
