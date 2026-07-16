@@ -3,8 +3,9 @@
   name = "libpng4cj"
   version = "0.1.0"
   output-type = "static"
-  src-dir = "src/libpng4cj"
-  compile-option = "-Woff unused -lz"
+  src-dir = "src"
+  compile-option = "-Woff unused"
+  link-option = "-lz"
   license = "Libpng-2.0"
   description = "Full libpng port program for Cangjie with a future libpng16 C ABI surface"
-  include = ["src", "README.md", "docs", "LICENSE", "UPSTREAM.md", "vendor/libpng-1.6.58/LICENSE"]
+  include = ["src", "test", "doc", "README.md", "README.OpenSource", "CHANGELOG.md", "LICENSE", "vendor/libpng-1.6.58/LICENSE"]

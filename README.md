@@ -18,7 +18,28 @@ PNG decoder or a replacement for libpng.
 cjpm build
 cjpm test
 sh ./tools/update-upstream-baseline.sh
+cd test/consumer && cjpm run
 ```
+
+## Use
+
+```toml
+[package]
+link-option = "-lz"
+
+[dependencies]
+libpng4cj = { git = "https://gitcode.com/cinyu/libpng4cj.git" }
+```
+
+```cangjie
+import libpng4cj.*
+
+let valid = isPngSignature(PNG_SIGNATURE)
+```
+
+The public package root is `libpng4cj`; consumers do not need a repeated
+module/package prefix. libpng4cj is currently a static library backed by the
+system zlib, so the final executable declares `-lz` at its link step.
 
 ## Current Baseline
 
@@ -28,7 +49,9 @@ sh ./tools/update-upstream-baseline.sh
 - vendored reference: `vendor/libpng-1.6.58/`
 
 The vendored C source is retained as licensed translation reference and as the
-oracle-test source. New implementation code belongs under `src/libpng4cj/`.
+oracle-test source. Production implementation code belongs directly under
+`src/`; `src/tests/` contains the unit tests discovered by `cjpm test`, while
+`test/` contains standalone consumer and acceptance projects.
 
 ## Current Read Surface
 
@@ -178,7 +201,7 @@ dispatch, complete transformed-metadata projection, user callbacks, Adam7
 execution, progressive reading, and all write/C ABI surfaces remain open work.
 
 The translation-first route is tracked in
-`docs/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
+`doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
 The current ledger is `24 translated / 7 partial / 14 pending`.
@@ -196,4 +219,5 @@ zlib remains a dependency, matching upstream libpng. The future compatibility
 layer may use a minimal C shim for exported symbols, `setjmp`/`longjmp`, and
 callback trampolines; PNG behavior and ownership logic remain Cangjie-owned.
 
-See [UPSTREAM.md](UPSTREAM.md) and [Porting Map](docs/PORTING_MAP.md).
+See [README.OpenSource](README.OpenSource), [Feature API](doc/feature_api.md),
+and [Porting Map](doc/PORTING_MAP.md).

@@ -10,7 +10,7 @@ sh ./tools/update-pngrtran-inventory.sh
 ```
 
 The generated file is
-`docs/upstream/libpng-1.6.58-pngrtran-functions.tsv`. The generator asserts the
+`doc/upstream/libpng-1.6.58-pngrtran-functions.tsv`. The generator asserts the
 frozen count of 45 functions, so upstream/source drift fails visibly.
 
 Status meanings:

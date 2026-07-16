@@ -4,7 +4,7 @@ set -eu
 
 ROOT=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 SOURCE=$ROOT/vendor/libpng-1.6.58/pngrtran.c
-OUTPUT=$ROOT/docs/upstream/libpng-1.6.58-pngrtran-functions.tsv
+OUTPUT=$ROOT/doc/upstream/libpng-1.6.58-pngrtran-functions.tsv
 EXPECTED_FUNCTIONS=45
 
 fail() {

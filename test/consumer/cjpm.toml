@@ -1,0 +1,11 @@
+[package]
+  cjc-version = "1.1.0"
+  name = "libpng4cj_consumer"
+  version = "0.1.0"
+  output-type = "executable"
+  src-dir = "src"
+  link-option = "-lz"
+  description = "External package-root consumption proof for libpng4cj"
+
+[dependencies]
+  libpng4cj = { path = "../.." }

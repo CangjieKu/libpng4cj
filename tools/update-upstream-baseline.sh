@@ -4,7 +4,7 @@ set -eu
 
 ROOT=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 UPSTREAM=$ROOT/vendor/libpng-1.6.58
-OUTPUT=$ROOT/docs/upstream
+OUTPUT=$ROOT/doc/upstream
 SYMBOLS=$OUTPUT/libpng-1.6.58-symbols.txt
 HEADERS=$OUTPUT/libpng-1.6.58-public-headers.sha256
 SOURCES=$OUTPUT/libpng-1.6.58-source-files.txt
