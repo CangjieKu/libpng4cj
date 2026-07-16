@@ -287,7 +287,8 @@ private func applyInitializedPngReadStagesWithPaletteMaximum(
     initialization: PngReadTransformInitialization,
     rowInfo: PngReadRowInfo,
     row: Array<Byte>,
-    currentMaximumPaletteIndex: Int64
+    currentMaximumPaletteIndex: Int64,
+    context: PngReadUserTransformContext
 ): PngInitializedReadRowResult {
     let expanded = applyInitializedPngExpandStage(initialization, rowInfo, row)
     let stripped = applyInitializedPngStripAlphaStage(
@@ -344,9 +345,15 @@ private func applyInitializedPngReadStagesWithPaletteMaximum(
     let byteSwapped = applyInitializedPngByteSwapStage(
         initialization, swappedAlpha.info, swappedAlpha.row()
     )
-    PngInitializedReadRowResult(
+    let userTransformed = applyInitializedPngReadUserTransformStage(
+        initialization,
         byteSwapped.info,
         byteSwapped.row(),
+        context
+    )
+    PngInitializedReadRowResult(
+        userTransformed.info,
+        userTransformed.row(),
         gray.hadNonGrayPixels,
         paletteChecked.maximumPaletteIndex,
         paletteChecked.hasInvalidIndex(initialization.paletteEntryCount())
@@ -359,7 +366,26 @@ public func applyInitializedPngReadStages(
     row: Array<Byte>
 ): PngInitializedReadRowResult {
     applyInitializedPngReadStagesWithPaletteMaximum(
-        initialization, rowInfo, row, Int64(0)
+        initialization,
+        rowInfo,
+        row,
+        Int64(0),
+        PngReadUserTransformContext(UInt32(0), UInt8(0))
+    )
+}
+
+public func applyInitializedPngReadStages(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>,
+    context: PngReadUserTransformContext
+): PngInitializedReadRowResult {
+    applyInitializedPngReadStagesWithPaletteMaximum(
+        initialization,
+        rowInfo,
+        row,
+        Int64(0),
+        context
     )
 }
 
@@ -400,7 +426,8 @@ public func transformPngRowsInitialized(
             initialization,
             sourceInfo,
             decoded.row(index),
-            maximumPaletteIndex
+            maximumPaletteIndex,
+            PngReadUserTransformContext(UInt32(index), UInt8(0))
         )
         if (index == 0) {
             validateInitializedRowsLimit(

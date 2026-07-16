@@ -43,14 +43,14 @@ Status meanings:
 | 1031 | `png_set_gray_to_rgb` | `PngReadTransformState.setGrayToRgb` | translated | direct C ABI setter and transformed-info projection deferred |
 | 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
 | 1118 | `png_set_rgb_to_gray` | none | pending | floating-point fixed conversion facade |
-| 1132 | `png_set_read_user_transform_fn` | none | pending | callback ABI and row hook |
+| 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | none | pending | gamma fixed-point substrate |
 | 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | retained gAMA/sRGB/cHRM | pending | precedence and fixed-point resolution |
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, and packswap state are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
-| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, and packing depth are projected; gamma/background, filler, user-transform, and full metadata projection remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, and native user-transform state are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
+| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
 | 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
@@ -67,7 +67,7 @@ Status meanings:
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated non-gamma stages through Invert/Unshift/Unpack/Palette Index Check/BGR/PackSwap/Filler/Swap Alpha/Byte Swap have bounded composition; callbacks, gamma/background, and pending bodies remain |
+| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated non-gamma stages through Invert/Unshift/Unpack/Palette Index Check/BGR/PackSwap/Filler/Swap Alpha/Byte Swap/User Transform have bounded composition; C ABI callbacks, gamma/background, and pending bodies remain |
 
 ## Translation Rule
 
@@ -296,3 +296,12 @@ bounded dispatcher places the diagnostic after Unpack and before BGR, and row
 plus whole-image results expose whether the maximum exceeds the retained PLTE.
 The setter/body live outside the generated 45-function `pngrtran.c` inventory,
 so the ledger remains `24 translated / 7 partial / 14 pending`.
+
+LP-S004AN adds native Cangjie read user-transform registration, byte-sized
+depth/channel info, transformed-info projection, row/pass context, and the
+final initialized stage after Byte Swap. Callback input/output is copy-owned,
+configured nonzero depth/channels override callback-returned row information,
+and exact final row bytes are validated before acceptance. The frozen top-level
+setter moves from pending to partial because null callback semantics, late
+mutation, raw user pointers, and the C ABI trampoline remain open. The current
+ledger is `24 translated / 8 partial / 13 pending`.

@@ -34,3 +34,7 @@
   logical 1/2/4/8-bit Indexed samples without reading padding, and expose the
   accumulated maximum index plus retained-PLTE range status after Unpack and
   before BGR without mutating row bytes.
+- Add native Cangjie read user-transform registration and configured
+  depth/channel information, project nonzero output shape overrides, expose
+  row/pass context, and execute the copy-owned callback as the final initialized
+  stage after Byte Swap with exact returned-row validation.

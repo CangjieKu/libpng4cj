@@ -365,9 +365,10 @@ LP-S004AK translates `pngtrans.c::png_set_packswap` and
 - whole-image initialized execution uses the same stage and existing final-row
   transformed-byte limit
 
-Palette-index diagnostics, user callbacks, write-side PackSwap,
-gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
-separate work. Read-side byte swap is connected by LP-S004AL.
+Palette-index diagnostics and read-side byte swap are connected by LP-S004AM
+and LP-S004AL. The native read user callback is connected later by LP-S004AN;
+write-side PackSwap, gamma/background, Adam7, progressive IO, C ABI, and release
+packaging remain separate work.
 
 ## Implemented Read Byte Swap Setter And Initialized Stage
 
@@ -382,7 +383,7 @@ LP-S004AL translates `pngtrans.c::png_set_swap` and
   copy-owned
 - malformed row lengths fail before stage selection or bit-depth checks
 - immutable initialization appends Byte Swap after Filler and Swap Alpha and
-  before the eventual user-transform stage
+  before the user-transform stage connected by LP-S004AN
 - added alpha is moved first by Swap Alpha, then every resulting 16-bit
   component has its two bytes exchanged
 - when Scale16 or Strip16 runs first, output depth is already 8 and Byte Swap
@@ -390,9 +391,10 @@ LP-S004AL translates `pngtrans.c::png_set_swap` and
 - whole-image initialized execution uses the same stage and existing final-row
   transformed-byte limit
 
-User callbacks, write-side byte swap, palette-expansion zero-fill compatibility,
-benign-error callback delivery, gamma/background, Adam7, progressive IO, C ABI,
-and release packaging remain separate work.
+The native read callback is connected by LP-S004AN. C ABI callback trampolines,
+write-side byte swap, palette-expansion zero-fill compatibility, benign-error
+callback delivery, gamma/background, Adam7, progressive IO, and release
+packaging remain separate work.
 
 ## Implemented Invalid Palette Index Diagnostic Stage
 
@@ -416,8 +418,37 @@ LP-S004AM translates `pngset.c::png_set_check_for_invalid_index` and
   are copy-owned
 
 The read-end benign-error callback, zero-filled palette expansion for invalid
-indexes, write-side index diagnosis, user callbacks, gamma/background, Adam7,
-progressive IO, C ABI, and release packaging remain separate work.
+indexes, write-side index diagnosis, gamma/background, Adam7, progressive IO,
+C ABI, and release packaging remain separate work. The native read user
+transform is connected by LP-S004AN.
+
+## Implemented Native Read User Transform Stage
+
+LP-S004AN translates the native Cangjie portion of
+`png_set_read_user_transform_fn`, `png_set_user_transform_info`, the
+user-transform branch of `png_read_transform_info`, and the final read row hook:
+
+- `setReadUserTransform` stores a typed Cangjie function value and enables one
+  lifecycle-gated user-transform stage
+- `setUserTransformInfo` stores optional byte-sized output depth/channels;
+  zero preserves callback-returned row information and nonzero values override
+  it after callback execution
+- initialization snapshots callback/configuration and appends ordinal `18`
+  without renumbering prior stages
+- `projectPngReadTransformInfo` projects configured nonzero depth/channels only
+  while the user-transform stage is active
+- combined execution places User Transform after Byte Swap, supplies immutable
+  zero-based row/pass context, and gives the callback a copy-owned row
+- callback output is copy-owned; configured shape overrides are applied before
+  exact final row-byte validation and transformed-byte limiting
+- direct execution can supply an explicit context, while the current
+  non-interlaced whole-image path uses pass `0`
+
+The top-level `pngrtran.c` setter remains partial because null callback
+semantics, late callback mutation, the C ABI callback trampoline, and raw
+`user_transform_ptr` are not present. Write callbacks, Adam7/progressive pass
+execution, gamma/background, C ABI export, and release packaging remain
+separate work.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

@@ -96,6 +96,14 @@ public class PngReadTransformState {
     private var swapAlphaValue: Bool = false
     private var byteSwapValue: Bool = false
     private var checkForInvalidIndexValue: Bool = true
+    private var readUserTransformEnabledValue: Bool = false
+    private var userTransformDepthValue: UInt8 = UInt8(0)
+    private var userTransformChannelsValue: UInt8 = UInt8(0)
+    private var readUserTransformValue: (
+        PngReadUserTransformContext,
+        PngReadRowInfo,
+        Array<Byte>
+    ) -> PngReadUserTransformResult = pngIdentityReadUserTransform
 
     public init() {}
 
@@ -435,6 +443,41 @@ public class PngReadTransformState {
         setCheckForInvalidIndex(allowed > 0)
     }
 
+    public func setUserTransformInfo(depth: UInt8, channels: UInt8): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        userTransformDepthValue = depth
+        userTransformChannelsValue = channels
+        true
+    }
+
+    public func setUserTransformInfo(depth: Int64, channels: Int64): Bool {
+        if (depth < 0 || depth > 255 || channels < 0 || channels > 255) {
+            throw PngFormatException(
+                InvalidArgument,
+                if (depth < 0 || depth > 255) { depth } else { channels },
+                "PNG user transform depth and channels must be in 0..255"
+            )
+        }
+        setUserTransformInfo(UInt8(depth), UInt8(channels))
+    }
+
+    public func setReadUserTransform(
+        callback: (
+            PngReadUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngReadUserTransformResult
+    ): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        readUserTransformValue = callback
+        readUserTransformEnabledValue = true
+        true
+    }
+
     public func scale16Enabled(): Bool {
         scale16Value
     }
@@ -569,6 +612,33 @@ public class PngReadTransformState {
 
     public func checkForInvalidIndexEnabled(): Bool {
         checkForInvalidIndexValue
+    }
+
+    public func readUserTransformEnabled(): Bool {
+        readUserTransformEnabledValue
+    }
+
+    public func userTransformDepth(): UInt8 {
+        userTransformDepthValue
+    }
+
+    public func userTransformChannels(): UInt8 {
+        userTransformChannelsValue
+    }
+
+    public func readUserTransform(): (
+        PngReadUserTransformContext,
+        PngReadRowInfo,
+        Array<Byte>
+    ) -> PngReadUserTransformResult {
+        if (!readUserTransformEnabledValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform state has no user transform callback"
+            )
+        }
+        readUserTransformValue
     }
 
     func cancelTransparencyExpansionForInitialization(): Unit {

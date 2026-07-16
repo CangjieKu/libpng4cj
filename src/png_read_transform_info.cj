@@ -16,6 +16,7 @@ public class PngReadTransformInfo {
         ihdr: PngIhdr,
         bitDepth: UInt8,
         colorType: PngColorType,
+        channels: UInt8,
         hasTransparency: Bool,
         palette: Array<Byte>
     ) {
@@ -23,7 +24,7 @@ public class PngReadTransformInfo {
         height = ihdr.height
         this.bitDepth = bitDepth
         this.colorType = colorType
-        channels = colorType.channels()
+        this.channels = channels
         pixelDepth = UInt16(bitDepth) * UInt16(channels)
         rowBytes = (UInt64(width) * UInt64(pixelDepth) + UInt64(7)) / UInt64(8)
         this.hasTransparency = hasTransparency
@@ -169,5 +170,22 @@ public func projectPngReadTransformInfo(
         hasTransparency = false
     }
 
-    PngReadTransformInfo(ihdr, bitDepth, colorType, hasTransparency, palette)
+    var channels = colorType.channels()
+    if (initialization.hasStage(ReadStageUserTransform)) {
+        if (initialization.userTransformDepth() != UInt8(0)) {
+            bitDepth = initialization.userTransformDepth()
+        }
+        if (initialization.userTransformChannels() != UInt8(0)) {
+            channels = initialization.userTransformChannels()
+        }
+    }
+
+    PngReadTransformInfo(
+        ihdr,
+        bitDepth,
+        colorType,
+        channels,
+        hasTransparency,
+        palette
+    )
 }

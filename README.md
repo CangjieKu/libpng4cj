@@ -197,7 +197,8 @@ oracle-test source. Production implementation code belongs directly under
 - the one-shot initialized pipeline now snapshots and executes Invert Mono,
   Invert Alpha, significant-bit Unshift, packed-sample Unpack, invalid
   palette-index diagnosis, BGR, PackSwap, Filler/Add Alpha, Swap Alpha, and
-  16-bit Byte Swap after Expand16 in frozen upstream-relative order;
+  16-bit Byte Swap plus the native Cangjie read user transform after Expand16
+  in frozen upstream-relative order;
   `setPacking()` and `setPackSwap()` only enable for a known sub-byte IHDR while
   `setSwap()` only enables for a known 16-bit IHDR, PackSwap reverses complete
   stored bytes, Byte Swap exchanges every adjacent component byte without
@@ -208,25 +209,30 @@ oracle-test source. Production implementation code belongs directly under
   1/2/4/8-bit Indexed samples, excludes final-byte padding, preserves row bytes
   and information, and the initialized row/image results expose the maximum
   observed index plus whether it exceeds the retained PLTE
+- `setReadUserTransform` installs a native Cangjie row callback with copy-owned
+  input/output, explicit row/pass context, and a final stage after Byte Swap;
+  `setUserTransformInfo` snapshots optional output depth/channels, configured
+  nonzero values override callback-returned row information, and exact final
+  row bytes are validated before the result is accepted
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
-  Strip Alpha, RGB/gray, quantize, 16-to-8, Expand16, and packing state into
-  output color type, bit depth, channels, pixel depth, row bytes, remaining tRNS
-  state, and a copy-owned synchronized palette using the frozen info-function
-  order rather than runtime row-stage order
+  Strip Alpha, RGB/gray, quantize, 16-to-8, Expand16, packing, and configured
+  user-transform state into output color type, bit depth, channels, pixel depth,
+  row bytes, remaining tRNS state, and a copy-owned synchronized palette using
+  the frozen info-function order rather than runtime row-stage order
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining
 standard metadata, quantize allocation-warning fallback, benign-error callback
 delivery for invalid palette indexes, the remaining read-transform dispatch
-stages, complete transformed-metadata projection, user
-callbacks, Adam7
+stages, complete transformed-metadata projection, C ABI callback trampolines,
+raw user-transform pointers, Adam7
 execution, progressive reading, and all write/C ABI surfaces remain open work.
 
 The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `24 translated / 7 partial / 14 pending`.
+The current ledger is `24 translated / 8 partial / 13 pending`.
 
 ## Native Dependency
 
