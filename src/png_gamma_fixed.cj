@@ -51,3 +51,47 @@ public func pngGammaThreshold(screenGamma: Int32, fileGamma: Int32): Bool {
     )
     !product.success || pngGammaSignificant(product.value)
 }
+
+public func pngReciprocalFixed(value: Int32): Int32 {
+    let reciprocal = pngMulDivFixed(PNG_FP_1, PNG_FP_1, value)
+    if (reciprocal.success) {
+        return reciprocal.value
+    }
+    Int32(0)
+}
+
+public class PngFileGammaSources {
+    public let fileGamma: Int32
+    public let chunkGamma: Int32
+    public let defaultGamma: Int32
+    public let screenGamma: Int32
+
+    public init(
+        fileGamma: Int32,
+        chunkGamma: Int32,
+        defaultGamma: Int32,
+        screenGamma: Int32
+    ) {
+        this.fileGamma = fileGamma
+        this.chunkGamma = chunkGamma
+        this.defaultGamma = defaultGamma
+        this.screenGamma = screenGamma
+    }
+}
+
+// Direct translation of upstream png_resolve_file_gamma.
+public func pngResolveFileGamma(sources: PngFileGammaSources): Int32 {
+    if (sources.fileGamma != Int32(0)) {
+        return sources.fileGamma
+    }
+    if (sources.chunkGamma != Int32(0)) {
+        return sources.chunkGamma
+    }
+    if (sources.defaultGamma != Int32(0)) {
+        return sources.defaultGamma
+    }
+    if (sources.screenGamma != Int32(0)) {
+        return pngReciprocalFixed(sources.screenGamma)
+    }
+    Int32(0)
+}

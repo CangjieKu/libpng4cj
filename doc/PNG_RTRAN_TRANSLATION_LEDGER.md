@@ -47,7 +47,7 @@ Status meanings:
 | 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | gamma setter/state/table integration deferred |
 | 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
-| 1351 | `png_resolve_file_gamma` | retained gAMA/sRGB/cHRM | pending | precedence and fixed-point resolution |
+| 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | mutable read-state and C ABI integration deferred |
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
 | 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, and native user-transform state are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
@@ -322,3 +322,11 @@ divide-by-zero and signed-32-bit overflow failure, strict
 multiplication forces gamma correction. Gamma setters, file-gamma resolution,
 tables, and row correction remain separate, while the ledger advances to
 `26 translated / 8 partial / 11 pending`.
+
+LP-S004AQ translates `png_reciprocal` through the accepted fixed
+multiply/divide substrate and adds immutable `pngResolveFileGamma` precedence.
+The first nonzero explicit file, chunk, or default gamma wins; otherwise a
+nonzero screen gamma is reciprocated, with zero or reciprocal failure returning
+zero. Mutable read-state integration, gamma initialization, tables, and row
+correction remain separate, while the ledger advances to
+`27 translated / 8 partial / 10 pending`.

@@ -29,6 +29,7 @@ import libpng4cj.*
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
 - fixed-point multiply/divide and gamma significance/threshold helpers
+- fixed reciprocal and immutable file-gamma precedence resolution
 - initialized late-channel setters and stages for invert mono, invert alpha,
   significant-bit unshift, packed-sample unpack, invalid palette-index
   diagnosis, BGR, 1/2/4-bit PackSwap, filler/add alpha placement, alpha
@@ -66,6 +67,14 @@ through `105000`, inclusive, as not significant. `pngGammaThreshold` evaluates
 the screen/file product on the `100000` scale and returns `true` when that
 product is significant or cannot be represented, matching upstream's
 correction-enabling failure behavior.
+
+`pngReciprocalFixed(value)` returns the frozen 100000-scale reciprocal or zero
+when division or signed-32-bit representation fails.
+
+`PngFileGammaSources` holds explicit file, chunk, default, and screen values.
+`pngResolveFileGamma` returns the first nonzero value in that order, except that
+screen gamma is reciprocated before return. An all-zero source set or failed
+screen reciprocal resolves to zero. The input object remains immutable.
 
 ## Invalid Palette Index Diagnosis
 

@@ -487,6 +487,25 @@ This packet does not add gamma setter state, file-gamma precedence, table
 generation, gamma-aware RGB-to-gray, pixel-row correction, background/alpha
 mode, or C ABI wrappers.
 
+## Implemented File Gamma Resolution
+
+LP-S004AQ translates the frozen fixed reciprocal and file-gamma precedence:
+
+- `pngReciprocalFixed` calculates `100000 * 100000 / value` through the
+  accepted multiply/divide substrate and returns zero on divide/overflow
+  failure
+- immutable `PngFileGammaSources` carries explicit file, chunk, default, and
+  screen gamma values without exposing mutable read state
+- `pngResolveFileGamma` returns the first nonzero explicit, chunk, or default
+  value, then reciprocal screen gamma, then zero
+- lower-priority values are not evaluated once a higher-priority source wins
+- signed nonzero behavior, reciprocal rounding/failure, every precedence
+  branch, zero state, and input immutability are covered directly
+
+This packet does not add gamma setters, read-state mutation,
+`png_init_gamma_values`, tables, pixel-row correction, background/alpha mode,
+or C ABI wrappers.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

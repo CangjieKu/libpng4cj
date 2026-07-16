@@ -138,6 +138,8 @@ oracle-test source. Production implementation code belongs directly under
 - frozen-default signed fixed-point multiply/divide plus direct gamma
   significance/threshold evaluation with exact `100000 +/- 5000` boundaries
   and correction forced on divide or signed-32-bit overflow failure
+- fixed-point reciprocal plus immutable file-gamma resolution with exact
+  explicit, chunk, default, reciprocal-screen, and zero precedence
 - copy-owned `G`, `GA`, `AG`, `GX`, and `XG` rows across native 8-bit, native
   UInt16, and explicit Strip/Scale 16-to-8 output; conversion preserves alpha,
   equal RGB samples, frozen transform order, and final one/two-channel limits
@@ -236,7 +238,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `26 translated / 8 partial / 11 pending`.
+The current ledger is `27 translated / 8 partial / 10 pending`.
 
 ## Native Dependency
 

@@ -59,4 +59,84 @@ public class PngGammaFixedTestSuite {
         @Assert(pngGammaThreshold(Int32(0), Int32(100000)), true)
         @Assert(pngGammaThreshold(Int32.Max, Int32.Max), true)
     }
+
+    @TestCase
+    public func calculatesFixedReciprocalAndFailureFallback(): Unit {
+        @Assert(pngReciprocalFixed(Int32(200000)), Int32(50000))
+        @Assert(pngReciprocalFixed(Int32(45455)), Int32(219998))
+        @Assert(pngReciprocalFixed(Int32(0)), Int32(0))
+        @Assert(pngReciprocalFixed(Int32(1)), Int32(0))
+    }
+
+    @TestCase
+    public func resolvesExplicitFileGammaBeforeEveryFallback(): Unit {
+        let sources = PngFileGammaSources(
+            Int32(70000),
+            Int32(80000),
+            Int32(90000),
+            Int32(200000)
+        )
+        @Assert(pngResolveFileGamma(sources), Int32(70000))
+    }
+
+    @TestCase
+    public func resolvesChunkThenDefaultGammaInFrozenOrder(): Unit {
+        let chunk = PngFileGammaSources(
+            Int32(0),
+            Int32(80000),
+            Int32(90000),
+            Int32(200000)
+        )
+        @Assert(pngResolveFileGamma(chunk), Int32(80000))
+
+        let fallback = PngFileGammaSources(
+            Int32(0),
+            Int32(0),
+            Int32(90000),
+            Int32(200000)
+        )
+        @Assert(pngResolveFileGamma(fallback), Int32(90000))
+    }
+
+    @TestCase
+    public func resolvesScreenReciprocalAndAllZeroState(): Unit {
+        let screen = PngFileGammaSources(
+            Int32(0),
+            Int32(0),
+            Int32(0),
+            Int32(200000)
+        )
+        @Assert(pngResolveFileGamma(screen), Int32(50000))
+
+        let zero = PngFileGammaSources(
+            Int32(0),
+            Int32(0),
+            Int32(0),
+            Int32(0)
+        )
+        @Assert(pngResolveFileGamma(zero), Int32(0))
+
+        let overflow = PngFileGammaSources(
+            Int32(0),
+            Int32(0),
+            Int32(0),
+            Int32(1)
+        )
+        @Assert(pngResolveFileGamma(overflow), Int32(0))
+    }
+
+    @TestCase
+    public func preservesSignedNonzeroValuesAndInputState(): Unit {
+        let sources = PngFileGammaSources(
+            Int32(-1),
+            Int32(80000),
+            Int32(90000),
+            Int32(200000)
+        )
+        @Assert(pngResolveFileGamma(sources), Int32(-1))
+        @Assert(sources.fileGamma, Int32(-1))
+        @Assert(sources.chunkGamma, Int32(80000))
+        @Assert(sources.defaultGamma, Int32(90000))
+        @Assert(sources.screenGamma, Int32(200000))
+    }
 }

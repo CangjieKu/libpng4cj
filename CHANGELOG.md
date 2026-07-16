@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Translate fixed-point reciprocal and immutable file-gamma precedence
+  resolution across explicit, chunk, default, and screen sources.
 - Translate the frozen fixed-point multiply/divide substrate, gamma
   significance predicate, and direct `png_gamma_threshold` behavior.
 - Translate the floating-point `png_set_rgb_to_gray` facade with exact
