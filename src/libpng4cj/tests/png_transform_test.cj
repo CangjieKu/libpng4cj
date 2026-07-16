@@ -833,6 +833,154 @@ public class PngTransformTestSuite {
     }
 
     @TestCase
+    public func snapshotsRgbToGrayAndRunsInitializedReadPipeline(): Unit {
+        let rgb = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let state = PngReadTransformState()
+        state.markIhdrRead(rgb.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(state.setGrayToRgb(), true)
+        let initialized = initializePngReadTransformations(state, rgb)
+        @Assert(initialized.rgbToGrayEnabled(), true)
+        let snapshot = initialized.rgbToGrayTransform()
+        @Assert(snapshot.redCoefficient, UInt16(6969))
+        @Assert(snapshot.greenCoefficient, UInt16(23433))
+        @Assert(snapshot.blueCoefficient, UInt16(2366))
+        @Assert(snapshot.customCoefficientsAccepted, true)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(100000), UInt32(0)),
+            false
+        )
+        @Assert(initialized.rgbToGrayTransform().redCoefficient, UInt16(6969))
+
+        let result = applyInitializedPngReadStages(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            [10, 20, 30, 40, 50, 60]
+        )
+        let expected: Array<Byte> = [18, 18, 18, 48, 48, 48]
+        @Assert(result.row(), expected)
+        @Assert(result.info.colorType.toString(), "TRUECOLOR")
+        @Assert(result.hadNonGrayPixels, true)
+    }
+
+    @TestCase
+    public func runsPaletteAndSixteenBitInitializedPipelineDemos(): Unit {
+        let palette: Array<Byte> = [
+            0xff, 0x00, 0x00,
+            0x00, 0xff, 0x00,
+            0x00, 0x00, 0xff,
+            0xff, 0xff, 0xff
+        ]
+        let indexed = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [makeTransformChunk(PNG_CHUNK_PLTE, palette)],
+            PALETTE_GRAY_ZLIB
+        ))
+        let indexedState = PngReadTransformState()
+        indexedState.markIhdrRead(indexed.ihdr)
+        @Assert(
+            indexedState.setRgbToGrayFixed(Convert, UInt32(0), UInt32(0)),
+            true
+        )
+        let indexedResult = applyInitializedPngReadStages(
+            initializePngReadTransformations(indexedState, indexed),
+            PngReadRowInfo(UInt32(4), UInt8(2), Indexed),
+            [0x1b]
+        )
+        let indexedExpected: Array<Byte> = [0x00, 0x00, 0xff, 0xff]
+        @Assert(indexedResult.row(), indexedExpected)
+        @Assert(indexedResult.info.colorType.toString(), "GRAYSCALE")
+        @Assert(indexedResult.hadNonGrayPixels, true)
+
+        let rgb16 = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB
+        ))
+        let sixteenState = PngReadTransformState()
+        sixteenState.markIhdrRead(rgb16.ihdr)
+        @Assert(
+            sixteenState.setRgbToGrayFixed(RequireGray, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(sixteenState.setScale16(), true)
+        @Assert(sixteenState.setExpand16(), true)
+        let sixteenResult = applyInitializedPngReadStages(
+            initializePngReadTransformations(sixteenState, rgb16),
+            PngReadRowInfo(UInt32(1), UInt8(16), Truecolor),
+            [0x12, 0x34, 0x12, 0x34, 0x12, 0x34]
+        )
+        let sixteenExpected: Array<Byte> = [0x12, 0x12]
+        @Assert(sixteenResult.row(), sixteenExpected)
+        @Assert(sixteenResult.info.colorType.toString(), "GRAYSCALE")
+        @Assert(sixteenResult.info.bitDepth, UInt8(16))
+        @Assert(sixteenResult.hadNonGrayPixels, false)
+
+        let disabledInput: Array<Byte> = [1, 2, 3]
+        let disabled = applyInitializedPngReadStages(
+            initializePngReadTransformations(PngReadTransformState(), rgb16),
+            PngReadRowInfo(UInt32(1), UInt8(8), Truecolor),
+            disabledInput
+        )
+        let disabledExpected: Array<Byte> = [1, 2, 3]
+        @Assert(disabled.row(), disabledExpected)
+        disabledInput[0] = UInt8(9)
+        @Assert(disabled.row(), disabledExpected)
+    }
+
+    @TestCase
+    public func transformsDecodedRowsThroughInitializedPipeline(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        let transformed = transformPngRowsInitialized(decoded, state)
+        let expected: Array<Byte> = [18, 48]
+        @Assert(transformed.rowCount(), Int64(1))
+        @Assert(transformed.row(0), expected)
+        @Assert(transformed.info.colorType.toString(), "GRAYSCALE")
+        @Assert(transformed.info.rowBytes, UInt64(2))
+        @Assert(transformed.hadNonGrayPixels, true)
+        let mutable = transformed.row(0)
+        mutable[0] = UInt8(0)
+        @Assert(transformed.row(0), expected)
+
+        let limitedState = PngReadTransformState()
+        limitedState.markIhdrRead(decoded.ihdr)
+        @Assert(
+            limitedState.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        try {
+            transformPngRowsInitialized(
+                decoded,
+                limitedState,
+                PngReadLimits(
+                    UInt32(8_000_000),
+                    UInt32(1_000_000),
+                    UInt32(1_000_000),
+                    UInt64(256_000_000),
+                    UInt64(256_000_000),
+                    UInt64(1)
+                )
+            )
+            @Fail("initialized row demo should enforce transformed-byte limits")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "DECODE_LIMIT_EXCEEDED")
+        }
+    }
+
+    @TestCase
     public func freezesTranslatedReadStageOrderAndOneShotLifecycle(): Unit {
         let decoded = decodePngNonInterlaced(makeTransformImage(
             UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB

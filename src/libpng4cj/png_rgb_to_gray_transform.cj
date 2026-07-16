@@ -114,6 +114,14 @@ public class PngRgbToGrayTransform {
         blueCoefficient = fixed.blueCoefficient
         customCoefficientsAccepted = fixed.accepted
     }
+
+    public init(source: PngRgbToGrayTransform) {
+        policy = source.policy
+        redCoefficient = source.redCoefficient
+        greenCoefficient = source.greenCoefficient
+        blueCoefficient = source.blueCoefficient
+        customCoefficientsAccepted = source.customCoefficientsAccepted
+    }
 }
 
 private class ResolvedPngGrayShape {

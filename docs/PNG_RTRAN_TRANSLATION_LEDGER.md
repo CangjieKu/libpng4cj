@@ -59,7 +59,7 @@ Status meanings:
 | 2711 | `png_do_read_invert_alpha` | `pngDoReadInvertAlpha` | translated | selected adapter is narrow; setter state and complete dispatcher remain partial |
 | 2813 | `png_do_read_filler` | `pngDoReadFiller` | translated | selected adapter is narrow; setter state and transformed-info color-type projection remain partial |
 | 3000 | `png_do_gray_to_rgb` | `pngDoGrayToRgb` | translated | initialized stage adapter is narrow; complete dispatcher remains partial |
-| 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray8/16` | translated | gamma-table branches deferred |
+| 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray` plus fixed 8/16-bit cores | translated | gamma-table branches deferred |
 | 3340 | `png_do_compose` | none | pending | background/alpha/gamma composition |
 | 4084 | `png_do_gamma` | none | pending | gamma tables |
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
@@ -67,7 +67,7 @@ Status meanings:
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | Expand, Strip Alpha, Scale/Strip16, Quantize, and Expand16 have bounded initialized composition; complete stateful dispatcher and pending bodies remain |
+| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | Expand, Strip Alpha, RGB-to-gray, Gray-to-RGB, Scale/Strip16, Quantize, and Expand16 have bounded initialized composition; remaining stateful stages and pending bodies remain |
 
 ## Translation Rule
 
@@ -218,4 +218,14 @@ copy-owned no-ops, and malformed-row priority. The initialized Strip Alpha
 adapter uses last-channel removal after initialization has already suppressed
 effective tRNS expansion. This advances dependency coverage but not the
 45-function `pngrtran.c` inventory count, so the ledger remains
+`24 translated / 7 partial / 14 pending`.
+
+LP-S004AF snapshots fixed RGB-to-gray configuration and adds the source-shaped
+`pngDoRgbToGray` adapter for 8/16-bit RGB/RGBA rows. The combined
+`applyInitializedPngReadStages` entry executes Expand, Strip Alpha,
+RGB-to-gray, Gray-to-RGB, Scale/Strip16, Quantize, and Expand16 in frozen order;
+`transformPngRowsInitialized` applies the same initialization to a decoded
+non-interlaced image with transformed-byte limiting and aggregate nongray
+status. This widens the bounded `png_do_read_transformations` anchor without
+changing the inventory totals, which remain
 `24 translated / 7 partial / 14 pending`.

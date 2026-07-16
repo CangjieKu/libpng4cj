@@ -58,6 +58,8 @@ public class PngReadTransformInitialization {
     private let ownedExpandPalette: Array<Byte>
     private let ownedExpandPaletteAlpha: Array<Byte>
     private let expandTransparencyValue: PngExpandTransparency
+    private let rgbToGrayEnabledValue: Bool
+    private let rgbToGrayTransformValue: PngRgbToGrayTransform
     private let quantizeEnabledValue: Bool
     private let quantizeModeValue: PngQuantizeMode
     private let ownedQuantizePalette: Array<Byte>
@@ -77,6 +79,8 @@ public class PngReadTransformInitialization {
         expandPalette: Array<Byte>,
         expandPaletteAlpha: Array<Byte>,
         expandTransparency: PngExpandTransparency,
+        rgbToGrayEnabled: Bool,
+        rgbToGrayTransform: PngRgbToGrayTransform,
         quantizeEnabled: Bool,
         quantizeMode: PngQuantizeMode,
         quantizePalette: Array<Byte>,
@@ -95,6 +99,8 @@ public class PngReadTransformInitialization {
         ownedExpandPalette = expandPalette.clone()
         ownedExpandPaletteAlpha = expandPaletteAlpha.clone()
         expandTransparencyValue = expandTransparency
+        rgbToGrayEnabledValue = rgbToGrayEnabled
+        rgbToGrayTransformValue = PngRgbToGrayTransform(rgbToGrayTransform)
         quantizeEnabledValue = quantizeEnabled
         quantizeModeValue = quantizeMode
         ownedQuantizePalette = quantizePalette.clone()
@@ -148,6 +154,21 @@ public class PngReadTransformInitialization {
 
     public func expandTransparency(): PngExpandTransparency {
         expandTransparencyValue
+    }
+
+    public func rgbToGrayEnabled(): Bool {
+        rgbToGrayEnabledValue
+    }
+
+    public func rgbToGrayTransform(): PngRgbToGrayTransform {
+        if (!rgbToGrayEnabledValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no RGB-to-gray transform"
+            )
+        }
+        PngRgbToGrayTransform(rgbToGrayTransformValue)
     }
 
     public func quantizeMode(): PngQuantizeMode {
@@ -324,6 +345,12 @@ public func initializePngReadTransformations(
     } else {
         PngExpandTransparency()
     }
+    let rgbToGrayEnabled = state.rgbToGrayEnabled()
+    let rgbToGrayTransform = if (rgbToGrayEnabled) {
+        PngRgbToGrayTransform(state.rgbToGrayTransform())
+    } else {
+        PngRgbToGrayTransform()
+    }
     let quantizeEnabled = state.quantizeEnabled()
     let quantizeMode = if (quantizeEnabled) {
         state.quantizeMode()
@@ -364,6 +391,8 @@ public func initializePngReadTransformations(
         expandPalette,
         expandPaletteAlpha,
         expandTransparency,
+        rgbToGrayEnabled,
+        rgbToGrayTransform,
         quantizeEnabled,
         quantizeMode,
         quantizePalette,

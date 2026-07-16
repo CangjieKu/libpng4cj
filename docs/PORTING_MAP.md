@@ -289,6 +289,29 @@ optimization, gamma, cHRM-derived RGB coefficients, remaining palette
 initialization mutation, transformed info projection, and complete row dispatch
 are still absent.
 
+## Implemented Initialized Non-Gamma Read Pipeline
+
+LP-S004AF adds `png_initialized_read_pipeline.cj` as the first combined row and
+decoded-image entry over the translated initialization snapshot:
+
+- one-shot initialization retains an immutable copy of the fixed RGB-to-gray
+  policy, coefficients, and accepted-custom-coefficient status
+- source-shaped `pngDoRgbToGray` converts 8-bit RGB/RGBA into Gray/GA and
+  network-order 16-bit RGB/RGBA into Gray/GA with exact row-info updates
+- equal RGB samples are preserved exactly, alpha bytes remain in place, and
+  `hadNonGrayPixels` records whether weighted conversion was required
+- `RequireGray` rejects the first nongray pixel while `Convert` returns the
+  transformed row and status
+- `applyInitializedPngReadStages` composes Expand, Strip Alpha, RGB-to-gray,
+  Gray-to-RGB, Scale/Strip16, Quantize, and Expand16 in frozen runtime order
+- `transformPngRowsInitialized` applies the same snapshot to every decoded
+  non-interlaced row, aggregates nongray status, enforces transformed-byte
+  limits, and returns copy-owned rows
+
+The public entry covers the currently translated non-gamma stage set. Gamma,
+background composition, packing, user transforms, late channel transforms,
+Adam7 execution, and progressive input are outside this combined path.
+
 ## Implemented Direct Gray-To-RGB Row Body
 
 LP-S004L adds `png_gray_to_rgb_transform.cj` as the direct non-gamma

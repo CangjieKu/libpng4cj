@@ -132,8 +132,17 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
 - one-shot `PngReadTransformInitialization` classifies palette partial alpha,
   binary transparency, inherent source alpha, and effective tRNS after Strip
   Alpha, snapshots the Expand palette/alpha/color-key payload and quantize
-  palette/count plus generated lookup/remap tables, and exposes the translated
-  read stages in frozen upstream order
+  palette/count plus generated lookup/remap tables and fixed RGB-to-gray
+  configuration, and exposes the translated read stages in frozen upstream
+  order
+- source-shaped `pngDoRgbToGray` converts 8/16-bit RGB/RGBA byte rows into
+  Gray/GA with fixed coefficients, PNG network-order preservation, exact row
+  information, copy ownership, and aggregate nongray status
+- `applyInitializedPngReadStages` composes Expand, Strip Alpha, RGB-to-gray,
+  Gray-to-RGB, Scale/Strip16, Quantize, and Expand16 through one initialized
+  row entry in frozen order
+- `transformPngRowsInitialized` applies that initialized pipeline to a decoded
+  non-interlaced image with transformed-byte limiting and copy-owned row access
 - `applyInitializedPngQuantizeStage` executes the snapshotted full-color or
   Indexed remap state after Strip16 and before Expand16 while keeping disabled
   and unsupported rows copy-owned no-ops
