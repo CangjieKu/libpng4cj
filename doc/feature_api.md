@@ -30,6 +30,7 @@ import libpng4cj.*
   reduction, quantize, filler, and significant-bit row operations
 - fixed-point multiply/divide and gamma significance/threshold helpers
 - fixed reciprocal and immutable file-gamma precedence resolution
+- immutable 8-bit and segmented 16-bit gamma table substrates
 - initialized late-channel setters and stages for invert mono, invert alpha,
   significant-bit unshift, packed-sample unpack, invalid palette-index
   diagnosis, BGR, 1/2/4-bit PackSwap, filler/add alpha placement, alpha
@@ -101,8 +102,9 @@ gamma state together with retained gAMA chunk gamma, then calls
 `gammaConfigured`, `chunkGamma`, resolved `fileGamma`/`screenGamma`,
 `gammaCorrectionRequired`, and a copy of the immutable `PngGammaValues` result.
 Explicit file gamma wins over gAMA; absent sources resolve to identity gamma.
-This initialization fact does not add a Gamma row stage or alter existing stage
-ordinals. Gamma tables and pixel correction remain separate work.
+This initialization fact does not itself add a Gamma row stage or alter
+existing stage ordinals. Later packets attach the 8-bit table snapshot and
+bounded packed/8-bit row correction; 16-bit attachment remains separate work.
 
 `pngGamma8BitCorrect(value, gammaValue)` translates the frozen floating
 arithmetic branch for byte samples. Zero and 255 remain exact; interior values
@@ -112,8 +114,20 @@ use `floor(255 * pow(value / 255, gammaValue * 0.00001) + 0.5)`.
 `PngGamma8BitTable`. Gamma values inside the significance threshold generate
 the exact identity table; significant values apply scalar correction to all
 256 entries. The table builder is intended for positive gamma values already
-resolved from validated setter/metadata state. Initialization attachment,
-16-bit tables and row execution were separate at the LP-S004AV checkpoint.
+resolved from validated setter/metadata state.
+
+`pngGamma16BitCorrect(value, gammaValue)` preserves exact zero/65535 endpoints
+and applies the frozen floating correction
+`floor(65535 * pow(value / 65535, gammaValue * 0.00001) + 0.5)` to interior
+samples.
+
+`pngBuildGamma16BitTable(shift, gammaValue)` returns an immutable
+`PngGamma16BitTable` for shifts `0..8`. It retains the frozen segmented layout:
+`1 << (8 - shift)` segments of 256 entries, selected by the retained low bits
+and indexed by the input high byte. Significant gamma uses direct full-range
+`pow` scaling; insignificant gamma uses exact identity-range scaling. Segment
+and whole-table accessors return deep copies. The table is not yet attached to
+read initialization or 16-bit `pngDoGamma` execution.
 
 `pngReciprocal2Fixed(a, b)` preserves the frozen floating arithmetic used for
 file-to-screen correction: nonzero inputs calculate `floor(1E15/a/b + 0.5)`,

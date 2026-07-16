@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Translate frozen floating-arithmetic 16-bit gamma correction and immutable
+  segmented direct tables for shifts `0..8`, with exact scaling and copy-owned
+  lookup access.
 - Translate packed 2/4-bit and byte-depth `png_do_gamma` row execution with
   initialized gating, alpha preservation, and stable prior stage ordinals.
 - Attach immutable initialized 8-bit direct and optional RGB-to-gray linear

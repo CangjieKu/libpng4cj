@@ -389,3 +389,12 @@ direct-table gating, whole-image execution, and stable prior stage identities.
 The inventoried `png_do_gamma` row advances from pending to partial; 16-bit
 segmented-table branches and gamma-aware RGB-to-gray remain separate. The
 ledger advances to `30 translated / 9 partial / 6 pending`.
+
+LP-S004AY translates frozen `png_gamma_16bit_correct` and
+`png_build_16bit_table` helpers from `png.c`. The immutable Cangjie table keeps
+the exact shift `0..8` segmented topology, significant direct scaling,
+insignificant identity scaling, deep-copy ownership, and selected exhaustive
+equivalence proofs. These helpers are outside the generated 45-function
+`pngrtran.c` inventory; 16-to-8 specialization, initialized attachment,
+16-bit `png_do_gamma`, and gamma-aware RGB-to-gray remain separate, so the
+ledger remains `30 translated / 9 partial / 6 pending`.

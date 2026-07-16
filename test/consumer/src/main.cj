@@ -139,6 +139,13 @@ main(): Int64 {
         println("libpng4cj initialized gamma row check failed")
         return 1
     }
+    let gamma16Table = pngBuildGamma16BitTable(UInt8(8), Int32(220000))
+    if (gamma16Table.segmentCount() != Int64(1) ||
+        gamma16Table.value(UInt16(0x8080)) !=
+            pngGamma16BitCorrect(UInt16(0x8080), Int32(220000))) {
+        println("libpng4cj 16-bit gamma table check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

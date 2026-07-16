@@ -633,6 +633,28 @@ LP-S004AX translates the non-16-bit branches of frozen `png_do_gamma`:
 The 16-bit `png_do_gamma` branches, segmented tables, and gamma-aware
 RGB-to-gray row arithmetic remain separate.
 
+## Implemented 16-Bit Direct Gamma Table Substrate
+
+LP-S004AY translates the frozen floating-arithmetic 16-bit correction and
+`png_build_16bit_table` helpers from `png.c`:
+
+- `pngGamma16BitCorrect` preserves exact zero/65535 endpoints and frozen
+  nearest `pow` rounding for interior samples
+- `PngGamma16BitTable` retains `1 << (8 - shift)` segments of 256 entries for
+  every valid shift from `0` through `8`
+- lookup selects a segment from the retained low input bits and an entry from
+  the high byte, matching the frozen table topology
+- significant gamma uses direct full-range scaling; insignificant gamma uses
+  exact identity scaling over the compressed input domain
+- segment and complete-table access are deep-copy owned
+- exhaustive shift-zero scalar equivalence, shift-four segment equivalence,
+  identity scaling, monotonicity, ownership, and invalid-shift behavior are
+  covered directly
+
+These helpers are outside the 45-function `pngrtran.c` inventory. The
+16-to-8 specialization, gamma-shift selection, initialized 16-bit table
+snapshot, 16-bit `png_do_gamma`, and gamma-aware RGB-to-gray remain separate.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

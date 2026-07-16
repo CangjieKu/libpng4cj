@@ -175,6 +175,9 @@ oracle-test source. Production implementation code belongs directly under
 - frozen 8-bit scalar gamma correction and immutable 256-entry table generation
   preserve exact endpoints, nearest rounding, identity fast paths, and
   copy-owned table access
+- frozen 16-bit scalar gamma correction and immutable segmented direct tables
+  preserve exact endpoints, nearest rounding, shifts `0..8`, full-range
+  identity scaling, and copy-owned segment access
 - initialized 8-bit gamma snapshots derive exact reciprocal2 correction and
   retain direct plus optional RGB-to-gray to-linear/from-linear tables without
   changing prior stage identities
@@ -255,7 +258,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `30 translated / 8 partial / 7 pending`.
+The current ledger is `30 translated / 9 partial / 6 pending`.
 
 ## Native Dependency
 
