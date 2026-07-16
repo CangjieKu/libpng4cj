@@ -191,11 +191,14 @@ oracle-test source. Production implementation code belongs directly under
 - direct `pngDoBgr` translates `pngtrans.c::png_do_bgr` for natural RGB/RGBA
   8-bit and network-order 16-bit rows, exchanges complete red/blue components,
   preserves row information, and returns copy-owned transformed or no-op rows
-- the one-shot initialized pipeline now snapshots and executes Invert Alpha,
-  significant-bit Unshift, BGR, Filler/Add Alpha, and Swap Alpha after Expand16
-  in frozen upstream-relative order; added alpha participates in swapping while
-  plain filler remains non-alpha, and whole-image transformed-byte limits include
-  filler growth
+- direct `pngDoInvertMono` translates `pngtrans.c::png_do_invert` for packed,
+  8-bit, and network-order 16-bit grayscale rows plus GA8/GA16 color bytes;
+  packed padding bits invert with the complete stored byte and alpha is retained
+- the one-shot initialized pipeline now snapshots and executes Invert Mono,
+  Invert Alpha, significant-bit Unshift, BGR, Filler/Add Alpha, and Swap Alpha
+  after Expand16 in frozen upstream-relative order; added alpha participates in
+  swapping while plain filler remains non-alpha, and whole-image transformed-
+  byte limits include filler growth
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
   Strip Alpha, RGB/gray, quantize, 16-to-8, and Expand16 state into output color
   type, bit depth, channels, pixel depth, row bytes, remaining tRNS state, and a

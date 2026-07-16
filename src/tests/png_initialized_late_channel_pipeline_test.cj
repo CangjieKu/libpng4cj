@@ -152,6 +152,7 @@ public class PngInitializedLateChannelPipelineTestSuite {
     @TestCase
     public func snapshotsLateChannelStateInFrozenOrder(): Unit {
         let state = PngReadTransformState()
+        @Assert(state.setInvertMono(), true)
         @Assert(state.setInvertAlpha(), true)
         @Assert(
             state.setShift(PngSignificantBits(8, 8, 8, 8, 8)),
@@ -167,12 +168,14 @@ public class PngInitializedLateChannelPipelineTestSuite {
         @Assert(state.setSwapAlpha(), true)
 
         let initialized = lateChannelInitialization(state, UInt8(8), Truecolor)
-        @Assert(initialized.stageCount(), Int64(5))
-        @Assert(initialized.stage(0).toString(), "INVERT_ALPHA")
-        @Assert(initialized.stage(1).toString(), "UNSHIFT")
-        @Assert(initialized.stage(2).toString(), "BGR")
-        @Assert(initialized.stage(3).toString(), "FILLER")
-        @Assert(initialized.stage(4).toString(), "SWAP_ALPHA")
+        @Assert(initialized.stageCount(), Int64(6))
+        @Assert(initialized.stage(0).toString(), "INVERT_MONO")
+        @Assert(initialized.stage(1).toString(), "INVERT_ALPHA")
+        @Assert(initialized.stage(2).toString(), "UNSHIFT")
+        @Assert(initialized.stage(3).toString(), "BGR")
+        @Assert(initialized.stage(4).toString(), "FILLER")
+        @Assert(initialized.stage(5).toString(), "SWAP_ALPHA")
+        @Assert(initialized.invertMonoEnabled(), true)
         @Assert(initialized.shiftSignificantBits().red, UInt8(5))
         @Assert(initialized.bgrEnabled(), true)
         @Assert(initialized.fillerMode().toString(), "ALPHA_AFTER")
@@ -180,6 +183,7 @@ public class PngInitializedLateChannelPipelineTestSuite {
         @Assert(initialized.addAlphaEnabled(), true)
         @Assert(initialized.effectiveOutputHasAlpha, true)
 
+        @Assert(state.setInvertMono(), false)
         @Assert(state.setInvertAlpha(), false)
         @Assert(
             state.setShift(PngSignificantBits(1, 1, 1, 1, 1)),
@@ -194,9 +198,29 @@ public class PngInitializedLateChannelPipelineTestSuite {
             "INVALID_AFTER_ROW_INITIALIZATION"
         )
         @Assert(initialized.shiftSignificantBits().red, UInt8(5))
+        @Assert(initialized.invertMonoEnabled(), true)
         @Assert(initialized.bgrEnabled(), true)
         @Assert(initialized.fillerMode().toString(), "ALPHA_AFTER")
         @Assert(initialized.fillerValue(), UInt16(0x5678))
+    }
+
+    @TestCase
+    public func invertsMonoBeforeAlphaAndUnshift(): Unit {
+        let state = PngReadTransformState()
+        @Assert(state.setInvertMono(), true)
+        @Assert(state.setInvertAlpha(), true)
+        @Assert(
+            state.setShift(PngSignificantBits(4, 0, 0, 0, 4)),
+            true
+        )
+        let transformed = applyInitializedPngReadStages(
+            lateChannelInitialization(state, UInt8(8), GrayscaleAlpha),
+            PngReadRowInfo(UInt32(1), UInt8(8), GrayscaleAlpha),
+            [0xf0, 0x0f]
+        )
+        let expected: Array<Byte> = [0x00, 0x0f]
+        @Assert(transformed.row(), expected)
+        @Assert(transformed.info.colorType.toString(), "GRAYSCALE_ALPHA")
     }
 
     @TestCase
@@ -404,6 +428,41 @@ public class PngInitializedLateChannelPipelineTestSuite {
         } catch (error: PngFormatException) {
             @Assert(error.kind.toString(), "INVALID_ARGUMENT")
         }
+
+        try {
+            applyInitializedPngInvertMonoStage(
+                disabled,
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+                [1, 2, 3]
+            )
+            @Fail("disabled invert-mono should validate malformed rows first")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
+
+    @TestCase
+    public func appliesWholeImageInvertMono(): Unit {
+        let decoded = lateChannelDecoded(
+            UInt32(1), UInt32(1), UInt8(8), Grayscale
+        )
+        let state = PngReadTransformState()
+        @Assert(state.setInvertMono(), true)
+        let transformed = transformPngRowsInitialized(
+            decoded,
+            state,
+            PngReadLimits(
+                UInt32(8_000_000),
+                UInt32(100),
+                UInt32(100),
+                UInt64(1024),
+                UInt64(1024),
+                UInt64(1)
+            )
+        )
+        let expected: Array<Byte> = [0xff]
+        @Assert(transformed.row(0), expected)
+        @Assert(transformed.info.rowBytes, UInt64(1))
     }
 
     @TestCase

@@ -249,3 +249,12 @@ whole-image initialized execution. This advances the bounded
 `png_do_read_transformations` dispatcher anchor without adding a top-level
 `pngrtran.c` inventory function, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
+
+LP-S004AI translates the shared `pngtrans.c::png_do_invert` body for packed,
+8-bit, and network-order 16-bit Grayscale rows plus GA8/GA16 gray components.
+It preserves packed padding inversion, alpha bytes, row information, copy-owned
+no-op behavior, and malformed-row priority. Lifecycle-gated `setInvertMono()`
+state is snapshotted and placed before Invert Alpha and Unshift in row and
+whole-image initialized execution. This advances the bounded dispatcher anchor
+without adding a top-level `pngrtran.c` inventory function, so the ledger
+remains `24 translated / 7 partial / 14 pending`.

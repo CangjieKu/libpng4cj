@@ -11,6 +11,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageStrip16To8
     | ReadStageQuantize
     | ReadStageExpand16
+    | ReadStageInvertMono
     | ReadStageInvertAlpha
     | ReadStageUnshift
     | ReadStageBgr
@@ -40,6 +41,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageFiller => 10
             case ReadStageSwapAlpha => 11
             case ReadStageBgr => 12
+            case ReadStageInvertMono => 13
         }
     }
 
@@ -53,6 +55,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageStrip16To8 => "STRIP_16_TO_8"
             case ReadStageQuantize => "QUANTIZE"
             case ReadStageExpand16 => "EXPAND_16"
+            case ReadStageInvertMono => "INVERT_MONO"
             case ReadStageInvertAlpha => "INVERT_ALPHA"
             case ReadStageUnshift => "UNSHIFT"
             case ReadStageBgr => "BGR"
@@ -81,6 +84,7 @@ public class PngReadTransformInitialization {
     private let quantizePaletteCountValue: Int64
     private let ownedQuantizeIndex: Array<Byte>
     private let ownedQuantizePaletteLookup: Array<Byte>
+    private let invertMonoEnabledValue: Bool
     private let invertAlphaEnabledValue: Bool
     private let shiftEnabledValue: Bool
     private let shiftSignificantBitsValue: PngSignificantBits
@@ -109,6 +113,7 @@ public class PngReadTransformInitialization {
         quantizePaletteCount: Int64,
         quantizeIndex: Array<Byte>,
         quantizePaletteLookup: Array<Byte>,
+        invertMonoEnabled: Bool,
         invertAlphaEnabled: Bool,
         shiftEnabled: Bool,
         shiftSignificantBits: PngSignificantBits,
@@ -136,6 +141,7 @@ public class PngReadTransformInitialization {
         quantizePaletteCountValue = quantizePaletteCount
         ownedQuantizeIndex = quantizeIndex.clone()
         ownedQuantizePaletteLookup = quantizePaletteLookup.clone()
+        invertMonoEnabledValue = invertMonoEnabled
         invertAlphaEnabledValue = invertAlphaEnabled
         shiftEnabledValue = shiftEnabled
         shiftSignificantBitsValue = PngSignificantBits(
@@ -246,6 +252,10 @@ public class PngReadTransformInitialization {
 
     public func invertAlphaEnabled(): Bool {
         invertAlphaEnabledValue
+    }
+
+    public func invertMonoEnabled(): Bool {
+        invertMonoEnabledValue
     }
 
     public func shiftEnabled(): Bool {
@@ -368,6 +378,9 @@ private func pngReadTransformStages(
     if (state.expand16Enabled()) {
         stages.add(ReadStageExpand16)
     }
+    if (state.invertMonoEnabled()) {
+        stages.add(ReadStageInvertMono)
+    }
     if (state.invertAlphaEnabled()) {
         stages.add(ReadStageInvertAlpha)
     }
@@ -485,6 +498,7 @@ public func initializePngReadTransformations(
     } else {
         Int64(0)
     }
+    let invertMonoEnabled = state.invertMonoEnabled()
     let invertAlphaEnabled = state.invertAlphaEnabled()
     let shiftEnabled = state.shiftEnabled()
     let shiftSignificantBits = if (shiftEnabled) {
@@ -518,6 +532,7 @@ public func initializePngReadTransformations(
         quantizePaletteCount,
         quantizeIndex,
         quantizePaletteLookup,
+        invertMonoEnabled,
         invertAlphaEnabled,
         shiftEnabled,
         shiftSignificantBits,

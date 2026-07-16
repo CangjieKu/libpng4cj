@@ -292,8 +292,9 @@ are still absent.
 ## Implemented Initialized Non-Gamma Read Pipeline
 
 LP-S004AF adds `png_initialized_read_pipeline.cj` as the first combined row and
-decoded-image entry over the translated initialization snapshot. LP-S004AG and
-LP-S004AH extend the same entry through the translated late-channel stages:
+decoded-image entry over the translated initialization snapshot. LP-S004AG,
+LP-S004AH, and LP-S004AI extend the same entry through the translated
+late-channel stages:
 
 - one-shot initialization retains an immutable copy of the fixed RGB-to-gray
   policy, coefficients, and accepted-custom-coefficient status
@@ -304,23 +305,43 @@ LP-S004AH extend the same entry through the translated late-channel stages:
 - `RequireGray` rejects the first nongray pixel while `Convert` returns the
   transformed row and status
 - `applyInitializedPngReadStages` composes Expand, Strip Alpha, RGB-to-gray,
-  Gray-to-RGB, Scale/Strip16, Quantize, Expand16, Invert Alpha, Unshift,
-  BGR, Filler/Add Alpha, and Swap Alpha in frozen runtime order
+  Gray-to-RGB, Scale/Strip16, Quantize, Expand16, Invert Mono, Invert Alpha,
+  Unshift, BGR, Filler/Add Alpha, and Swap Alpha in frozen runtime order
 - late-channel state is lifecycle-gated and copied into the immutable one-shot
   initialization snapshot, including significant-bit values and low-16-bit
   filler value/placement
-- Invert Alpha precedes Unshift, BGR exchanges red/blue before filler growth,
-  filler precedes Swap Alpha, plain filler does not become semantic alpha, and
-  added alpha swaps between leading/trailing positions without changing the
-  established filler-stage color-type contract
+- Invert Mono precedes Invert Alpha, Invert Alpha precedes Unshift, BGR
+  exchanges red/blue before filler growth, filler precedes Swap Alpha, plain
+  filler does not become semantic alpha, and added alpha swaps between
+  leading/trailing positions without changing the filler-stage color-type
+  contract
 - `transformPngRowsInitialized` applies the same snapshot to every decoded
   non-interlaced row, aggregates nongray status, enforces transformed-byte
   limits, and returns copy-owned rows
 
 The public entry covers the currently translated non-gamma stage set. Gamma,
-background composition, invert-mono, packing, packswap, byte swap, user
-transforms, Adam7 execution, and progressive input remain outside this combined
-path.
+background composition, packing, packswap, byte swap, user transforms, Adam7
+execution, and progressive input remain outside this combined path.
+
+## Implemented Direct Invert-Monochrome Row Body
+
+LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
+`pngtrans.c::png_do_invert` and connects it before Invert Alpha:
+
+- Grayscale rows at 1/2/4/8/16-bit invert every stored byte exactly, including
+  packed-row padding bits in the final byte
+- Grayscale Alpha 8-bit rows invert only the gray byte in each pair
+- Grayscale Alpha 16-bit rows invert both network-order gray bytes while
+  retaining both alpha bytes
+- row information is unchanged, transformed/disabled/unsupported rows are
+  copy-owned, and malformed rows fail before support checks
+- `setInvertMono()` follows the translated lifecycle and immutable snapshot
+  pattern
+- initialized row and whole-image execution place Invert Mono after Expand16
+  and before Invert Alpha and Unshift
+
+The bounded stage does not add pack/packswap, byte swap, user callbacks,
+gamma/background, Adam7, progressive IO, write behavior, or C ABI surfaces.
 
 ## Implemented Direct BGR Row Body
 

@@ -82,6 +82,7 @@ public class PngReadTransformState {
     private var quantizeMaximumColorsValue: Int64 = 0
     private var quantizeIndexValue: Array<Byte> = Array<Byte>()
     private var quantizePaletteLookupValue: Array<Byte> = Array<Byte>()
+    private var invertMonoValue: Bool = false
     private var invertAlphaValue: Bool = false
     private var shiftValue: Bool = false
     private var shiftSignificantBitsValue: PngSignificantBits = PngSignificantBits()
@@ -316,6 +317,14 @@ public class PngReadTransformState {
         true
     }
 
+    public func setInvertMono(): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        invertMonoValue = true
+        true
+    }
+
     public func setShift(significantBits: PngSignificantBits): Bool {
         if (!pngRtranOk(false)) {
             return false
@@ -451,6 +460,10 @@ public class PngReadTransformState {
 
     public func invertAlphaEnabled(): Bool {
         invertAlphaValue
+    }
+
+    public func invertMonoEnabled(): Bool {
+        invertMonoValue
     }
 
     public func shiftEnabled(): Bool {

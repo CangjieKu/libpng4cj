@@ -295,8 +295,11 @@ public func applyInitializedPngReadStages(
     let expanded16 = applyInitializedPngExpand16Stage(
         initialization, quantized.info, quantized.row()
     )
-    let invertedAlpha = applyInitializedPngInvertAlphaStage(
+    let invertedMono = applyInitializedPngInvertMonoStage(
         initialization, expanded16.info, expanded16.row()
+    )
+    let invertedAlpha = applyInitializedPngInvertAlphaStage(
+        initialization, invertedMono.info, invertedMono.row()
     )
     let unshifted = applyInitializedPngUnshiftStage(
         initialization, invertedAlpha.info, invertedAlpha.row()
