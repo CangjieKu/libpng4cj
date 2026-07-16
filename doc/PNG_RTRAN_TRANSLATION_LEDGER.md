@@ -239,3 +239,13 @@ priority, and whole-image transformed-byte limits. This advances the bounded
 `png_do_read_transformations` dispatcher anchor without adding new top-level
 `pngrtran.c` functions, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
+
+LP-S004AH translates the shared `pngtrans.c::png_do_bgr` row body for natural
+RGB/RGBA 8-bit and network-order 16-bit rows, preserving row information,
+copy ownership, unsupported no-op behavior, and malformed-row priority. It adds
+lifecycle-gated `setBgr()` state, snapshots that state during one-shot read
+initialization, and places BGR after Unshift and before Filler in both row and
+whole-image initialized execution. This advances the bounded
+`png_do_read_transformations` dispatcher anchor without adding a top-level
+`pngrtran.c` inventory function, so the ledger remains
+`24 translated / 7 partial / 14 pending`.

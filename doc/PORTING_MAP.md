@@ -292,8 +292,8 @@ are still absent.
 ## Implemented Initialized Non-Gamma Read Pipeline
 
 LP-S004AF adds `png_initialized_read_pipeline.cj` as the first combined row and
-decoded-image entry over the translated initialization snapshot. LP-S004AG
-extends the same entry through the translated late-channel stages:
+decoded-image entry over the translated initialization snapshot. LP-S004AG and
+LP-S004AH extend the same entry through the translated late-channel stages:
 
 - one-shot initialization retains an immutable copy of the fixed RGB-to-gray
   policy, coefficients, and accepted-custom-coefficient status
@@ -305,21 +305,44 @@ extends the same entry through the translated late-channel stages:
   transformed row and status
 - `applyInitializedPngReadStages` composes Expand, Strip Alpha, RGB-to-gray,
   Gray-to-RGB, Scale/Strip16, Quantize, Expand16, Invert Alpha, Unshift,
-  Filler/Add Alpha, and Swap Alpha in frozen runtime order
+  BGR, Filler/Add Alpha, and Swap Alpha in frozen runtime order
 - late-channel state is lifecycle-gated and copied into the immutable one-shot
   initialization snapshot, including significant-bit values and low-16-bit
   filler value/placement
-- Invert Alpha precedes Unshift, filler precedes Swap Alpha, plain filler does
-  not become semantic alpha, and added alpha swaps between leading/trailing
-  positions without changing the established filler-stage color-type contract
+- Invert Alpha precedes Unshift, BGR exchanges red/blue before filler growth,
+  filler precedes Swap Alpha, plain filler does not become semantic alpha, and
+  added alpha swaps between leading/trailing positions without changing the
+  established filler-stage color-type contract
 - `transformPngRowsInitialized` applies the same snapshot to every decoded
   non-interlaced row, aggregates nongray status, enforces transformed-byte
   limits, and returns copy-owned rows
 
 The public entry covers the currently translated non-gamma stage set. Gamma,
-background composition, invert-mono, packing, BGR, packswap, byte swap, user
+background composition, invert-mono, packing, packswap, byte swap, user
 transforms, Adam7 execution, and progressive input remain outside this combined
 path.
+
+## Implemented Direct BGR Row Body
+
+LP-S004AH adds `png_bgr_transform.cj` as the direct translation of
+`pngtrans.c::png_do_bgr` and connects it to the initialized read path:
+
+- natural Truecolor and Truecolor Alpha rows exchange red and blue while alpha
+  stays in place
+- 8-bit rows exchange one byte per component; 16-bit rows exchange complete
+  high/low byte pairs without converting PNG network order
+- width, bit depth, color type, channels, pixel depth, and row bytes remain
+  unchanged
+- transformed, disabled, and unsupported rows are copy-owned; malformed row
+  lengths fail before support checks
+- `setBgr()` follows the translated `png_rtran_ok` lifecycle and initialization
+  snapshots the enabled bit before placing BGR after Unshift and before Filler
+- whole-image initialized transformation uses the same stage and retains the
+  existing transformed-byte limit
+
+The bounded stage does not add invert-mono, pack/packswap, byte swap, user
+callbacks, gamma/background, Adam7, progressive IO, write behavior, or C ABI
+surfaces.
 
 ## Implemented Direct Gray-To-RGB Row Body
 
@@ -405,7 +428,7 @@ LP-S004O adds `png_alpha_transform.cj` as the direct translation of
   Invert Alpha before Swap Alpha regardless of caller array order or duplicates
 
 The narrow adapter deliberately skips the intervening unshift, BGR, and filler
-stages. It does not translate the corresponding `pngtrans.c` setter state or
+stages. It does not translate the corresponding remaining setter state or
 claim the complete `png_do_read_transformations` dispatcher.
 
 ## Implemented Direct Strip Channel Row Body
@@ -738,7 +761,7 @@ LP-S004Q adds `png_unshift_transform.cj` as the direct source-row translation of
   `UnshiftSignificantBits` selection
 
 The direct adapter does not perform palette initialization mutation or compose
-BGR, byte swap, filler, and the complete `png_do_read_transformations` path.
+byte swap, filler, and the complete `png_do_read_transformations` path.
 
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
 swap, and user callbacks remain later LP-S004 work.

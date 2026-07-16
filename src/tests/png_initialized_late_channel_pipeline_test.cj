@@ -161,17 +161,20 @@ public class PngInitializedLateChannelPipelineTestSuite {
             state.setShift(PngSignificantBits(4, 5, 6, 7, 3)),
             true
         )
+        @Assert(state.setBgr(), true)
         @Assert(state.setAddAlpha(UInt16(0x1234), false), true)
         @Assert(state.setFiller(UInt32(0x00015678), true), true)
         @Assert(state.setSwapAlpha(), true)
 
         let initialized = lateChannelInitialization(state, UInt8(8), Truecolor)
-        @Assert(initialized.stageCount(), Int64(4))
+        @Assert(initialized.stageCount(), Int64(5))
         @Assert(initialized.stage(0).toString(), "INVERT_ALPHA")
         @Assert(initialized.stage(1).toString(), "UNSHIFT")
-        @Assert(initialized.stage(2).toString(), "FILLER")
-        @Assert(initialized.stage(3).toString(), "SWAP_ALPHA")
+        @Assert(initialized.stage(2).toString(), "BGR")
+        @Assert(initialized.stage(3).toString(), "FILLER")
+        @Assert(initialized.stage(4).toString(), "SWAP_ALPHA")
         @Assert(initialized.shiftSignificantBits().red, UInt8(5))
+        @Assert(initialized.bgrEnabled(), true)
         @Assert(initialized.fillerMode().toString(), "ALPHA_AFTER")
         @Assert(initialized.fillerValue(), UInt16(0x5678))
         @Assert(initialized.addAlphaEnabled(), true)
@@ -182,6 +185,7 @@ public class PngInitializedLateChannelPipelineTestSuite {
             state.setShift(PngSignificantBits(1, 1, 1, 1, 1)),
             false
         )
+        @Assert(state.setBgr(), false)
         @Assert(state.setFiller(UInt16(0), false), false)
         @Assert(state.setAddAlpha(UInt16(0), false), false)
         @Assert(state.setSwapAlpha(), false)
@@ -190,8 +194,30 @@ public class PngInitializedLateChannelPipelineTestSuite {
             "INVALID_AFTER_ROW_INITIALIZATION"
         )
         @Assert(initialized.shiftSignificantBits().red, UInt8(5))
+        @Assert(initialized.bgrEnabled(), true)
         @Assert(initialized.fillerMode().toString(), "ALPHA_AFTER")
         @Assert(initialized.fillerValue(), UInt16(0x5678))
+    }
+
+    @TestCase
+    public func unshiftsThenSwapsBgrBeforeFiller(): Unit {
+        let state = PngReadTransformState()
+        @Assert(
+            state.setShift(PngSignificantBits(0, 7, 6, 5, 0)),
+            true
+        )
+        @Assert(state.setBgr(), true)
+        @Assert(state.setFiller(UInt16(0x00ee), true), true)
+        let transformed = applyInitializedPngReadStages(
+            lateChannelInitialization(state, UInt8(8), Truecolor),
+            PngReadRowInfo(UInt32(1), UInt8(8), Truecolor),
+            [0x80, 0x40, 0x20]
+        )
+        let expected: Array<Byte> = [0x04, 0x10, 0x40, 0xee]
+        @Assert(transformed.row(), expected)
+        @Assert(transformed.info.colorType.toString(), "TRUECOLOR")
+        @Assert(transformed.info.channels, UInt8(4))
+        @Assert(transformed.info.rowBytes, UInt64(4))
     }
 
     @TestCase
@@ -367,6 +393,17 @@ public class PngInitializedLateChannelPipelineTestSuite {
                 "PNG transform row length does not match row info"
             )
         }
+
+        try {
+            applyInitializedPngBgrStage(
+                disabled,
+                PngReadRowInfo(UInt32(2), UInt8(8), Grayscale),
+                [1]
+            )
+            @Fail("disabled BGR stage should validate malformed rows first")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_ARGUMENT")
+        }
     }
 
     @TestCase
@@ -375,6 +412,7 @@ public class PngInitializedLateChannelPipelineTestSuite {
             UInt32(2), UInt32(2), UInt8(8), Truecolor
         )
         let state = PngReadTransformState()
+        @Assert(state.setBgr(), true)
         @Assert(state.setFiller(UInt16(0xff), true), true)
         let limits = PngReadLimits(
             UInt32(8_000_000),
@@ -385,14 +423,15 @@ public class PngInitializedLateChannelPipelineTestSuite {
             UInt64(16)
         )
         let transformed = transformPngRowsInitialized(decoded, state, limits)
-        let firstExpected: Array<Byte> = [1, 2, 3, 0xff, 4, 5, 6, 0xff]
-        let secondExpected: Array<Byte> = [7, 8, 9, 0xff, 10, 11, 12, 0xff]
+        let firstExpected: Array<Byte> = [3, 2, 1, 0xff, 6, 5, 4, 0xff]
+        let secondExpected: Array<Byte> = [9, 8, 7, 0xff, 12, 11, 10, 0xff]
         @Assert(transformed.info.channels, UInt8(4))
         @Assert(transformed.info.rowBytes, UInt64(8))
         @Assert(transformed.row(0), firstExpected)
         @Assert(transformed.row(1), secondExpected)
 
         let limitedState = PngReadTransformState()
+        @Assert(limitedState.setBgr(), true)
         @Assert(limitedState.setFiller(UInt16(0xff), true), true)
         let limited = PngReadLimits(
             UInt32(8_000_000),

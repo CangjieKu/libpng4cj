@@ -301,14 +301,17 @@ public func applyInitializedPngReadStages(
     let unshifted = applyInitializedPngUnshiftStage(
         initialization, invertedAlpha.info, invertedAlpha.row()
     )
-    let filled = applyInitializedPngFillerStage(
+    let bgr = applyInitializedPngBgrStage(
         initialization, unshifted.info, unshifted.row()
+    )
+    let filled = applyInitializedPngFillerStage(
+        initialization, bgr.info, bgr.row()
     )
     let swappedAlpha = applyInitializedPngSwapAlphaAfterFillerStage(
         initialization,
         filled.info,
         filled.row(),
-        filled.info.channels != unshifted.info.channels
+        filled.info.channels != bgr.info.channels
     )
     PngInitializedReadRowResult(
         swappedAlpha.info,

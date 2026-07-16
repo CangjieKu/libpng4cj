@@ -188,9 +188,12 @@ oracle-test source. Production implementation code belongs directly under
   low 16 filler bits exactly, and updates channels, pixel depth, and row bytes
   while retaining source color type; `PngReadRowInfo` can now represent explicit
   transformed channel counts independently from source color type
+- direct `pngDoBgr` translates `pngtrans.c::png_do_bgr` for natural RGB/RGBA
+  8-bit and network-order 16-bit rows, exchanges complete red/blue components,
+  preserves row information, and returns copy-owned transformed or no-op rows
 - the one-shot initialized pipeline now snapshots and executes Invert Alpha,
-  significant-bit Unshift, Filler/Add Alpha, and Swap Alpha after Expand16 in
-  frozen upstream-relative order; added alpha participates in swapping while
+  significant-bit Unshift, BGR, Filler/Add Alpha, and Swap Alpha after Expand16
+  in frozen upstream-relative order; added alpha participates in swapping while
   plain filler remains non-alpha, and whole-image transformed-byte limits include
   filler growth
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,

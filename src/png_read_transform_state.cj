@@ -85,6 +85,7 @@ public class PngReadTransformState {
     private var invertAlphaValue: Bool = false
     private var shiftValue: Bool = false
     private var shiftSignificantBitsValue: PngSignificantBits = PngSignificantBits()
+    private var bgrValue: Bool = false
     private var fillerModeValue: PngFillerMode = NoFiller
     private var fillerValueValue: UInt16 = UInt16(0)
     private var swapAlphaValue: Bool = false
@@ -330,6 +331,14 @@ public class PngReadTransformState {
         true
     }
 
+    public func setBgr(): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        bgrValue = true
+        true
+    }
+
     private func pngFillerMode(after: Bool, addAlpha: Bool): PngFillerMode {
         if (addAlpha) {
             return if (after) { AlphaAfter } else { AlphaBefore }
@@ -463,6 +472,10 @@ public class PngReadTransformState {
             shiftSignificantBitsValue.blue,
             shiftSignificantBitsValue.alpha
         )
+    }
+
+    public func bgrEnabled(): Bool {
+        bgrValue
     }
 
     public func fillerEnabled(): Bool {
