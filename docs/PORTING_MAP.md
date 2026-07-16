@@ -376,6 +376,28 @@ The narrow adapter deliberately skips the intervening unshift, BGR, and filler
 stages. It does not translate the corresponding `pngtrans.c` setter state or
 claim the complete `png_do_read_transformations` dispatcher.
 
+## Implemented Direct Strip Channel Row Body
+
+LP-S004AE adds `png_strip_channel_transform.cj` as the direct translation of
+`pngtrans.c::png_do_strip_channel` and connects its read-side use:
+
+- 8-bit and network-order 16-bit rows can remove the first or last component
+  from runtime channel counts two and four
+- two-channel rows shrink to one channel and four-channel rows shrink to three
+- alpha-bearing Gray/RGB color types lose their alpha bit; filler-shaped Gray
+  or RGB color types remain unchanged
+- width and bit depth remain stable while channels, pixel depth, and row bytes
+  shrink exactly
+- output and no-op rows are copy-owned, and malformed rows fail before
+  supported/unsupported branching
+- `applyInitializedPngStripAlphaStage` always removes the final channel,
+  matching read-transform order before later Swap Alpha
+- one-shot initialization suppresses effective tRNS expansion under Strip
+  Alpha, while inherent GA/RGBA alpha is removed by the direct body
+
+The adapter does not execute Expand automatically, compose filler or Swap
+Alpha, or claim the complete stateful row dispatcher.
+
 ## Implemented Direct Read Filler Row Body
 
 LP-S004P adds `png_filler_transform.cj` as the direct translation of

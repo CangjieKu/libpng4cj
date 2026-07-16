@@ -67,7 +67,7 @@ Status meanings:
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | Expand, Scale/Strip, Quantize, and Expand16 have bounded initialized composition; complete stateful dispatcher and pending bodies remain |
+| 4880 | `png_do_read_transformations` | current ordered transform calls | partial | Expand, Strip Alpha, Scale/Strip16, Quantize, and Expand16 have bounded initialized composition; complete stateful dispatcher and pending bodies remain |
 
 ## Translation Rule
 
@@ -210,3 +210,12 @@ color-key state. The adapter preserves the frozen shared transform bits behind
 `png_set_palette_to_rgb`, validates disabled no-op rows, and leaves source
 metadata isolated. It does not execute adjacent stages or complete the stateful
 dispatcher, so the ledger remains `24 translated / 7 partial / 14 pending`.
+
+LP-S004AE translates the `pngtrans.c::png_do_strip_channel` dependency for
+8/16-bit two- and four-channel rows, including first/last component removal,
+network-byte preservation, alpha color-type updates, row-info shrinkage,
+copy-owned no-ops, and malformed-row priority. The initialized Strip Alpha
+adapter uses last-channel removal after initialization has already suppressed
+effective tRNS expansion. This advances dependency coverage but not the
+45-function `pngrtran.c` inventory count, so the ledger remains
+`24 translated / 7 partial / 14 pending`.

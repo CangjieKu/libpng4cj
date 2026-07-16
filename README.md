@@ -88,6 +88,10 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   effective palette-alpha data for Indexed rows or immutable Gray/RGB color
   keys for non-Indexed rows; Strip Alpha suppresses only effective tRNS while
   preserving upstream palette-to-RGB setter alias behavior
+- direct `pngDoStripChannel` translates 8/16-bit first- or last-channel removal
+  for two- and four-channel runtime rows with exact color-type/row-info updates;
+  initialized Strip Alpha uses the last-channel path after effective tRNS
+  expansion has already been suppressed
 - direct `pngDoExpand16` replicates every 8-bit non-palette runtime row byte
   into a 16-bit high/low pair with reverse growth, retained color type/current
   channels, copy ownership, and exact row-information updates;

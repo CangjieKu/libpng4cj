@@ -787,6 +787,52 @@ public class PngTransformTestSuite {
     }
 
     @TestCase
+    public func appliesInitializedStripAlphaAndSuppressesTrnsExpansion(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [makeTransformChunk(
+                PNG_CHUNK_tRNS,
+                [0x00, 0x0a, 0x00, 0x14, 0x00, 0x1e]
+            )],
+            RGB8_ZLIB
+        ))
+        let state = PngReadTransformState()
+        @Assert(state.setExpand(), true)
+        @Assert(state.setStripAlpha(), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        let sourceInfo = PngReadRowInfo(UInt32(2), UInt8(8), Truecolor)
+        let source: Array<Byte> = [10, 20, 30, 40, 50, 60]
+        let expanded = applyInitializedPngExpandStage(
+            initialized, sourceInfo, source
+        )
+        @Assert(expanded.info.colorType.toString(), "TRUECOLOR")
+        let stripped = applyInitializedPngStripAlphaStage(
+            initialized, expanded.info, expanded.row()
+        )
+        @Assert(stripped.row(), source)
+        @Assert(stripped.info.colorType.toString(), "TRUECOLOR")
+
+        let alphaDecoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(6), [], RGBA8_ZLIB
+        ))
+        let alphaState = PngReadTransformState()
+        @Assert(alphaState.setStripAlpha(), true)
+        let alphaInitialized = initializePngReadTransformations(
+            alphaState, alphaDecoded
+        )
+        let inherent = applyInitializedPngStripAlphaStage(
+            alphaInitialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), TruecolorAlpha),
+            [1, 2, 3, 4, 5, 6, 7, 8]
+        )
+        let inherentExpected: Array<Byte> = [1, 2, 3, 5, 6, 7]
+        @Assert(inherent.row(), inherentExpected)
+        @Assert(inherent.info.colorType.toString(), "TRUECOLOR")
+    }
+
+    @TestCase
     public func freezesTranslatedReadStageOrderAndOneShotLifecycle(): Unit {
         let decoded = decodePngNonInterlaced(makeTransformImage(
             UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB
