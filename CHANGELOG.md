@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Attach immutable initialized 8-bit direct and optional RGB-to-gray linear
+  gamma table snapshots after exact reciprocal2 correction derivation.
 - Translate frozen floating-arithmetic 8-bit gamma correction and immutable
   256-entry identity/significant table generation.
 - Connect configured gamma state and retained gAMA metadata to immutable read

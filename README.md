@@ -174,7 +174,10 @@ oracle-test source. Production implementation code belongs directly under
   scales ordinary decimals, and delegates into the fixed setter
 - frozen 8-bit scalar gamma correction and immutable 256-entry table generation
   preserve exact endpoints, nearest rounding, identity fast paths, and
-  copy-owned table access before row-stage attachment
+  copy-owned table access
+- initialized 8-bit gamma snapshots derive exact reciprocal2 correction and
+  retain direct plus optional RGB-to-gray to-linear/from-linear tables without
+  adding an executable Gamma row stage
 - source-shaped `pngDoRgbToGray` converts 8/16-bit RGB/RGBA byte rows into
   Gray/GA with fixed coefficients, PNG network-order preservation, exact row
   information, copy ownership, and aggregate nongray status

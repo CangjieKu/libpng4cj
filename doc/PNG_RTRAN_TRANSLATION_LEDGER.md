@@ -49,7 +49,7 @@ Status meanings:
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, native user-transform, and configured/chunk gamma values are snapshotted; gamma tables/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, native user-transform, configured/chunk gamma values, and 8-bit gamma tables are snapshotted; executable gamma/background, coefficient defaulting, remaining palette mutation, 16-bit tables, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -373,3 +373,12 @@ monotonicity, and copy ownership are covered. These helpers are outside the
 generated 45-function `pngrtran.c` inventory; initialization attachment,
 16-bit tables, and `png_do_gamma` remain separate, so the ledger remains
 `30 translated / 8 partial / 7 pending`.
+
+LP-S004AW translates frozen `png_reciprocal2` plus the 8-bit branch of
+`png_build_gamma_table` and attaches direct/to-linear/from-linear table
+snapshots to immutable read initialization. Tables are built only for required
+file-to-screen correction or linear RGB-to-gray work, and all row-stage
+ordinals remain unchanged. These helpers remain outside the generated
+45-function `pngrtran.c` inventory; executable `png_do_gamma`, gamma-aware
+RGB-to-gray row arithmetic, and 16-bit tables remain separate, so the ledger
+remains `30 translated / 8 partial / 7 pending`.

@@ -110,6 +110,18 @@ public func pngReciprocalFixed(value: Int32): Int32 {
     Int32(0)
 }
 
+// Floating-arithmetic branch of upstream png_reciprocal2.
+public func pngReciprocal2Fixed(a: Int32, b: Int32): Int32 {
+    if (a == Int32(0) || b == Int32(0)) {
+        return Int32(0)
+    }
+    let rounded = floor(1.0E15 / Float64(a) / Float64(b) + 0.5)
+    if (rounded > 2147483647.0 || rounded < -2147483648.0) {
+        return Int32(0)
+    }
+    Int32(rounded)
+}
+
 public class PngFileGammaSources {
     public let fileGamma: Int32
     public let chunkGamma: Int32

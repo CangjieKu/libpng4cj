@@ -590,9 +590,28 @@ LP-S004AV translates the frozen floating-arithmetic 8-bit correction path:
 - significant gamma applies the scalar correction to every entry
 - exhaustive identity and table/scalar equivalence tests cover all 256 values
 
-This substrate is not yet attached to read initialization. The 16-bit table,
-`png_build_gamma_table`, `png_do_gamma`, gamma-aware RGB-to-gray,
-background/alpha mode, and C ABI wrappers remain separate.
+LP-S004AV alone did not attach this substrate to read initialization. LP-S004AW
+below adds the bounded 8-bit attachment; 16-bit tables, `png_do_gamma`,
+gamma-aware RGB-to-gray row arithmetic, background/alpha mode, and C ABI
+wrappers remain separate.
+
+## Implemented Initialized 8-Bit Gamma Table Snapshot
+
+LP-S004AW translates frozen `png_reciprocal2` and the 8-bit branch of
+`png_build_gamma_table`:
+
+- direct correction uses exact reciprocal2 nearest rounding
+- zero input or signed-32-bit reciprocal2 overflow returns zero
+- optional file-to-linear and linear-to-screen tables support later
+  gamma-aware RGB-to-gray execution
+- unknown screen gamma preserves the frozen identity direct correction and
+  file-gamma linear-to-screen fallback
+- read initialization retains copy-owned table snapshots only when correction
+  or linear RGB-to-gray processing needs them
+- existing row-stage ordinals remain unchanged
+
+Executable `png_do_gamma`, gamma-aware RGB-to-gray row arithmetic, 16-bit
+tables, background/alpha mode, and C ABI wrappers remain separate.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

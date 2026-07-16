@@ -115,6 +115,21 @@ the exact identity table; significant values apply scalar correction to all
 resolved from validated setter/metadata state. Initialization attachment,
 16-bit tables, and row execution remain separate work.
 
+`pngReciprocal2Fixed(a, b)` preserves the frozen floating arithmetic used for
+file-to-screen correction: nonzero inputs calculate `floor(1E15/a/b + 0.5)`,
+signed-32-bit overflow returns zero, and either zero input returns zero.
+
+`pngBuildGamma8BitTables(fileGamma, screenGamma, linearTablesRequired)` builds
+the direct correction table from reciprocal2. When linear tables are requested,
+it also builds file-to-linear and linear-to-screen tables, including the frozen
+unknown-screen fallback. `PngGamma8BitTables` owns every table copy.
+
+`PngReadTransformInitialization.gamma8BitTablesBuilt()` and
+`gamma8BitLinearTablesBuilt()` report the initialized snapshot. Direct tables
+are retained only for required correction or linear RGB-to-gray work at source
+depths up to 8. Existing row-stage ordinals remain unchanged; no row gamma is
+executed yet.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

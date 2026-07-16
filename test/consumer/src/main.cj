@@ -114,6 +114,16 @@ main(): Int64 {
         println("libpng4cj 8-bit gamma table check failed")
         return 1
     }
+    let gammaTables = initializedGamma.gamma8BitTables()
+    let gammaCorrection = pngReciprocal2Fixed(Int32(106000), Int32(100000))
+    if (!initializedGamma.gamma8BitTablesBuilt() ||
+        initializedGamma.gamma8BitLinearTablesBuilt() ||
+        !gammaTables.built() || gammaTables.linearTablesBuilt() ||
+        gammaTables.direct().value(UInt8(128)) !=
+            pngGamma8BitCorrect(UInt8(128), gammaCorrection)) {
+        println("libpng4cj initialized 8-bit gamma table check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

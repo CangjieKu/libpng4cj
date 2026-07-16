@@ -64,4 +64,33 @@ public class PngGammaTableTestSuite {
         mutable[128] = UInt8(0)
         @Assert(table.value(UInt8(128)), UInt8(186))
     }
+
+    @TestCase
+    public func buildsFrozenDirectAndUnknownScreenLinearTableSet(): Unit {
+        let directOnly = pngBuildGamma8BitTables(
+            Int32(100000),
+            Int32(106000),
+            false
+        )
+        @Assert(directOnly.built(), true)
+        @Assert(directOnly.linearTablesBuilt(), false)
+        @Assert(
+            directOnly.direct().value(UInt8(128)),
+            pngGamma8BitCorrect(
+                UInt8(128),
+                pngReciprocal2Fixed(Int32(106000), Int32(100000))
+            )
+        )
+
+        let unknownScreen = pngBuildGamma8BitTables(
+            Int32(45455),
+            Int32(0),
+            true
+        )
+        @Assert(unknownScreen.direct().value(UInt8(128)), UInt8(128))
+        @Assert(
+            unknownScreen.fromLinear().value(UInt8(128)),
+            pngBuildGamma8BitTable(Int32(45455)).value(UInt8(128))
+        )
+    }
 }
