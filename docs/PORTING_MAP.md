@@ -517,6 +517,26 @@ LP-S004AA connects the direct body to one bounded initialized stage:
 The bounded adapter does not build or reduce palettes, mutate retained PLTE,
 project transformed info, or claim the complete row dispatcher.
 
+LP-S004AB connects the initialized quantize payload to the bounded transformed
+info projection:
+
+- initialization snapshots the reduced or selected palette and its active count
+  alongside the already-frozen lookup/remap tables
+- disabled quantize preserves the source PLTE, while enabled quantize replaces
+  the projected PLTE with a copy-owned palette from the initialization snapshot
+- `PngReadTransformInfo` exposes palette presence, count, copy-owned bytes, and
+  range-checked RGB entry access without mutating `PngReadMetadata`
+- after Gray-to-RGB and RGB-to-gray projection, only 8-bit RGB/RGBA with a
+  materialized full-color lookup becomes Indexed
+- a resulting Indexed topology blocks the following Expand16 projection exactly
+  like the frozen upstream info function
+- non-full RGB topology and gray topology remain unchanged, while non-full
+  Indexed rows retain Indexed topology with the synchronized reduced palette
+
+The ledger remains partial because gamma/background, filler/add-alpha, pack,
+user-transform, complete metadata synchronization, complete row dispatch, the
+native allocation-warning fallback, and C ABI are still open.
+
 ## Implemented Quantize Setter State Floor
 
 LP-S004W extends `PngReadTransformState` with the bounded state topology of

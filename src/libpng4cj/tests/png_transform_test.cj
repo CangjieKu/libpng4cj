@@ -1043,6 +1043,147 @@ public class PngTransformTestSuite {
     }
 
     @TestCase
+    public func projectsFullQuantizeInfoAndOwnsSynchronizedPalette(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let palette: Array<Byte> = [0, 0, 0, 0xff, 0xff, 0xff]
+        let state = PngReadTransformState()
+        @Assert(state.setQuantize(palette, 2, 2, true), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+
+        @Assert(initialized.quantizePaletteCount(), Int64(2))
+        @Assert(initialized.quantizePalette(), palette)
+        @Assert(initialized.quantizePaletteLookupAvailable(), true)
+        let mutableSnapshot = initialized.quantizePalette()
+        mutableSnapshot[0] = UInt8(99)
+        @Assert(initialized.quantizePalette(), palette)
+
+        let projected = projectPngReadTransformInfo(initialized, decoded)
+        @Assert(projected.colorType.toString(), "INDEXED")
+        @Assert(projected.bitDepth, UInt8(8))
+        @Assert(projected.channels, UInt8(1))
+        @Assert(projected.pixelDepth, UInt16(8))
+        @Assert(projected.rowBytes, UInt64(2))
+        @Assert(projected.hasPalette, true)
+        @Assert(projected.paletteEntryCount(), Int64(2))
+        @Assert(projected.palette(), palette)
+
+        let mutableProjected = projected.palette()
+        mutableProjected[3] = UInt8(0)
+        @Assert(projected.palette(), palette)
+        let white: Array<Byte> = [0xff, 0xff, 0xff]
+        @Assert(projected.paletteEntry(1), white)
+    }
+
+    @TestCase
+    public func composesScaleQuantizeAndExpand16InfoOrder(): Unit {
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(16), UInt8(2), [], RGB16_TWO_ZLIB
+        ))
+        let palette: Array<Byte> = [0, 0, 0, 0xff, 0xff, 0xff]
+        let state = PngReadTransformState()
+        @Assert(state.setScale16(), true)
+        @Assert(state.setQuantize(palette, 2, 2, true), true)
+        @Assert(state.setExpand16(), true)
+
+        let projected = projectPngReadTransformInfo(
+            initializePngReadTransformations(state, decoded), decoded
+        )
+        @Assert(projected.colorType.toString(), "INDEXED")
+        @Assert(projected.bitDepth, UInt8(8))
+        @Assert(projected.channels, UInt8(1))
+        @Assert(projected.rowBytes, UInt64(2))
+        @Assert(projected.palette(), palette)
+    }
+
+    @TestCase
+    public func keepsGrayAndNonFullExpandedInfoOutsideFullQuantizeProjection(): Unit {
+        let rgb = decodePngNonInterlaced(makeTransformImage(
+            UInt32(2), UInt8(8), UInt8(2), [], RGB8_ZLIB
+        ))
+        let fullPalette: Array<Byte> = [0, 0, 0, 0xff, 0xff, 0xff]
+        let grayState = PngReadTransformState()
+        grayState.markIhdrRead(rgb.ihdr)
+        @Assert(
+            grayState.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(grayState.setQuantize(fullPalette, 2, 2, true), true)
+        let gray = projectPngReadTransformInfo(
+            initializePngReadTransformations(grayState, rgb), rgb
+        )
+        @Assert(gray.colorType.toString(), "GRAYSCALE")
+        @Assert(gray.channels, UInt8(1))
+
+        let sourcePalette: Array<Byte> = [
+            0, 0, 0,
+            0xff, 0, 0,
+            0, 0xff, 0,
+            0, 0, 0xff
+        ]
+        let indexed = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [makeTransformChunk(PNG_CHUNK_PLTE, sourcePalette)],
+            PALETTE_GRAY_ZLIB
+        ))
+        let nonFullState = PngReadTransformState()
+        @Assert(nonFullState.setExpand(), true)
+        @Assert(nonFullState.setQuantize(sourcePalette, 4, 2, false), true)
+        let expanded = projectPngReadTransformInfo(
+            initializePngReadTransformations(nonFullState, indexed), indexed
+        )
+        @Assert(expanded.colorType.toString(), "TRUECOLOR")
+        @Assert(expanded.channels, UInt8(3))
+        @Assert(expanded.paletteEntryCount(), Int64(2))
+    }
+
+    @TestCase
+    public func synchronizesReducedIndexedPaletteWithoutMutatingMetadata(): Unit {
+        let sourcePalette: Array<Byte> = [
+            0, 0, 0,
+            0xff, 0, 0,
+            0, 0xff, 0,
+            0, 0, 0xff
+        ]
+        let decoded = decodePngNonInterlaced(makeTransformImage(
+            UInt32(4),
+            UInt8(2),
+            UInt8(3),
+            [makeTransformChunk(PNG_CHUNK_PLTE, sourcePalette)],
+            PALETTE_GRAY_ZLIB
+        ))
+
+        let disabled = projectPngReadTransformInfo(
+            initializePngReadTransformations(PngReadTransformState(), decoded),
+            decoded
+        )
+        @Assert(disabled.colorType.toString(), "INDEXED")
+        @Assert(disabled.palette(), sourcePalette)
+
+        let state = PngReadTransformState()
+        let histogram: Array<UInt16> = [10, 20, 100, 90]
+        @Assert(state.setQuantize(sourcePalette, 4, 2, histogram, false), true)
+        let projected = projectPngReadTransformInfo(
+            initializePngReadTransformations(state, decoded), decoded
+        )
+        let reducedPalette: Array<Byte> = [0, 0, 0xff, 0, 0xff, 0]
+        @Assert(projected.colorType.toString(), "INDEXED")
+        @Assert(projected.palette(), reducedPalette)
+        @Assert(projected.paletteEntryCount(), Int64(2))
+        @Assert(decoded.metadata.palette(), sourcePalette)
+
+        try {
+            projected.paletteEntry(2)
+            @Fail("projected palette should reject an out-of-range index")
+        } catch (e: PngFormatException) {
+            @Assert(e.kind.toString(), "PALETTE_INDEX_OUT_OF_RANGE")
+        }
+    }
+
+    @TestCase
     public func scalesDirectSixteenBitRowsAcrossChannelTopologies(): Unit {
         let grayInput: Array<Byte> = [
             0x00, 0x00, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff

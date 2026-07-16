@@ -49,8 +49,8 @@ Status meanings:
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
 | 1351 | `png_resolve_file_gamma` | retained gAMA/sRGB/cHRM | pending | precedence and fixed-point resolution |
 | 1387 | `png_init_gamma_values` | none | pending | gamma values and table requirements |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize mode/tables are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
-| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | gamma/background, palette sync, filler, quantize, pack, user-transform, and full metadata projection |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize palette/count/mode/tables are snapshotted; gamma/background, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
+| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology plus quantize palette sync are projected; gamma/background, filler, pack, user-transform, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | packing setter state and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
 | 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
@@ -66,7 +66,7 @@ Status meanings:
 | 4349 | `png_do_expand_palette` | `pngDoExpandPalette` | translated | palette mutation, SIMD, and complete dispatcher remain partial |
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | initializer adapter and complete dispatcher remain partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | initialized adapter and complete dispatcher remain partial |
-| 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter is narrow; retained palette synchronization and complete dispatcher remain partial |
+| 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
 | 4880 | `png_do_read_transformations` | current ordered transform calls | partial | quantize is ordered after Strip16 and before Expand16; complete stateful dispatcher and pending bodies remain |
 
 ## Translation Rule
@@ -178,4 +178,19 @@ bidirectional identity maps, and non-full remap updates before map mutation.
 Full mode builds the reduced lookup from the same compacted palette. Native
 allocation-warning fallback, initialized dispatch, transformed-info projection,
 and C ABI remain open, so the ledger remains
+`24 translated / 7 partial / 14 pending`.
+
+LP-S004AA snapshots quantize mode plus lookup/remap tables during one-shot read
+initialization and places the direct row body after Strip16 and before Expand16.
+The adapter remains bounded and copy-owned; complete dispatch and projected
+palette synchronization remain open, so the ledger remains
+`24 translated / 7 partial / 14 pending`.
+
+LP-S004AB snapshots the active quantize palette/count and synchronizes a
+copy-owned projected PLTE. The transformed-info branch preserves source PLTE
+when quantize is disabled and changes only 8-bit RGB/RGBA with a materialized
+full lookup to Indexed, after RGB/gray projection and before Expand16. Source
+metadata stays immutable, and Indexed output blocks Expand16. Gamma/background,
+filler, pack, user-transform, complete metadata projection, complete dispatch,
+native allocation-warning fallback, and C ABI remain open, so the ledger stays
 `24 translated / 7 partial / 14 pending`.

@@ -57,6 +57,8 @@ public class PngReadTransformInitialization {
     public let effectiveOutputHasAlpha: Bool
     private let quantizeEnabledValue: Bool
     private let quantizeModeValue: PngQuantizeMode
+    private let ownedQuantizePalette: Array<Byte>
+    private let quantizePaletteCountValue: Int64
     private let ownedQuantizeIndex: Array<Byte>
     private let ownedQuantizePaletteLookup: Array<Byte>
     private let ownedStages: Array<PngReadTransformStage>
@@ -71,6 +73,8 @@ public class PngReadTransformInitialization {
         effectiveOutputHasAlpha: Bool,
         quantizeEnabled: Bool,
         quantizeMode: PngQuantizeMode,
+        quantizePalette: Array<Byte>,
+        quantizePaletteCount: Int64,
         quantizeIndex: Array<Byte>,
         quantizePaletteLookup: Array<Byte>,
         stages: Array<PngReadTransformStage>
@@ -84,6 +88,8 @@ public class PngReadTransformInitialization {
         this.effectiveOutputHasAlpha = effectiveOutputHasAlpha
         quantizeEnabledValue = quantizeEnabled
         quantizeModeValue = quantizeMode
+        ownedQuantizePalette = quantizePalette.clone()
+        quantizePaletteCountValue = quantizePaletteCount
         ownedQuantizeIndex = quantizeIndex.clone()
         ownedQuantizePaletteLookup = quantizePaletteLookup.clone()
         ownedStages = stages.clone()
@@ -138,8 +144,20 @@ public class PngReadTransformInitialization {
         ownedQuantizeIndex.clone()
     }
 
+    public func quantizePalette(): Array<Byte> {
+        ownedQuantizePalette.clone()
+    }
+
+    public func quantizePaletteCount(): Int64 {
+        quantizePaletteCountValue
+    }
+
     public func quantizePaletteLookup(): Array<Byte> {
         ownedQuantizePaletteLookup.clone()
+    }
+
+    public func quantizePaletteLookupAvailable(): Bool {
+        ownedQuantizePaletteLookup.size != 0
     }
 }
 
@@ -275,6 +293,16 @@ public func initializePngReadTransformations(
     } else {
         Array<Byte>()
     }
+    let quantizePalette = if (quantizeEnabled) {
+        state.quantizePalette()
+    } else {
+        Array<Byte>()
+    }
+    let quantizePaletteCount = if (quantizeEnabled) {
+        state.quantizePaletteCount()
+    } else {
+        Int64(0)
+    }
     let stages = pngReadTransformStages(state)
     state.markRowInitialized()
 
@@ -288,6 +316,8 @@ public func initializePngReadTransformations(
         effectiveOutputHasAlpha,
         quantizeEnabled,
         quantizeMode,
+        quantizePalette,
+        quantizePaletteCount,
         quantizeIndex,
         quantizePaletteLookup,
         stages

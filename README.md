@@ -122,8 +122,8 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   bidirectional palette identity maps, and exact full/non-full outputs
 - one-shot `PngReadTransformInitialization` classifies palette partial alpha,
   binary transparency, inherent source alpha, and effective tRNS after Strip
-  Alpha, snapshots quantize mode plus generated lookup/remap tables, and exposes
-  the translated read stages in frozen upstream order
+  Alpha, snapshots the quantize palette/count plus generated lookup/remap
+  tables, and exposes the translated read stages in frozen upstream order
 - `applyInitializedPngQuantizeStage` executes the snapshotted full-color or
   Indexed remap state after Strip16 and before Expand16 while keeping disabled
   and unsupported rows copy-owned no-ops
@@ -147,15 +147,16 @@ oracle-test source. New implementation code belongs under `src/libpng4cj/`.
   while retaining source color type; `PngReadRowInfo` can now represent explicit
   transformed channel counts independently from source color type
 - bounded `projectPngReadTransformInfo` projects the current non-gamma Expand,
-  Strip Alpha, RGB/gray, 16-to-8, and Expand16 state into output color type,
-  bit depth, channels, pixel depth, row bytes, and remaining tRNS state using
-  the frozen info-function order rather than runtime row-stage order
+  Strip Alpha, RGB/gray, quantize, 16-to-8, and Expand16 state into output color
+  type, bit depth, channels, pixel depth, row bytes, remaining tRNS state, and a
+  copy-owned synchronized palette using the frozen info-function order rather
+  than runtime row-stage order
 
 ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
 RGB-to-gray and general gamma correction, background composition, remaining
 standard metadata, quantize allocation-warning fallback, complete read-transform
-dispatch, transformed-info projection, user callbacks, Adam7 execution, progressive
-reading, and all write/C ABI surfaces remain open work.
+dispatch, complete transformed-metadata projection, user callbacks, Adam7
+execution, progressive reading, and all write/C ABI surfaces remain open work.
 
 The translation-first route is tracked in
 `docs/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently

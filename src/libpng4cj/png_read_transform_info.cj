@@ -9,12 +9,15 @@ public class PngReadTransformInfo {
     public let pixelDepth: UInt16
     public let rowBytes: UInt64
     public let hasTransparency: Bool
+    public let hasPalette: Bool
+    private let ownedPalette: Array<Byte>
 
     init(
         ihdr: PngIhdr,
         bitDepth: UInt8,
         colorType: PngColorType,
-        hasTransparency: Bool
+        hasTransparency: Bool,
+        palette: Array<Byte>
     ) {
         width = ihdr.width
         height = ihdr.height
@@ -24,6 +27,27 @@ public class PngReadTransformInfo {
         pixelDepth = UInt16(bitDepth) * UInt16(channels)
         rowBytes = (UInt64(width) * UInt64(pixelDepth) + UInt64(7)) / UInt64(8)
         this.hasTransparency = hasTransparency
+        ownedPalette = palette.clone()
+        hasPalette = ownedPalette.size != 0
+    }
+
+    public func palette(): Array<Byte> {
+        ownedPalette.clone()
+    }
+
+    public func paletteEntryCount(): Int64 {
+        ownedPalette.size / 3
+    }
+
+    public func paletteEntry(index: Int64): Array<Byte> {
+        if (index < 0 || index >= paletteEntryCount()) {
+            throw PngFormatException(
+                PaletteIndexOutOfRange,
+                index,
+                "projected PNG palette index is out of bounds"
+            )
+        }
+        copyByteRange(ownedPalette, index * 3, 3)
     }
 }
 
@@ -74,6 +98,20 @@ public func projectPngReadTransformInfo(
     var bitDepth = ihdr.bitDepth
     var colorType = ihdr.colorType
     var hasTransparency = metadata.hasTransparency && !initialization.transparencyStripped
+    var palette = metadata.palette()
+
+    if (initialization.quantizeEnabled()) {
+        palette = initialization.quantizePalette()
+        let paletteCount = initialization.quantizePaletteCount()
+        if (paletteCount <= 0 || paletteCount > 256 ||
+            palette.size != paletteCount * 3) {
+            throw PngFormatException(
+                InvalidPalette,
+                paletteCount,
+                "initialized quantize palette is inconsistent"
+            )
+        }
+    }
 
     if (initialization.hasStage(ReadStageExpand)) {
         if (colorType == Indexed) {
@@ -110,6 +148,13 @@ public func projectPngReadTransformInfo(
         colorType = pngColorTypeWithoutColor(colorType)
     }
 
+    if (initialization.hasStage(ReadStageQuantize) &&
+        (colorType == Truecolor || colorType == TruecolorAlpha) &&
+        initialization.quantizePaletteLookupAvailable() &&
+        bitDepth == UInt8(8)) {
+        colorType = Indexed
+    }
+
     if (initialization.hasStage(ReadStageExpand16) &&
         bitDepth == UInt8(8) && colorType != Indexed) {
         bitDepth = UInt8(16)
@@ -120,5 +165,5 @@ public func projectPngReadTransformInfo(
         hasTransparency = false
     }
 
-    PngReadTransformInfo(ihdr, bitDepth, colorType, hasTransparency)
+    PngReadTransformInfo(ihdr, bitDepth, colorType, hasTransparency, palette)
 }
