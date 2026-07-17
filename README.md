@@ -150,6 +150,10 @@ oracle-test source. Production implementation code belongs directly under
   frozen screen/file/unique gamma code and fixed value, background expansion,
   Compose plus Strip Alpha selection, alpha-encoding cancellation, unknown-gamma
   diagnosis, repeated-call replacement, and lifecycle-safe prior-state retention
+- read initialization snapshots the accepted background configuration, cancels
+  effective Compose/background expansion for palette or RGB inputs without
+  alpha/transparency, expands palette-index and 1/2/4-bit grayscale background
+  values when requested, and keeps Strip Alpha after effective Compose
 - bounded `PngReadTransformState.setQuantize` state translation with explicit
   palette-remap/full-color modes, copy-owned palette/count limits, and a fresh
   complete 256-entry identity remap on every accepted non-full setter call
@@ -258,8 +262,9 @@ oracle-test source. Production implementation code belongs directly under
   row bytes, remaining tRNS state, and a copy-owned synchronized palette using
   the frozen info-function order rather than runtime row-stage order
 
-ICC color application, cHRM-derived RGB-to-gray defaults, background
-composition, remaining standard metadata, quantize allocation-warning fallback,
+ICC color application, cHRM-derived RGB-to-gray defaults, background row
+composition and gamma-table derivation, remaining standard metadata,
+quantize allocation-warning fallback,
 benign-error callback delivery for invalid palette indexes, the remaining
 read-transform dispatch stages, complete transformed-metadata projection, C ABI
 callback trampolines, raw user-transform pointers, Adam7

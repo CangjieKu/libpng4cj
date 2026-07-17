@@ -45,11 +45,11 @@ Status meanings:
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | setter/state/initialization connected; table integration deferred |
-| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | background/encode-alpha optimization and palette mutation branches |
-| 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | background/encode-alpha optimization branches |
+| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | no-alpha background cancellation and palette-index background expansion translated; encode/optimize-alpha and remaining palette mutation branches deferred |
+| 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | no-alpha background cancellation and sub-byte gray background expansion translated; encode/optimize-alpha and remaining branches deferred |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | quantize, packing, packswap, native user-transform, configured/chunk gamma values, 8-bit gamma tables, and bounded direct Gamma dispatch are snapshotted; background, coefficient defaulting, remaining palette mutation, 16-bit tables, and complete dispatcher state remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background state/cancellation/expansion, gamma tables, quantize, packing, packswap, and native user-transform are snapshotted; row composition, background gamma derivation, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -88,8 +88,9 @@ LP-S004K adds the first stateful initialization anchor without hiding the
 remaining branches. It distinguishes palette partial alpha from binary
 transparency, preserves inherent RGB/gray alpha classification, cancels tRNS
 expansion when Strip Alpha precedes composition, and freezes the translated
-stage order. The three initializer rows remain `partial` until background,
-encode/optimize-alpha, palette mutation, gamma, and full dispatcher state land.
+stage order. The three initializer rows remain `partial` until background row
+composition/gamma derivation, encode/optimize-alpha, remaining palette mutation,
+and full dispatcher state land.
 
 LP-S004L directly translates `png_do_gray_to_rgb` for 8-bit and 16-bit
 grayscale/grayscale-alpha rows. `PngReadRowInfo` carries the source-shaped
@@ -431,3 +432,12 @@ gating, repeated replacement, and prior-state stability. Initialization and
 `png_do_compose` remain separate. Two inventoried setters advance from pending
 to translated, so the ledger advances to
 `33 translated / 8 partial / 4 pending`.
+
+LP-S004BD snapshots that accepted state through the still-partial palette, RGB,
+and read initializers. Opaque/no-transparency inputs cancel effective Compose
+and Background Expand; palette binary/partial transparency, color-key tRNS, and
+inherent alpha retain Compose. Requested palette-index and 1/2/4-bit grayscale
+background expansion is frozen into copy-owned initialization state, and Strip
+Alpha remains after effective Compose. `png_do_compose`, background gamma-table
+derivation, alpha-mode setters, and remaining initializer branches stay open,
+so the ledger remains `33 translated / 8 partial / 4 pending`.

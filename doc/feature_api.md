@@ -75,8 +75,24 @@ and replaces background expansion from the current argument.
 `setBackground(...)` accepts `Float64` gamma and applies
 `floor(100000 * value + 0.5)` before delegating to the fixed setter. Nonfinite
 and signed-32-bit overflow values fail before mutation. Both Bool and C-style
-nonzero `Int64` expansion arguments are available. Initialization snapshots and
-pixel composition are not implied by this configuration surface.
+nonzero `Int64` expansion arguments are available.
+
+## Background Initialization Snapshot
+
+`initializePngReadTransformations` freezes accepted background state into
+`PngReadTransformInitialization`. `backgroundConfigured()`, `background()`,
+`backgroundGammaCode()`, and `backgroundGamma()` expose the immutable
+configuration, while `composeEnabled()` and `backgroundExpandEnabled()` expose
+the effective initialized decisions.
+
+Palette and non-palette inputs without effective alpha or transparency cancel
+Compose and background expansion. Binary/partial palette transparency,
+color-key tRNS, and inherent alpha retain Compose. When both normal Expand and
+background expansion are selected, palette indexes are resolved through the
+retained PLTE and 1/2/4-bit grayscale background samples are scaled to 8-bit
+values. Strip Alpha remains after effective Compose instead of entering the
+early initialized stage list. Pixel composition and background gamma-table
+derivation remain separate capabilities.
 
 ## Gamma Threshold Helpers
 

@@ -735,8 +735,31 @@ LP-S004BC translates frozen `png_set_background_fixed` and
   stability are covered directly
 
 The two setter rows advance to translated and the ledger becomes
-`33 translated / 8 partial / 4 pending`. Initialization snapshots,
-`png_do_compose`, and alpha-mode setters remain separate.
+`33 translated / 8 partial / 4 pending`. `png_do_compose` and alpha-mode
+setters remain separate.
+
+## Implemented Background Initialization Snapshot
+
+LP-S004BD extends the still-partial palette, RGB, and read initializer rows:
+
+- immutable initialization retains the configured background color, gamma code,
+  gamma value, and effective Compose/background-expand decisions
+- palette and non-palette inputs without effective alpha/transparency cancel
+  Compose plus background expansion like the frozen initializer
+- binary/partial palette transparency, color-key tRNS, and inherent alpha keep
+  Compose selected
+- palette background indexes resolve through retained PLTE when normal Expand
+  and Background Expand are both selected
+- 1/2/4-bit grayscale background samples scale by `0xff`, `0x55`, or `0x11`
+  and populate gray/R/G/B snapshot values
+- Strip Alpha is withheld from the early stage sequence while effective Compose
+  remains selected, preserving the frozen post-compose order
+- invalid palette indexes fail before row initialization and permit a corrected
+  retry; snapshots remain independent of retained metadata getter copies
+
+The three initializer rows remain partial and the ledger stays
+`33 translated / 8 partial / 4 pending`. Row composition, background gamma-table
+derivation, alpha-mode state, and remaining initializer branches are separate.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

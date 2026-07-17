@@ -91,6 +91,12 @@ public class PngReadTransformInitialization {
     public let transparencyStripped: Bool
     public let effectiveTransparencyExpansion: Bool
     public let effectiveOutputHasAlpha: Bool
+    private let backgroundConfiguredValue: Bool
+    private let composeEnabledValue: Bool
+    private let backgroundExpandEnabledValue: Bool
+    private let backgroundValue: PngBackground
+    private let backgroundGammaCodeValue: PngBackgroundGammaCode
+    private let backgroundGammaValue: Int32
     private let gammaConfiguredValue: Bool
     private let chunkGammaValue: Int32
     private let initializedGammaValuesValue: PngGammaValues
@@ -138,6 +144,12 @@ public class PngReadTransformInitialization {
         transparencyStripped: Bool,
         effectiveTransparencyExpansion: Bool,
         effectiveOutputHasAlpha: Bool,
+        backgroundConfigured: Bool,
+        composeEnabled: Bool,
+        backgroundExpandEnabled: Bool,
+        background: PngBackground,
+        backgroundGammaCode: PngBackgroundGammaCode,
+        backgroundGamma: Int32,
         gammaConfigured: Bool,
         chunkGamma: Int32,
         initializedGammaValues: PngGammaValues,
@@ -184,6 +196,12 @@ public class PngReadTransformInitialization {
         this.transparencyStripped = transparencyStripped
         this.effectiveTransparencyExpansion = effectiveTransparencyExpansion
         this.effectiveOutputHasAlpha = effectiveOutputHasAlpha
+        backgroundConfiguredValue = backgroundConfigured
+        composeEnabledValue = composeEnabled
+        backgroundExpandEnabledValue = backgroundExpandEnabled
+        backgroundValue = PngBackground(background)
+        backgroundGammaCodeValue = backgroundGammaCode
+        backgroundGammaValue = backgroundGamma
         gammaConfiguredValue = gammaConfigured
         chunkGammaValue = chunkGamma
         initializedGammaValuesValue = PngGammaValues(
@@ -266,6 +284,51 @@ public class PngReadTransformInitialization {
 
     public func quantizeEnabled(): Bool {
         quantizeEnabledValue
+    }
+
+    public func backgroundConfigured(): Bool {
+        backgroundConfiguredValue
+    }
+
+    public func composeEnabled(): Bool {
+        composeEnabledValue
+    }
+
+    public func backgroundExpandEnabled(): Bool {
+        backgroundExpandEnabledValue
+    }
+
+    public func background(): PngBackground {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no background configuration"
+            )
+        }
+        PngBackground(backgroundValue)
+    }
+
+    public func backgroundGammaCode(): PngBackgroundGammaCode {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no background gamma code"
+            )
+        }
+        backgroundGammaCodeValue
+    }
+
+    public func backgroundGamma(): Int32 {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no background gamma"
+            )
+        }
+        backgroundGammaValue
     }
 
     public func gammaConfigured(): Bool {
@@ -497,6 +560,112 @@ private class PngInputAlphaClassification {
     }
 }
 
+private class PngEffectiveBackgroundInitialization {
+    let configured: Bool
+    let composeEnabled: Bool
+    let expandEnabled: Bool
+    let background: PngBackground
+    let gammaCode: PngBackgroundGammaCode
+    let gamma: Int32
+
+    init(
+        configured: Bool,
+        composeEnabled: Bool,
+        expandEnabled: Bool,
+        background: PngBackground,
+        gammaCode: PngBackgroundGammaCode,
+        gamma: Int32
+    ) {
+        this.configured = configured
+        this.composeEnabled = composeEnabled
+        this.expandEnabled = expandEnabled
+        this.background = PngBackground(background)
+        this.gammaCode = gammaCode
+        this.gamma = gamma
+    }
+}
+
+private func pngScaleInitializedBackgroundGray(
+    value: UInt16,
+    bitDepth: UInt8
+): UInt16 {
+    let factor = match (bitDepth) {
+        case 1 => UInt32(0xff)
+        case 2 => UInt32(0x55)
+        case 4 => UInt32(0x11)
+        case _ => UInt32(1)
+    }
+    UInt16((UInt32(value) * factor) & UInt32(0xffff))
+}
+
+private func pngInitializeEffectiveBackground(
+    state: PngReadTransformState,
+    ihdr: PngIhdr,
+    metadata: PngReadMetadata,
+    classification: PngInputAlphaClassification
+): PngEffectiveBackgroundInitialization {
+    if (!state.backgroundConfigured()) {
+        return PngEffectiveBackgroundInitialization(
+            false,
+            false,
+            false,
+            PngBackground(),
+            BackgroundGammaUnknown,
+            Int32(0)
+        )
+    }
+
+    var composeEnabled = state.composeEnabled()
+    var expandEnabled = state.backgroundExpandEnabled()
+    var background = state.background()
+    if (!classification.hasAlpha && !classification.hasTransparency) {
+        composeEnabled = false
+        expandEnabled = false
+    } else if (expandEnabled && state.expandEnabled()) {
+        if (ihdr.colorType == Indexed) {
+            let palette = metadata.palette()
+            let index = Int64(background.index)
+            let entryCount = palette.size / 3
+            if (index >= entryCount) {
+                throw PngFormatException(
+                    InvalidArgument,
+                    index,
+                    "PNG background palette index exceeds retained PLTE"
+                )
+            }
+            let offset = index * 3
+            background = PngBackground(
+                background.index,
+                background.gray,
+                UInt16(palette[offset]),
+                UInt16(palette[offset + 1]),
+                UInt16(palette[offset + 2])
+            )
+        } else if (ihdr.colorType == Grayscale ||
+            ihdr.colorType == GrayscaleAlpha) {
+            let gray = pngScaleInitializedBackgroundGray(
+                background.gray,
+                ihdr.bitDepth
+            )
+            background = PngBackground(
+                background.index,
+                gray,
+                gray,
+                gray,
+                gray
+            )
+        }
+    }
+    PngEffectiveBackgroundInitialization(
+        true,
+        composeEnabled,
+        expandEnabled,
+        background,
+        state.backgroundGammaCode(),
+        state.backgroundGamma()
+    )
+}
+
 private func pngInitPaletteTransformations(
     metadata: PngReadMetadata,
     transparencyStripped: Bool
@@ -536,13 +705,14 @@ private func pngInitRgbTransformations(
 private func pngReadTransformStages(
     state: PngReadTransformState,
     checkForInvalidIndexEnabled: Bool,
-    gammaStageEnabled: Bool
+    gammaStageEnabled: Bool,
+    stripAlphaBeforeCompose: Bool
 ): Array<PngReadTransformStage> {
     let stages = ArrayList<PngReadTransformStage>()
     if (state.expandEnabled()) {
         stages.add(ReadStageExpand)
     }
-    if (state.stripAlphaEnabled()) {
+    if (stripAlphaBeforeCompose) {
         stages.add(ReadStageStripAlpha)
     }
     if (state.rgbToGrayEnabled()) {
@@ -636,8 +806,10 @@ public func initializePngReadTransformations(
         if (gammaConfigured) { state.screenGamma() } else { Int32(0) }
     ))
     let sourceHasTransparency = metadata.hasTransparency
-    let transparencyStripped = state.stripAlphaEnabled() && sourceHasTransparency
-    if (state.stripAlphaEnabled()) {
+    let stripAlphaBeforeCompose = state.stripAlphaEnabled() &&
+        !state.composeEnabled()
+    let transparencyStripped = stripAlphaBeforeCompose && sourceHasTransparency
+    if (stripAlphaBeforeCompose) {
         state.cancelTransparencyExpansionForInitialization()
     }
 
@@ -647,6 +819,14 @@ public func initializePngReadTransformations(
     } else {
         pngInitRgbTransformations(ihdr, metadata, transparencyStripped)
     }
+    let initializedBackground = pngInitializeEffectiveBackground(
+        state,
+        ihdr,
+        metadata,
+        classification
+    )
+    let effectiveStripAlphaBeforeCompose = state.stripAlphaEnabled() &&
+        !initializedBackground.composeEnabled
     let effectiveOutputHasAlpha = if (state.addAlphaEnabled()) {
         true
     } else if (state.stripAlphaEnabled()) {
@@ -763,7 +943,8 @@ public func initializePngReadTransformations(
     let stages = pngReadTransformStages(
         state,
         checkForInvalidIndexEnabled,
-        gammaStageEnabled
+        gammaStageEnabled,
+        effectiveStripAlphaBeforeCompose
     )
     state.markRowInitialized()
 
@@ -775,6 +956,12 @@ public func initializePngReadTransformations(
         transparencyStripped,
         state.expandTransparencyEnabled(),
         effectiveOutputHasAlpha,
+        initializedBackground.configured,
+        initializedBackground.composeEnabled,
+        initializedBackground.expandEnabled,
+        initializedBackground.background,
+        initializedBackground.gammaCode,
+        initializedBackground.gamma,
         gammaConfigured,
         chunkGamma,
         initializedGammaValues,

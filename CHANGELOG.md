@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Snapshot effective background configuration during read initialization,
+  including no-alpha Compose cancellation, palette-index RGB expansion,
+  sub-byte grayscale expansion, and post-Compose Strip Alpha ordering.
 - Translate fixed and floating background setter state with frozen gamma-code,
   Compose/Strip Alpha, expansion, alpha-encoding cancellation, lifecycle, and
   prior-state preservation behavior.

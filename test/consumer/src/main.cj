@@ -142,6 +142,20 @@ main(): Int64 {
         println("libpng4cj floating background setter check failed")
         return 1
     }
+    let initializedBackground = initializePngReadTransformations(
+        backgroundState,
+        decodePngNonInterlaced(consumerGammaPng())
+    )
+    if (!initializedBackground.backgroundConfigured() ||
+        !initializedBackground.composeEnabled() ||
+        initializedBackground.backgroundExpandEnabled() ||
+        initializedBackground.hasStage(ReadStageStripAlpha) ||
+        initializedBackground.backgroundGammaCode() != BackgroundGammaUnique ||
+        initializedBackground.backgroundGamma() != Int32(100000) ||
+        initializedBackground.background().blue != UInt16(0x4444)) {
+        println("libpng4cj background initialization snapshot check failed")
+        return 1
+    }
     let gamma = pngInitGammaValues(PngFileGammaSources(
         Int32(45455),
         Int32(0),
