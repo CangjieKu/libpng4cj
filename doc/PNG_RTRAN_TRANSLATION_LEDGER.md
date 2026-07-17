@@ -30,8 +30,8 @@ Status meanings:
 | 188 | `png_set_scale_16` | `PngReadTransformState.setScale16` | translated | direct C ABI setter deferred |
 | 202 | `png_set_strip_16` | `PngReadTransformState.setStrip16` | translated | direct C ABI setter deferred |
 | 215 | `png_set_strip_alpha` | `PngReadTransformState.setStripAlpha` | translated | direct C ABI setter deferred |
-| 361 | `png_set_alpha_mode_fixed` | none | pending | alpha/background/gamma state |
-| 461 | `png_set_alpha_mode` | none | pending | floating-point facade |
+| 361 | `png_set_alpha_mode_fixed` | `PngReadTransformState.setAlphaModeFixed` | translated | four modes, default/screen Gamma, black Compose background, Encode/Optimize flags, conflict and initialization snapshots translated; C ABI integer mode/error callback deferred |
+| 461 | `png_set_alpha_mode` | `PngReadTransformState.setAlphaMode` | translated | floating conversion delegates to fixed state; C ABI wrapper deferred |
 | 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | normal lifecycle, both reduction branches, remap, and full lookup translated; allocation-warning fallback, dispatcher, and C ABI deferred |
 | 892 | `png_set_gamma_fixed` | `PngReadTransformState.setGammaFixed` | translated | callback delivery, C ABI, and tables deferred; initialization snapshot connected |
 | 934 | `png_set_gamma` | `PngReadTransformState.setGamma` | translated | callback delivery and C ABI wrapper deferred |
@@ -45,11 +45,11 @@ Status meanings:
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | setter/state/initialization connected; table integration deferred |
-| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` plus `pngInitPaletteBackgroundTransformations` | partial | no-alpha cancellation, palette-index background expansion, copy-owned PLTE/tRNS preprocessing, direct/linear Gamma, and Compose/Gamma cancellation translated; encode/optimize-alpha branches deferred |
-| 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | no-alpha background cancellation and sub-byte gray background expansion translated; encode/optimize-alpha and remaining branches deferred |
+| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` plus `pngInitPaletteBackgroundTransformations` | partial | no-alpha cancellation, palette-index background expansion, copy-owned PLTE/tRNS preprocessing, direct/linear Gamma, and Compose/Gamma cancellation translated; optimize-alpha palette arithmetic deferred |
+| 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | no-alpha background cancellation and sub-byte gray background expansion translated; optimize/encode cancellation branches deferred |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, Expand16/16-to-8 normalization, Screen/File/Unique gamma snapshots, non-palette Compose stages, Indexed PLTE/tRNS preprocessing, quantize, packing, packswap, and native user-transform are snapshotted; coefficient defaulting, remaining alpha-mode branches, and complete dispatcher state remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, alpha-mode/default/screen Gamma facts, Expand16/16-to-8 normalization, Screen/File/Unique gamma snapshots, non-palette Compose stages, Indexed PLTE/tRNS preprocessing, quantize, packing, packswap, and native user-transform are snapshotted; Encode Alpha execution, coefficient defaulting, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, effective palette/background synchronization, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; filler and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -478,3 +478,15 @@ mutating source metadata. The palette/read/info/dispatcher rows remain partial
 until alpha-mode Encode/Optimize behavior and the remaining projection/dispatch
 branches land, so the ledger remains
 `34 translated / 8 partial / 3 pending`.
+
+LP-S004BH translates both alpha-mode setter rows. The fixed setter preserves
+the four frozen modes, screen-role Gamma sentinel translation and range gate,
+first-write reciprocal default file Gamma, Associated linear output,
+Optimized and Broken flags, black File-Gamma Compose background, PNG-mode
+interaction with existing background state, and conflict/lifecycle failure
+isolation. The floating facade uses the existing frozen Gamma conversion before
+delegating to fixed state. Read initialization now resolves default/screen
+Gamma and freezes alpha-mode, Encode, Optimize, and background facts without
+claiming the pending `png_do_encode_alpha` row stage. The two setter rows become
+translated and the ledger advances to
+`36 translated / 8 partial / 1 pending`.

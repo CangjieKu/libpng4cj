@@ -275,6 +275,28 @@ Strip Alpha removes the temporary alpha channel. Non-Expand info projection
 retains Indexed rows while exposing the effective palette and no remaining
 transparency.
 
+## Alpha Mode State
+
+`PngReadTransformState.setAlphaModeFixed(mode, outputGamma)` translates the
+fixed read alpha-mode setter. `setAlphaMode(mode, outputGamma)` converts a
+floating Gamma value through the same fixed-point rules before delegating.
+
+`PngAlphaMode` provides `AlphaPng`, `AlphaAssociated`, `AlphaOptimized`, and
+`AlphaBroken`. The state exposes `alphaModeConfigured()`, `alphaMode()`,
+`defaultGamma()`, `screenGamma()`, `composeEnabled()`,
+`encodeAlphaEnabled()`, and `optimizeAlphaEnabled()`.
+
+The first successful alpha-mode call stores reciprocal default file Gamma.
+Associated mode forces screen Gamma to `PNG_FP_1`; premultiplying modes use a
+black `BackgroundGammaFile` background and Compose. PNG mode preserves an
+existing background while clearing Encode/Optimize. Conflicts and invalid or
+late calls leave prior state intact and expose diagnostic facts.
+
+`PngReadTransformInitialization` freezes the same alpha-mode/default-Gamma
+facts and resolves them into `fileGamma()` and `screenGamma()`. This surface is
+configuration and initialization state only: Encode Alpha row execution and
+optimized palette premultiplication remain separate translated bodies.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

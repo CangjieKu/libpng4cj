@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Translate fixed and floating read alpha-mode setters for PNG, Associated,
+  Optimized, and Broken modes, including first-write default Gamma, screen
+  Gamma, black-background Compose state, Encode/Optimize flags, conflict and
+  lifecycle isolation, and immutable initialization snapshots.
 - Preprocess Indexed PLTE/tRNS during read initialization for background
   composition and palette Gamma correction, including transparent, partial,
   opaque, and implicit-tail entries, File/Screen/Unique backgrounds,

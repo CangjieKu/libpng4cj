@@ -111,6 +111,11 @@ public class PngReadTransformInitialization {
     private let backgroundToLinearGammaValue: Int32
     private let backgroundToScreenGammaValue: Int32
     private let gammaConfiguredValue: Bool
+    private let alphaModeConfiguredValue: Bool
+    private let alphaModeValue: PngAlphaMode
+    private let encodeAlphaEnabledValue: Bool
+    private let optimizeAlphaEnabledValue: Bool
+    private let defaultGammaValue: Int32
     private let chunkGammaValue: Int32
     private let initializedGammaValuesValue: PngGammaValues
     private let initializedGamma8BitTablesValue: PngGamma8BitTables
@@ -177,6 +182,11 @@ public class PngReadTransformInitialization {
         backgroundToLinearGamma: Int32,
         backgroundToScreenGamma: Int32,
         gammaConfigured: Bool,
+        alphaModeConfigured: Bool,
+        alphaMode: PngAlphaMode,
+        encodeAlphaEnabled: Bool,
+        optimizeAlphaEnabled: Bool,
+        defaultGamma: Int32,
         chunkGamma: Int32,
         initializedGammaValues: PngGammaValues,
         initializedGamma8BitTables: PngGamma8BitTables,
@@ -242,6 +252,11 @@ public class PngReadTransformInitialization {
         backgroundToLinearGammaValue = backgroundToLinearGamma
         backgroundToScreenGammaValue = backgroundToScreenGamma
         gammaConfiguredValue = gammaConfigured
+        alphaModeConfiguredValue = alphaModeConfigured
+        alphaModeValue = alphaMode
+        encodeAlphaEnabledValue = encodeAlphaEnabled
+        optimizeAlphaEnabledValue = optimizeAlphaEnabled
+        defaultGammaValue = defaultGamma
         chunkGammaValue = chunkGamma
         initializedGammaValuesValue = PngGammaValues(
             initializedGammaValues.fileGamma,
@@ -441,6 +456,33 @@ public class PngReadTransformInitialization {
 
     public func gammaConfigured(): Bool {
         gammaConfiguredValue
+    }
+
+    public func alphaModeConfigured(): Bool {
+        alphaModeConfiguredValue
+    }
+
+    public func alphaMode(): PngAlphaMode {
+        if (!alphaModeConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no alpha-mode configuration"
+            )
+        }
+        alphaModeValue
+    }
+
+    public func encodeAlphaEnabled(): Bool {
+        encodeAlphaEnabledValue
+    }
+
+    public func optimizeAlphaEnabled(): Bool {
+        optimizeAlphaEnabledValue
+    }
+
+    public func defaultGamma(): Int32 {
+        defaultGammaValue
     }
 
     public func chunkGamma(): Int32 {
@@ -1164,8 +1206,8 @@ public func initializePngReadTransformations(
     let initializedGammaValues = pngInitGammaValues(PngFileGammaSources(
         if (gammaConfigured) { state.fileGamma() } else { Int32(0) },
         chunkGamma,
-        Int32(0),
-        if (gammaConfigured) { state.screenGamma() } else { Int32(0) }
+        state.defaultGamma(),
+        state.screenGamma()
     ))
     let sourceHasTransparency = metadata.hasTransparency
     let stripAlphaBeforeCompose = state.stripAlphaEnabled() &&
@@ -1397,6 +1439,11 @@ public func initializePngReadTransformations(
         initializedBackground.toLinearGamma,
         initializedBackground.toScreenGamma,
         gammaConfigured,
+        state.alphaModeConfigured(),
+        if (state.alphaModeConfigured()) { state.alphaMode() } else { AlphaPng },
+        state.encodeAlphaEnabled(),
+        state.optimizeAlphaEnabled(),
+        state.defaultGamma(),
         chunkGamma,
         initializedGammaValues,
         initializedGamma8BitTables,

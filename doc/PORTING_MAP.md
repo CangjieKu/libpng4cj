@@ -837,6 +837,29 @@ alpha-mode Encode/Optimize behavior, full metadata projection, and remaining
 dispatch branches are still open. The total remains
 `34 translated / 8 partial / 3 pending`.
 
+## Implemented Alpha-Mode Setter State
+
+LP-S004BH translates `png_set_alpha_mode_fixed` and its floating facade:
+
+- `PngAlphaMode` preserves PNG, Associated, Optimized, and Broken identities
+- fixed output Gamma translates screen-role sentinels and rejects unsupported
+  values before state mutation
+- the first successful call stores reciprocal default file Gamma; later calls
+  update screen Gamma without replacing that default
+- Associated forces linear output; Optimized selects non-opaque linear
+  treatment; Broken selects alpha encoding
+- premultiplying modes configure a zero-valued File-Gamma background and
+  Compose without enabling Background Expand
+- PNG mode clears Encode/Optimize while retaining an existing background
+- premultiply-after-background conflict, floating conversion failures, and late
+  lifecycle calls preserve prior state
+- immutable read initialization consumes default/screen Gamma and snapshots
+  alpha-mode, Encode, Optimize, Compose, and background facts
+
+The pending `png_do_encode_alpha` body and optimized palette arithmetic remain
+separate packets. The ledger advances to
+`36 translated / 8 partial / 1 pending`.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

@@ -460,6 +460,26 @@ main(): Int64 {
         println("libpng4cj indexed palette background check failed")
         return 1
     }
+    let alphaModeState = PngReadTransformState()
+    if (!alphaModeState.setAlphaMode(AlphaAssociated, 2.2)) {
+        println("libpng4cj alpha-mode setup failed")
+        return 1
+    }
+    let alphaModeInitialized = initializePngReadTransformations(
+        alphaModeState,
+        gammaRgbDecoded
+    )
+    if (alphaModeInitialized.alphaMode() != AlphaAssociated ||
+        alphaModeInitialized.defaultGamma() != Int32(45455) ||
+        alphaModeInitialized.fileGamma() != Int32(45455) ||
+        alphaModeInitialized.screenGamma() != PNG_FP_1 ||
+        !alphaModeInitialized.composeEnabled() ||
+        alphaModeInitialized.encodeAlphaEnabled() ||
+        alphaModeInitialized.optimizeAlphaEnabled() ||
+        alphaModeInitialized.backgroundGammaCode() != BackgroundGammaFile) {
+        println("libpng4cj alpha-mode initialization check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

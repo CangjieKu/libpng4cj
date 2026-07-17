@@ -61,6 +61,39 @@ public enum PngBackgroundGammaCode <:
     }
 }
 
+public enum PngAlphaMode <: Equatable<PngAlphaMode> & ToString {
+    | AlphaPng
+    | AlphaAssociated
+    | AlphaOptimized
+    | AlphaBroken
+
+    public operator func ==(right: PngAlphaMode): Bool {
+        ordinalValue() == right.ordinalValue()
+    }
+
+    public operator func !=(right: PngAlphaMode): Bool {
+        !(this == right)
+    }
+
+    public func ordinalValue(): Int64 {
+        match (this) {
+            case AlphaPng => 0
+            case AlphaAssociated => 1
+            case AlphaOptimized => 2
+            case AlphaBroken => 3
+        }
+    }
+
+    public func toString(): String {
+        match (this) {
+            case AlphaPng => "PNG"
+            case AlphaAssociated => "ASSOCIATED"
+            case AlphaOptimized => "OPTIMIZED"
+            case AlphaBroken => "BROKEN"
+        }
+    }
+}
+
 public enum PngReadTransformApplicationError <:
     Equatable<PngReadTransformApplicationError> & ToString {
     | NoTransformApplicationError
@@ -109,6 +142,10 @@ public class PngReadTransformState {
     private var backgroundExpandValue: Bool = false
     private var encodeAlphaValue: Bool = false
     private var optimizeAlphaValue: Bool = false
+    private var alphaModeConfiguredValue: Bool = false
+    private var alphaModeValue: PngAlphaMode = AlphaPng
+    private var alphaModeGammaApplicationErrorValue: Bool = false
+    private var alphaModeBackgroundConflictValue: Bool = false
     private var backgroundConfiguredValue: Bool = false
     private var backgroundValue: PngBackground = PngBackground()
     private var backgroundGammaCodeValue: PngBackgroundGammaCode =
@@ -151,6 +188,7 @@ public class PngReadTransformState {
     private var gammaConfiguredValue: Bool = false
     private var fileGammaValue: Int32 = Int32(0)
     private var screenGammaValue: Int32 = Int32(0)
+    private var defaultGammaValue: Int32 = Int32(0)
     private var gammaFileApplicationErrorValue: Bool = false
     private var gammaScreenApplicationErrorValue: Bool = false
     private var gammaUnsupportedWarningValue: Bool = false
@@ -283,6 +321,71 @@ public class PngReadTransformState {
             needExpand,
             Int32(fixed)
         )
+    }
+
+    public func setAlphaModeFixed(
+        mode: PngAlphaMode,
+        outputGamma: Int32
+    ): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+
+        let translatedOutput = pngTranslateGammaFlags(outputGamma, true)
+        if (!pngGammaSupported(translatedOutput)) {
+            alphaModeGammaApplicationErrorValue = true
+            return false
+        }
+
+        let premultiply = mode != AlphaPng
+        if (premultiply && composeValue) {
+            alphaModeBackgroundConflictValue = true
+            return false
+        }
+
+        let fileGamma = if (defaultGammaValue == Int32(0)) {
+            pngReciprocalFixed(translatedOutput)
+        } else {
+            defaultGammaValue
+        }
+        var effectiveOutput = translatedOutput
+        var encodeAlpha = false
+        var optimizeAlpha = false
+        if (mode == AlphaAssociated) {
+            effectiveOutput = PNG_FP_1
+        } else if (mode == AlphaOptimized) {
+            optimizeAlpha = true
+        } else if (mode == AlphaBroken) {
+            encodeAlpha = true
+        }
+
+        if (defaultGammaValue == Int32(0)) {
+            defaultGammaValue = fileGamma
+        }
+        screenGammaValue = effectiveOutput
+        encodeAlphaValue = encodeAlpha
+        optimizeAlphaValue = optimizeAlpha
+        if (premultiply) {
+            backgroundValue = PngBackground()
+            backgroundGammaValue = fileGamma
+            backgroundGammaCodeValue = BackgroundGammaFile
+            backgroundExpandValue = false
+            backgroundConfiguredValue = true
+            composeValue = true
+        }
+        alphaModeValue = mode
+        alphaModeConfiguredValue = true
+        alphaModeGammaApplicationErrorValue = false
+        alphaModeBackgroundConflictValue = false
+        true
+    }
+
+    public func setAlphaMode(
+        mode: PngAlphaMode,
+        outputGamma: Float64
+    ): Bool {
+        let fixed = pngConvertGammaValue(outputGamma, "alpha output gamma")
+        setAlphaModeFixed(mode, fixed)
     }
 
     public func setBackground(
@@ -664,6 +767,29 @@ public class PngReadTransformState {
         optimizeAlphaValue
     }
 
+    public func alphaModeConfigured(): Bool {
+        alphaModeConfiguredValue
+    }
+
+    public func alphaMode(): PngAlphaMode {
+        if (!alphaModeConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform state has no alpha-mode configuration"
+            )
+        }
+        alphaModeValue
+    }
+
+    public func alphaModeGammaApplicationError(): Bool {
+        alphaModeGammaApplicationErrorValue
+    }
+
+    public func alphaModeBackgroundConflict(): Bool {
+        alphaModeBackgroundConflictValue
+    }
+
     public func backgroundConfigured(): Bool {
         backgroundConfiguredValue
     }
@@ -866,6 +992,10 @@ public class PngReadTransformState {
 
     public func screenGamma(): Int32 {
         screenGammaValue
+    }
+
+    public func defaultGamma(): Int32 {
+        defaultGammaValue
     }
 
     public func gammaFileApplicationError(): Bool {
