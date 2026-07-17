@@ -176,14 +176,16 @@ public func pngBuildGamma8BitTables(
 func pngBuildInitializedGamma8BitTables(
     gammaValues: PngGammaValues,
     rgbToGrayEnabled: Bool,
+    composeGammaTablesRequired: Bool,
     bitDepth: UInt8
 ): PngGamma8BitTables {
     if (bitDepth > UInt8(8)) {
         return pngEmptyGamma8BitTables()
     }
-    let linearTablesRequired = rgbToGrayEnabled &&
+    let linearTablesRequired = composeGammaTablesRequired ||
+        (rgbToGrayEnabled &&
         (pngGammaSignificant(gammaValues.fileGamma) ||
-        pngGammaSignificant(gammaValues.screenGamma))
+        pngGammaSignificant(gammaValues.screenGamma)))
     if (!gammaValues.correctionRequired && !linearTablesRequired) {
         return pngEmptyGamma8BitTables()
     }

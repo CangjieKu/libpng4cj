@@ -407,6 +407,7 @@ public func pngBuildGamma16BitTables(
 func pngBuildInitializedGamma16BitTables(
     gammaValues: PngGammaValues,
     rgbToGrayEnabled: Bool,
+    composeGammaTablesRequired: Bool,
     bitDepth: UInt8,
     colorType: PngColorType,
     significantBits: PngSignificantBits,
@@ -415,9 +416,10 @@ func pngBuildInitializedGamma16BitTables(
     if (bitDepth != UInt8(16)) {
         return pngEmptyGamma16BitTables()
     }
-    let linearTablesRequired = rgbToGrayEnabled &&
+    let linearTablesRequired = composeGammaTablesRequired ||
+        (rgbToGrayEnabled &&
         (pngGammaSignificant(gammaValues.fileGamma) ||
-        pngGammaSignificant(gammaValues.screenGamma))
+        pngGammaSignificant(gammaValues.screenGamma)))
     if (!gammaValues.correctionRequired && !linearTablesRequired) {
         return pngEmptyGamma16BitTables()
     }

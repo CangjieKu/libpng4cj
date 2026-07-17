@@ -758,8 +758,34 @@ LP-S004BD extends the still-partial palette, RGB, and read initializer rows:
   retry; snapshots remain independent of retained metadata getter copies
 
 The three initializer rows remain partial and the ledger stays
-`33 translated / 8 partial / 4 pending`. Row composition, background gamma-table
-derivation, alpha-mode state, and remaining initializer branches are separate.
+`33 translated / 8 partial / 4 pending`. Row composition, alpha-mode state,
+and remaining initializer branches are separate.
+
+## Implemented Background Depth And Gamma Initialization
+
+LP-S004BE extends the same still-partial initializer rows through the complete
+non-palette Compose preparation immediately preceding `png_do_compose`:
+
+- Expand16 with a non-expanded background and non-16-bit input applies the
+  exact rounded `PNG_DIV257` reduction before composition
+- Scale/Strip 16-to-8 with a non-expanded background and 16-bit input applies
+  the frozen UInt16 `value * 257` normalization
+- Background Expand bypasses both depth-normalization branches
+- immutable original, linear, and screen background snapshots retain index and
+  gray/R/G/B values independently
+- Screen/File/Unique modes derive the frozen correction-to-linear `g` and
+  correction-to-screen `gs` values through reciprocal/reciprocal2 helpers
+- 8-bit and 16-bit gray/color backgrounds use the translated scalar correction
+  bodies, with gray backgrounds synchronizing all color channels
+- effective gamma code becomes Screen after non-palette correction while the
+  configured code/value remain available
+- Compose independently requests linear gamma tables, including the Unique
+  background-gamma case; palette inputs prepare tables without mutating PLTE
+- identity gamma, canceled Compose, ownership, lifecycle, and consumer behavior
+  remain bounded and explicit
+
+The ledger remains `33 translated / 8 partial / 4 pending`. Actual row/palette
+composition, alpha-mode state, and the remaining initializer branches stay open.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

@@ -15,6 +15,11 @@ private let BACKGROUND_INIT_RGBA_ZLIB: Array<Byte> = [
     0x00, 0x00, 0xcd, 0x00, 0x65
 ]
 
+private let BACKGROUND_INIT_RGBA16_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x10, 0x32, 0x51, 0x76, 0x35, 0x09,
+    0x73, 0x4d, 0x07, 0x00, 0x06, 0xf3, 0x01, 0xe5
+]
+
 private func joinBackgroundInitBytes(
     left: Array<Byte>,
     right: Array<Byte>
@@ -138,6 +143,29 @@ private func assertBackgroundInitColor(
     @Assert(actual.blue, expected.blue)
 }
 
+private func backgroundInitDiv257(value: UInt16): UInt16 {
+    UInt16(
+        (UInt32(value) * UInt32(255) + UInt32(32895)) >> UInt32(16)
+    )
+}
+
+private func backgroundInitTimes257(value: UInt16): UInt16 {
+    UInt16((UInt32(value) * UInt32(257)) & UInt32(0xffff))
+}
+
+private func backgroundInitCorrect8(
+    background: PngBackground,
+    gamma: Int32
+): PngBackground {
+    PngBackground(
+        background.index,
+        UInt16(pngGamma8BitCorrect(UInt8(background.gray), gamma)),
+        UInt16(pngGamma8BitCorrect(UInt8(background.red), gamma)),
+        UInt16(pngGamma8BitCorrect(UInt8(background.green), gamma)),
+        UInt16(pngGamma8BitCorrect(UInt8(background.blue), gamma))
+    )
+}
+
 @Test
 public class PngBackgroundInitializationTestSuite {
     @TestCase
@@ -166,6 +194,18 @@ public class PngBackgroundInitializationTestSuite {
         try {
             initialized.backgroundGamma()
             @Fail("background gamma should require configuration")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "UNSUPPORTED_TRANSFORM")
+        }
+        try {
+            initialized.backgroundOriginal()
+            @Fail("original background should require configuration")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "UNSUPPORTED_TRANSFORM")
+        }
+        try {
+            initialized.backgroundLinear()
+            @Fail("linear background should require configuration")
         } catch (error: PngFormatException) {
             @Assert(error.kind.toString(), "UNSUPPORTED_TRANSFORM")
         }
@@ -394,5 +434,280 @@ public class PngBackgroundInitializationTestSuite {
         } catch (error: PngFormatException) {
             @Assert(error.kind.toString(), "INVALID_ARGUMENT")
         }
+    }
+
+    @TestCase
+    public func normalizesBackgroundDepthAroundExpand16AndReduction(): Unit {
+        let decoded8 = backgroundInitDecoded(
+            UInt8(8), UInt8(6), [], BACKGROUND_INIT_RGBA_ZLIB
+        )
+        let supplied16 = PngBackground(
+            UInt8(0), UInt16(0x1234), UInt16(0x4567),
+            UInt16(0x89ab), UInt16(0xcdef)
+        )
+        let expand16State = PngReadTransformState()
+        configureBackgroundInit(expand16State, supplied16, false)
+        @Assert(expand16State.setExpand16(), true)
+        let expand16 = initializePngReadTransformations(
+            expand16State, decoded8
+        )
+        let chopped = PngBackground(
+            UInt8(0),
+            backgroundInitDiv257(UInt16(0x1234)),
+            backgroundInitDiv257(UInt16(0x4567)),
+            backgroundInitDiv257(UInt16(0x89ab)),
+            backgroundInitDiv257(UInt16(0xcdef))
+        )
+        @Assert(expand16.backgroundDepthNormalized(), true)
+        assertBackgroundInitColor(expand16.backgroundOriginal(), chopped)
+        assertBackgroundInitColor(expand16.backgroundLinear(), chopped)
+        assertBackgroundInitColor(expand16.background(), chopped)
+
+        let bypassState = PngReadTransformState()
+        configureBackgroundInit(bypassState, supplied16, true)
+        @Assert(bypassState.setExpand(), true)
+        @Assert(bypassState.setExpand16(), true)
+        let bypass = initializePngReadTransformations(bypassState, decoded8)
+        @Assert(bypass.backgroundDepthNormalized(), false)
+        assertBackgroundInitColor(bypass.backgroundOriginal(), supplied16)
+
+        let decoded16 = backgroundInitDecoded(
+            UInt8(16), UInt8(6), [], BACKGROUND_INIT_RGBA16_ZLIB
+        )
+        let supplied8 = PngBackground(
+            UInt8(0), UInt16(0x12), UInt16(0x34),
+            UInt16(0x56), UInt16(0x78)
+        )
+        let reductionState = PngReadTransformState()
+        configureBackgroundInit(reductionState, supplied8, false)
+        @Assert(reductionState.setScale16(), true)
+        @Assert(reductionState.setStrip16(), true)
+        let reduction = initializePngReadTransformations(
+            reductionState, decoded16
+        )
+        let expanded = PngBackground(
+            UInt8(0),
+            backgroundInitTimes257(UInt16(0x12)),
+            backgroundInitTimes257(UInt16(0x34)),
+            backgroundInitTimes257(UInt16(0x56)),
+            backgroundInitTimes257(UInt16(0x78))
+        )
+        @Assert(reduction.backgroundDepthNormalized(), true)
+        assertBackgroundInitColor(reduction.backgroundOriginal(), expanded)
+        assertBackgroundInitColor(reduction.background(), expanded)
+    }
+
+    @TestCase
+    public func derivesScreenFileAndUniqueBackgroundGamma(): Unit {
+        let decoded = backgroundInitDecoded(
+            UInt8(8), UInt8(6), [], BACKGROUND_INIT_RGBA_ZLIB
+        )
+        let background = PngBackground(
+            UInt8(0), UInt16(80), UInt16(64), UInt16(128), UInt16(192)
+        )
+
+        let screenState = PngReadTransformState()
+        @Assert(
+            screenState.setGammaFixed(Int32(220000), Int32(45455)),
+            true
+        )
+        configureBackgroundInit(
+            screenState, background, false
+        )
+        let screen = initializePngReadTransformations(screenState, decoded)
+        @Assert(screen.backgroundGammaInitialized(), true)
+        @Assert(screen.backgroundGammaCode(), BackgroundGammaFile)
+        @Assert(screen.effectiveBackgroundGammaCode(), BackgroundGammaScreen)
+        @Assert(
+            screen.backgroundToLinearGamma(),
+            pngReciprocalFixed(Int32(45455))
+        )
+        @Assert(
+            screen.backgroundToScreenGamma(),
+            pngReciprocal2Fixed(Int32(45455), Int32(220000))
+        )
+        assertBackgroundInitColor(
+            screen.backgroundLinear(),
+            backgroundInitCorrect8(
+                background,
+                pngReciprocalFixed(Int32(45455))
+            )
+        )
+        assertBackgroundInitColor(
+            screen.background(),
+            backgroundInitCorrect8(
+                background,
+                pngReciprocal2Fixed(Int32(45455), Int32(220000))
+            )
+        )
+        @Assert(screen.gamma8BitLinearTablesBuilt(), true)
+
+        let screenModeState = PngReadTransformState()
+        @Assert(
+            screenModeState.setGammaFixed(Int32(220000), Int32(45455)),
+            true
+        )
+        @Assert(
+            screenModeState.setBackgroundFixed(
+                background,
+                BackgroundGammaScreen,
+                false,
+                Int32(100000)
+            ),
+            true
+        )
+        let screenMode = initializePngReadTransformations(
+            screenModeState, decoded
+        )
+        @Assert(screenMode.backgroundToLinearGamma(), Int32(220000))
+        @Assert(screenMode.backgroundToScreenGamma(), PNG_FP_1)
+        assertBackgroundInitColor(screenMode.background(), background)
+        assertBackgroundInitColor(
+            screenMode.backgroundLinear(),
+            backgroundInitCorrect8(background, Int32(220000))
+        )
+
+        let uniqueState = PngReadTransformState()
+        @Assert(
+            uniqueState.setGammaFixed(Int32(220000), Int32(45455)),
+            true
+        )
+        @Assert(
+            uniqueState.setBackgroundFixed(
+                background,
+                BackgroundGammaUnique,
+                false,
+                Int32(50000)
+            ),
+            true
+        )
+        let unique = initializePngReadTransformations(uniqueState, decoded)
+        @Assert(
+            unique.backgroundToLinearGamma(),
+            pngReciprocalFixed(Int32(50000))
+        )
+        @Assert(
+            unique.backgroundToScreenGamma(),
+            pngReciprocal2Fixed(Int32(50000), Int32(220000))
+        )
+        assertBackgroundInitColor(
+            unique.backgroundLinear(),
+            backgroundInitCorrect8(
+                background,
+                pngReciprocalFixed(Int32(50000))
+            )
+        )
+    }
+
+    @TestCase
+    public func derivesSixteenBitGrayBackgroundGamma(): Unit {
+        let decoded = backgroundInitDecoded(
+            UInt8(16), UInt8(6), [], BACKGROUND_INIT_RGBA16_ZLIB
+        )
+        let background = PngBackground(
+            UInt8(0), UInt16(0x3456), UInt16(0x3456),
+            UInt16(0x3456), UInt16(0x3456)
+        )
+        let state = PngReadTransformState()
+        @Assert(state.setGammaFixed(Int32(220000), Int32(45455)), true)
+        configureBackgroundInit(state, background, false)
+        let initialized = initializePngReadTransformations(state, decoded)
+        let linearValue = pngGamma16BitCorrect(
+            UInt16(0x3456),
+            pngReciprocalFixed(Int32(45455))
+        )
+        let screenValue = pngGamma16BitCorrect(
+            UInt16(0x3456),
+            pngReciprocal2Fixed(Int32(45455), Int32(220000))
+        )
+        assertBackgroundInitColor(
+            initialized.backgroundLinear(),
+            PngBackground(
+                UInt8(0), linearValue, linearValue, linearValue, linearValue
+            )
+        )
+        assertBackgroundInitColor(
+            initialized.background(),
+            PngBackground(
+                UInt8(0), screenValue, screenValue, screenValue, screenValue
+            )
+        )
+        @Assert(initialized.gamma16BitLinearTablesBuilt(), true)
+    }
+
+    @TestCase
+    public func preservesIdentityAndCancelledBackgroundGammaPaths(): Unit {
+        let alphaDecoded = backgroundInitDecoded(
+            UInt8(8), UInt8(6), [], BACKGROUND_INIT_RGBA_ZLIB
+        )
+        let background = PngBackground(
+            UInt8(0), UInt16(50), UInt16(60), UInt16(70), UInt16(80)
+        )
+        let identityState = PngReadTransformState()
+        @Assert(identityState.setGammaFixed(PNG_FP_1, PNG_FP_1), true)
+        configureBackgroundInit(identityState, background, false)
+        let identity = initializePngReadTransformations(
+            identityState, alphaDecoded
+        )
+        @Assert(identity.backgroundGammaInitialized(), false)
+        @Assert(identity.effectiveBackgroundGammaCode(), BackgroundGammaFile)
+        assertBackgroundInitColor(identity.backgroundOriginal(), background)
+        assertBackgroundInitColor(identity.backgroundLinear(), background)
+        assertBackgroundInitColor(identity.background(), background)
+        @Assert(identity.gamma8BitTablesBuilt(), false)
+        try {
+            identity.backgroundToLinearGamma()
+            @Fail("identity background path should not claim gamma derivation")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "UNSUPPORTED_TRANSFORM")
+        }
+
+        let opaqueDecoded = backgroundInitDecoded(
+            UInt8(8), UInt8(2), [], BACKGROUND_INIT_RGB_ZLIB
+        )
+        let cancelledState = PngReadTransformState()
+        @Assert(
+            cancelledState.setGammaFixed(Int32(220000), Int32(45455)),
+            true
+        )
+        configureBackgroundInit(cancelledState, background, false)
+        @Assert(cancelledState.setExpand16(), true)
+        let cancelled = initializePngReadTransformations(
+            cancelledState, opaqueDecoded
+        )
+        @Assert(cancelled.composeEnabled(), false)
+        @Assert(cancelled.backgroundDepthNormalized(), false)
+        @Assert(cancelled.backgroundGammaInitialized(), false)
+        assertBackgroundInitColor(cancelled.background(), background)
+    }
+
+    @TestCase
+    public func preparesPaletteGammaTablesWithoutPaletteMutation(): Unit {
+        let decoded = backgroundInitIndexed([0x00, 0xff])
+        let state = PngReadTransformState()
+        @Assert(state.setGammaFixed(Int32(220000), Int32(45455)), true)
+        configureBackgroundInit(
+            state,
+            PngBackground(
+                UInt8(2), UInt16(0), UInt16(0), UInt16(0), UInt16(0)
+            ),
+            true
+        )
+        @Assert(state.setExpand(), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.composeEnabled(), true)
+        @Assert(initialized.backgroundGammaInitialized(), false)
+        @Assert(
+            initialized.effectiveBackgroundGammaCode(),
+            BackgroundGammaFile
+        )
+        @Assert(initialized.gamma8BitLinearTablesBuilt(), true)
+        assertBackgroundInitColor(
+            initialized.background(),
+            PngBackground(
+                UInt8(2), UInt16(0), UInt16(7), UInt16(8), UInt16(9)
+            )
+        )
+        @Assert(decoded.metadata.palette(), backgroundInitPalette())
     }
 }

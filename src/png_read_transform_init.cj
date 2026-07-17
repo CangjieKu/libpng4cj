@@ -95,8 +95,15 @@ public class PngReadTransformInitialization {
     private let composeEnabledValue: Bool
     private let backgroundExpandEnabledValue: Bool
     private let backgroundValue: PngBackground
+    private let backgroundOriginalValue: PngBackground
+    private let backgroundLinearValue: PngBackground
     private let backgroundGammaCodeValue: PngBackgroundGammaCode
+    private let effectiveBackgroundGammaCodeValue: PngBackgroundGammaCode
     private let backgroundGammaValue: Int32
+    private let backgroundDepthNormalizedValue: Bool
+    private let backgroundGammaInitializedValue: Bool
+    private let backgroundToLinearGammaValue: Int32
+    private let backgroundToScreenGammaValue: Int32
     private let gammaConfiguredValue: Bool
     private let chunkGammaValue: Int32
     private let initializedGammaValuesValue: PngGammaValues
@@ -148,8 +155,15 @@ public class PngReadTransformInitialization {
         composeEnabled: Bool,
         backgroundExpandEnabled: Bool,
         background: PngBackground,
+        backgroundOriginal: PngBackground,
+        backgroundLinear: PngBackground,
         backgroundGammaCode: PngBackgroundGammaCode,
+        effectiveBackgroundGammaCode: PngBackgroundGammaCode,
         backgroundGamma: Int32,
+        backgroundDepthNormalized: Bool,
+        backgroundGammaInitialized: Bool,
+        backgroundToLinearGamma: Int32,
+        backgroundToScreenGamma: Int32,
         gammaConfigured: Bool,
         chunkGamma: Int32,
         initializedGammaValues: PngGammaValues,
@@ -200,8 +214,15 @@ public class PngReadTransformInitialization {
         composeEnabledValue = composeEnabled
         backgroundExpandEnabledValue = backgroundExpandEnabled
         backgroundValue = PngBackground(background)
+        backgroundOriginalValue = PngBackground(backgroundOriginal)
+        backgroundLinearValue = PngBackground(backgroundLinear)
         backgroundGammaCodeValue = backgroundGammaCode
+        effectiveBackgroundGammaCodeValue = effectiveBackgroundGammaCode
         backgroundGammaValue = backgroundGamma
+        backgroundDepthNormalizedValue = backgroundDepthNormalized
+        backgroundGammaInitializedValue = backgroundGammaInitialized
+        backgroundToLinearGammaValue = backgroundToLinearGamma
+        backgroundToScreenGammaValue = backgroundToScreenGamma
         gammaConfiguredValue = gammaConfigured
         chunkGammaValue = chunkGamma
         initializedGammaValuesValue = PngGammaValues(
@@ -309,6 +330,28 @@ public class PngReadTransformInitialization {
         PngBackground(backgroundValue)
     }
 
+    public func backgroundOriginal(): PngBackground {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no original background"
+            )
+        }
+        PngBackground(backgroundOriginalValue)
+    }
+
+    public func backgroundLinear(): PngBackground {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no linear background"
+            )
+        }
+        PngBackground(backgroundLinearValue)
+    }
+
     public func backgroundGammaCode(): PngBackgroundGammaCode {
         if (!backgroundConfiguredValue) {
             throw PngFormatException(
@@ -320,6 +363,17 @@ public class PngReadTransformInitialization {
         backgroundGammaCodeValue
     }
 
+    public func effectiveBackgroundGammaCode(): PngBackgroundGammaCode {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no effective background gamma code"
+            )
+        }
+        effectiveBackgroundGammaCodeValue
+    }
+
     public func backgroundGamma(): Int32 {
         if (!backgroundConfiguredValue) {
             throw PngFormatException(
@@ -329,6 +383,36 @@ public class PngReadTransformInitialization {
             )
         }
         backgroundGammaValue
+    }
+
+    public func backgroundDepthNormalized(): Bool {
+        backgroundDepthNormalizedValue
+    }
+
+    public func backgroundGammaInitialized(): Bool {
+        backgroundGammaInitializedValue
+    }
+
+    public func backgroundToLinearGamma(): Int32 {
+        if (!backgroundGammaInitializedValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no background-to-linear gamma"
+            )
+        }
+        backgroundToLinearGammaValue
+    }
+
+    public func backgroundToScreenGamma(): Int32 {
+        if (!backgroundGammaInitializedValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform initialization has no background-to-screen gamma"
+            )
+        }
+        backgroundToScreenGammaValue
     }
 
     public func gammaConfigured(): Bool {
@@ -565,24 +649,70 @@ private class PngEffectiveBackgroundInitialization {
     let composeEnabled: Bool
     let expandEnabled: Bool
     let background: PngBackground
+    let original: PngBackground
+    let linear: PngBackground
     let gammaCode: PngBackgroundGammaCode
+    let effectiveGammaCode: PngBackgroundGammaCode
     let gamma: Int32
+    let depthNormalized: Bool
+    let gammaInitialized: Bool
+    let toLinearGamma: Int32
+    let toScreenGamma: Int32
 
     init(
         configured: Bool,
         composeEnabled: Bool,
         expandEnabled: Bool,
         background: PngBackground,
+        original: PngBackground,
+        linear: PngBackground,
         gammaCode: PngBackgroundGammaCode,
-        gamma: Int32
+        effectiveGammaCode: PngBackgroundGammaCode,
+        gamma: Int32,
+        depthNormalized: Bool,
+        gammaInitialized: Bool,
+        toLinearGamma: Int32,
+        toScreenGamma: Int32
     ) {
         this.configured = configured
         this.composeEnabled = composeEnabled
         this.expandEnabled = expandEnabled
         this.background = PngBackground(background)
+        this.original = PngBackground(original)
+        this.linear = PngBackground(linear)
         this.gammaCode = gammaCode
+        this.effectiveGammaCode = effectiveGammaCode
         this.gamma = gamma
+        this.depthNormalized = depthNormalized
+        this.gammaInitialized = gammaInitialized
+        this.toLinearGamma = toLinearGamma
+        this.toScreenGamma = toScreenGamma
     }
+}
+
+private func pngBackgroundInitialization(
+    configured: Bool,
+    composeEnabled: Bool,
+    expandEnabled: Bool,
+    background: PngBackground,
+    gammaCode: PngBackgroundGammaCode,
+    gamma: Int32
+): PngEffectiveBackgroundInitialization {
+    PngEffectiveBackgroundInitialization(
+        configured,
+        composeEnabled,
+        expandEnabled,
+        background,
+        background,
+        background,
+        gammaCode,
+        gammaCode,
+        gamma,
+        false,
+        false,
+        PNG_FP_1,
+        PNG_FP_1
+    )
 }
 
 private func pngScaleInitializedBackgroundGray(
@@ -605,7 +735,7 @@ private func pngInitializeEffectiveBackground(
     classification: PngInputAlphaClassification
 ): PngEffectiveBackgroundInitialization {
     if (!state.backgroundConfigured()) {
-        return PngEffectiveBackgroundInitialization(
+        return pngBackgroundInitialization(
             false,
             false,
             false,
@@ -656,13 +786,184 @@ private func pngInitializeEffectiveBackground(
             )
         }
     }
-    PngEffectiveBackgroundInitialization(
+    pngBackgroundInitialization(
         true,
         composeEnabled,
         expandEnabled,
         background,
         state.backgroundGammaCode(),
         state.backgroundGamma()
+    )
+}
+
+private func pngDivideInitializedBackgroundBy257(value: UInt16): UInt16 {
+    UInt16(
+        (UInt32(value) * UInt32(255) + UInt32(32895)) >> UInt32(16)
+    )
+}
+
+private func pngMultiplyInitializedBackgroundBy257(value: UInt16): UInt16 {
+    UInt16((UInt32(value) * UInt32(257)) & UInt32(0xffff))
+}
+
+private func pngNormalizeInitializedBackgroundDepth(
+    initialized: PngEffectiveBackgroundInitialization,
+    state: PngReadTransformState,
+    ihdr: PngIhdr
+): PngEffectiveBackgroundInitialization {
+    if (!initialized.configured || !initialized.composeEnabled ||
+        initialized.expandEnabled) {
+        return initialized
+    }
+
+    var normalized = initialized.background
+    var changed = false
+    if (state.expand16Enabled() && ihdr.bitDepth != UInt8(16)) {
+        normalized = PngBackground(
+            normalized.index,
+            pngDivideInitializedBackgroundBy257(normalized.gray),
+            pngDivideInitializedBackgroundBy257(normalized.red),
+            pngDivideInitializedBackgroundBy257(normalized.green),
+            pngDivideInitializedBackgroundBy257(normalized.blue)
+        )
+        changed = true
+    } else if ((state.scale16Enabled() || state.strip16Enabled()) &&
+        ihdr.bitDepth == UInt8(16)) {
+        normalized = PngBackground(
+            normalized.index,
+            pngMultiplyInitializedBackgroundBy257(normalized.gray),
+            pngMultiplyInitializedBackgroundBy257(normalized.red),
+            pngMultiplyInitializedBackgroundBy257(normalized.green),
+            pngMultiplyInitializedBackgroundBy257(normalized.blue)
+        )
+        changed = true
+    }
+
+    PngEffectiveBackgroundInitialization(
+        initialized.configured,
+        initialized.composeEnabled,
+        initialized.expandEnabled,
+        normalized,
+        normalized,
+        normalized,
+        initialized.gammaCode,
+        initialized.effectiveGammaCode,
+        initialized.gamma,
+        changed,
+        false,
+        PNG_FP_1,
+        PNG_FP_1
+    )
+}
+
+private func pngBackgroundGammaTablesRequired(
+    initialized: PngEffectiveBackgroundInitialization,
+    gammaValues: PngGammaValues
+): Bool {
+    initialized.configured && initialized.composeEnabled &&
+        (gammaValues.correctionRequired ||
+        pngGammaSignificant(gammaValues.fileGamma) ||
+        pngGammaSignificant(gammaValues.screenGamma) ||
+        (initialized.gammaCode == BackgroundGammaUnique &&
+        pngGammaSignificant(initialized.gamma)))
+}
+
+private func pngCorrectInitializedBackgroundSample(
+    value: UInt16,
+    bitDepth: UInt8,
+    gamma: Int32
+): UInt16 {
+    if (!pngGammaSignificant(gamma)) {
+        return value
+    }
+    if (bitDepth == UInt8(8)) {
+        return UInt16(pngGamma8BitCorrect(UInt8(value), gamma))
+    }
+    pngGamma16BitCorrect(value, gamma)
+}
+
+private func pngCorrectInitializedBackground(
+    background: PngBackground,
+    bitDepth: UInt8,
+    gamma: Int32
+): PngBackground {
+    let gray = pngCorrectInitializedBackgroundSample(
+        background.gray,
+        bitDepth,
+        gamma
+    )
+    if (background.red == background.green &&
+        background.red == background.blue &&
+        background.red == background.gray) {
+        return PngBackground(background.index, gray, gray, gray, gray)
+    }
+    PngBackground(
+        background.index,
+        gray,
+        pngCorrectInitializedBackgroundSample(background.red, bitDepth, gamma),
+        pngCorrectInitializedBackgroundSample(background.green, bitDepth, gamma),
+        pngCorrectInitializedBackgroundSample(background.blue, bitDepth, gamma)
+    )
+}
+
+private func pngInitializeBackgroundGamma(
+    initialized: PngEffectiveBackgroundInitialization,
+    ihdr: PngIhdr,
+    gammaValues: PngGammaValues,
+    gammaTablesRequired: Bool
+): PngEffectiveBackgroundInitialization {
+    if (!gammaTablesRequired || ihdr.colorType == Indexed) {
+        return initialized
+    }
+
+    var toLinearGamma = PNG_FP_1
+    var toScreenGamma = PNG_FP_1
+    if (initialized.gammaCode == BackgroundGammaScreen) {
+        toLinearGamma = gammaValues.screenGamma
+    } else if (initialized.gammaCode == BackgroundGammaFile) {
+        toLinearGamma = pngReciprocalFixed(gammaValues.fileGamma)
+        toScreenGamma = pngReciprocal2Fixed(
+            gammaValues.fileGamma,
+            gammaValues.screenGamma
+        )
+    } else if (initialized.gammaCode == BackgroundGammaUnique) {
+        toLinearGamma = pngReciprocalFixed(initialized.gamma)
+        toScreenGamma = pngReciprocal2Fixed(
+            initialized.gamma,
+            gammaValues.screenGamma
+        )
+    } else {
+        throw PngFormatException(
+            InvalidArgument,
+            initialized.gammaCode.ordinalValue(),
+            "invalid initialized background gamma code"
+        )
+    }
+
+    let linear = pngCorrectInitializedBackground(
+        initialized.original,
+        ihdr.bitDepth,
+        toLinearGamma
+    )
+    let screen = pngCorrectInitializedBackground(
+        initialized.original,
+        ihdr.bitDepth,
+        toScreenGamma
+    )
+    PngEffectiveBackgroundInitialization(
+        initialized.configured,
+        initialized.composeEnabled,
+        initialized.expandEnabled,
+        screen,
+        initialized.original,
+        linear,
+        initialized.gammaCode,
+        BackgroundGammaScreen,
+        initialized.gamma,
+        initialized.depthNormalized,
+        true,
+        toLinearGamma,
+        toScreenGamma
     )
 }
 
@@ -819,11 +1120,26 @@ public func initializePngReadTransformations(
     } else {
         pngInitRgbTransformations(ihdr, metadata, transparencyStripped)
     }
-    let initializedBackground = pngInitializeEffectiveBackground(
+    let effectiveBackground = pngInitializeEffectiveBackground(
         state,
         ihdr,
         metadata,
         classification
+    )
+    let normalizedBackground = pngNormalizeInitializedBackgroundDepth(
+        effectiveBackground,
+        state,
+        ihdr
+    )
+    let composeGammaTablesRequired = pngBackgroundGammaTablesRequired(
+        normalizedBackground,
+        initializedGammaValues
+    )
+    let initializedBackground = pngInitializeBackgroundGamma(
+        normalizedBackground,
+        ihdr,
+        initializedGammaValues,
+        composeGammaTablesRequired
     )
     let effectiveStripAlphaBeforeCompose = state.stripAlphaEnabled() &&
         !initializedBackground.composeEnabled
@@ -870,11 +1186,13 @@ public func initializePngReadTransformations(
     let initializedGamma8BitTables = pngBuildInitializedGamma8BitTables(
         initializedGammaValues,
         rgbToGrayEnabled,
+        composeGammaTablesRequired,
         ihdr.bitDepth
     )
     let initializedGamma16BitTables = pngBuildInitializedGamma16BitTables(
         initializedGammaValues,
         rgbToGrayEnabled,
+        composeGammaTablesRequired,
         ihdr.bitDepth,
         ihdr.colorType,
         metadata.significantBits,
@@ -960,8 +1278,15 @@ public func initializePngReadTransformations(
         initializedBackground.composeEnabled,
         initializedBackground.expandEnabled,
         initializedBackground.background,
+        initializedBackground.original,
+        initializedBackground.linear,
         initializedBackground.gammaCode,
+        initializedBackground.effectiveGammaCode,
         initializedBackground.gamma,
+        initializedBackground.depthNormalized,
+        initializedBackground.gammaInitialized,
+        initializedBackground.toLinearGamma,
+        initializedBackground.toScreenGamma,
         gammaConfigured,
         chunkGamma,
         initializedGammaValues,

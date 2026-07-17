@@ -142,17 +142,45 @@ main(): Int64 {
         println("libpng4cj floating background setter check failed")
         return 1
     }
+    let initializedBackgroundState = PngReadTransformState()
+    let initializedBackgroundColor = PngBackground(
+        UInt8(0), UInt16(80), UInt16(64), UInt16(128), UInt16(192)
+    )
+    if (!initializedBackgroundState.setGammaFixed(
+        Int32(220000), Int32(45455)
+    ) || !initializedBackgroundState.setBackgroundFixed(
+        initializedBackgroundColor,
+        BackgroundGammaFile,
+        false,
+        Int32(45455)
+    )) {
+        println("libpng4cj background initialization setup failed")
+        return 1
+    }
     let initializedBackground = initializePngReadTransformations(
-        backgroundState,
+        initializedBackgroundState,
         decodePngNonInterlaced(consumerGammaPng())
+    )
+    let backgroundToLinear = pngReciprocalFixed(Int32(45455))
+    let backgroundToScreen = pngReciprocal2Fixed(
+        Int32(45455), Int32(220000)
     )
     if (!initializedBackground.backgroundConfigured() ||
         !initializedBackground.composeEnabled() ||
         initializedBackground.backgroundExpandEnabled() ||
         initializedBackground.hasStage(ReadStageStripAlpha) ||
-        initializedBackground.backgroundGammaCode() != BackgroundGammaUnique ||
-        initializedBackground.backgroundGamma() != Int32(100000) ||
-        initializedBackground.background().blue != UInt16(0x4444)) {
+        !initializedBackground.backgroundGammaInitialized() ||
+        initializedBackground.backgroundGammaCode() != BackgroundGammaFile ||
+        initializedBackground.effectiveBackgroundGammaCode() !=
+            BackgroundGammaScreen ||
+        initializedBackground.backgroundToLinearGamma() != backgroundToLinear ||
+        initializedBackground.backgroundToScreenGamma() != backgroundToScreen ||
+        initializedBackground.backgroundOriginal().blue != UInt16(192) ||
+        initializedBackground.backgroundLinear().blue != UInt16(
+            pngGamma8BitCorrect(UInt8(192), backgroundToLinear)
+        ) || initializedBackground.background().blue != UInt16(
+            pngGamma8BitCorrect(UInt8(192), backgroundToScreen)
+        ) || !initializedBackground.gamma8BitLinearTablesBuilt()) {
         println("libpng4cj background initialization snapshot check failed")
         return 1
     }

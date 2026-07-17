@@ -91,8 +91,18 @@ color-key tRNS, and inherent alpha retain Compose. When both normal Expand and
 background expansion are selected, palette indexes are resolved through the
 retained PLTE and 1/2/4-bit grayscale background samples are scaled to 8-bit
 values. Strip Alpha remains after effective Compose instead of entering the
-early initialized stage list. Pixel composition and background gamma-table
-derivation remain separate capabilities.
+early initialized stage list.
+
+When Compose remains enabled, `backgroundOriginal()` exposes the background
+after frozen depth normalization but before gamma correction,
+`backgroundLinear()` exposes the correction-to-linear result, and
+`background()` exposes the correction-to-screen result. `backgroundDepthNormalized()`
+reports exact Expand16 division by 257 or 16-to-8 multiplication by 257.
+`backgroundGammaInitialized()` gates `backgroundToLinearGamma()` and
+`backgroundToScreenGamma()`; `effectiveBackgroundGammaCode()` becomes Screen
+after non-palette correction while `backgroundGammaCode()` retains the caller's
+configured code. Compose also requests linear 8/16-bit gamma tables independently
+of RGB-to-gray. Pixel composition and palette mutation remain separate.
 
 ## Gamma Threshold Helpers
 

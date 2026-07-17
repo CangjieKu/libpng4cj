@@ -49,7 +49,7 @@ Status meanings:
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | no-alpha background cancellation and sub-byte gray background expansion translated; encode/optimize-alpha and remaining branches deferred |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background state/cancellation/expansion, gamma tables, quantize, packing, packswap, and native user-transform are snapshotted; row composition, background gamma derivation, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, Expand16/16-to-8 normalization, non-palette Screen/File/Unique gamma snapshots, Compose-driven gamma tables, quantize, packing, packswap, and native user-transform are snapshotted; row/palette composition, coefficient defaulting, remaining palette mutation, and complete dispatcher state remain |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -441,3 +441,12 @@ background expansion is frozen into copy-owned initialization state, and Strip
 Alpha remains after effective Compose. `png_do_compose`, background gamma-table
 derivation, alpha-mode setters, and remaining initializer branches stay open,
 so the ledger remains `33 translated / 8 partial / 4 pending`.
+
+LP-S004BE continues those initializer rows through non-palette Compose
+preparation. It snapshots exact Expand16/16-to-8 background normalization,
+original/linear/screen colors, Screen/File/Unique `g` and `gs`, effective Screen
+gamma identity, and Compose-driven 8/16-bit linear tables. Palette inputs build
+the required tables but intentionally retain PLTE unchanged. `png_do_compose`,
+palette composition/mutation, alpha-mode setters, and remaining initializer
+branches stay open, so the ledger remains
+`33 translated / 8 partial / 4 pending`.

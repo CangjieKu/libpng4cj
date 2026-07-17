@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Complete Compose-side background depth and gamma initialization snapshots,
+  including exact Expand16/16-to-8 normalization, Screen/File/Unique gamma
+  derivation, original/linear/screen colors, and Compose-driven linear tables.
 - Snapshot effective background configuration during read initialization,
   including no-alpha Compose cancellation, palette-index RGB expansion,
   sub-byte grayscale expansion, and post-Compose Strip Alpha ordering.
