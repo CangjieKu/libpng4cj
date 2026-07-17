@@ -233,6 +233,21 @@ public class PngBackgroundInitializationTestSuite {
         @Assert(initialized.hasStage(ReadStageExpand), true)
         @Assert(initialized.hasStage(ReadStageStripAlpha), true)
         @Assert(initialized.stage(0), ReadStageExpand)
+
+        let alphaState = PngReadTransformState()
+        @Assert(
+            alphaState.setAlphaModeFixed(AlphaOptimized, Int32(220000)),
+            true
+        )
+        let alphaInitialized = initializePngReadTransformations(
+            alphaState,
+            decoded
+        )
+        @Assert(alphaInitialized.inputHasAlpha, false)
+        @Assert(alphaInitialized.inputHasTransparency, false)
+        @Assert(alphaInitialized.optimizeAlphaEnabled(), false)
+        @Assert(alphaInitialized.composeEnabled(), false)
+        @Assert(alphaState.optimizeAlphaEnabled(), true)
         @Assert(initialized.stage(1), ReadStageStripAlpha)
     }
 

@@ -165,6 +165,42 @@ private func expectedGammaComposePalette(
     output
 }
 
+private func expectedOptimizedPalette(
+    alpha: Array<Byte>,
+    tables: PngGamma8BitTables
+): Array<Byte> {
+    let source = paletteBackgroundPalette()
+    let output = source.clone()
+    let direct = tables.direct()
+    let toLinear = tables.toLinear()
+    let fromLinear = tables.fromLinear()
+    var entry: Int64 = 0
+    while (entry < source.size / 3) {
+        let entryAlpha = if (entry < alpha.size) {
+            alpha[entry]
+        } else {
+            UInt8(0xff)
+        }
+        var channel: Int64 = 0
+        while (channel < 3) {
+            let offset = entry * 3 + channel
+            output[offset] = if (entryAlpha == UInt8(0xff)) {
+                direct.value(source[offset])
+            } else {
+                let linear = toLinear.value(source[offset])
+                let premultiplied = UInt8(
+                    (UInt32(linear) * UInt32(entryAlpha) + UInt32(128)) /
+                        UInt32(255)
+                )
+                fromLinear.value(premultiplied)
+            }
+            channel += 1
+        }
+        entry += 1
+    }
+    output
+}
+
 private func assertPaletteBackgroundEntry(
     palette: Array<Byte>,
     entry: Int64,
@@ -398,6 +434,119 @@ public class PngPaletteBackgroundTransformTestSuite {
         ]
         @Assert(row.info.colorType, Truecolor)
         @Assert(row.row(), expectedRow)
+    }
+
+    @TestCase
+    public func cancelsOpaqueAndBinaryPaletteAlphaModesWithoutIntentMutation(): Unit {
+        let opaqueState = PngReadTransformState()
+        @Assert(
+            opaqueState.setAlphaModeFixed(AlphaOptimized, Int32(220000)),
+            true
+        )
+        let opaque = initializePngReadTransformations(
+            opaqueState,
+            paletteBackgroundDecoded([])
+        )
+        @Assert(opaque.inputHasAlpha, false)
+        @Assert(opaque.inputHasTransparency, false)
+        @Assert(opaque.optimizeAlphaEnabled(), false)
+        @Assert(opaque.composeEnabled(), false)
+        @Assert(opaqueState.optimizeAlphaEnabled(), true)
+
+        let binaryState = PngReadTransformState()
+        @Assert(
+            binaryState.setAlphaModeFixed(AlphaOptimized, Int32(220000)),
+            true
+        )
+        let binary = initializePngReadTransformations(
+            binaryState,
+            paletteBackgroundDecoded([0, 255])
+        )
+        @Assert(binary.inputHasAlpha, false)
+        @Assert(binary.inputHasTransparency, true)
+        @Assert(binary.optimizeAlphaEnabled(), false)
+        @Assert(binary.paletteComposeApplied(), true)
+        @Assert(binaryState.optimizeAlphaEnabled(), true)
+
+        let encodeState = PngReadTransformState()
+        @Assert(
+            encodeState.setAlphaModeFixed(AlphaBroken, Int32(220000)),
+            true
+        )
+        let encoded = initializePngReadTransformations(
+            encodeState,
+            paletteBackgroundDecoded([])
+        )
+        @Assert(encoded.encodeAlphaEnabled(), false)
+        @Assert(encodeState.encodeAlphaEnabled(), true)
+    }
+
+    @TestCase
+    public func premultipliesPartialPaletteAlphaWithFrozenGammaArithmetic(): Unit {
+        let alpha: Array<Byte> = [0, 128, 255]
+        let decoded = paletteBackgroundDecoded(alpha)
+        let state = PngReadTransformState()
+        @Assert(
+            state.setAlphaModeFixed(AlphaOptimized, Int32(220000)),
+            true
+        )
+        let initialized = initializePngReadTransformations(state, decoded)
+        let expected = expectedOptimizedPalette(
+            alpha,
+            initialized.gamma8BitTables()
+        )
+        @Assert(initialized.inputHasAlpha, true)
+        @Assert(initialized.inputHasTransparency, true)
+        @Assert(initialized.optimizeAlphaEnabled(), true)
+        @Assert(initialized.paletteComposeApplied(), true)
+        @Assert(initialized.gamma8BitLinearTablesBuilt(), true)
+        @Assert(initialized.effectivePalette(), expected)
+        @Assert(initialized.effectivePaletteAlpha(), alpha)
+        @Assert(decoded.metadata.palette(), paletteBackgroundPalette())
+        @Assert(decoded.metadata.paletteAlpha(), alpha)
+    }
+
+    @TestCase
+    public func expandsOptimizedPaletteWithAssociatedAlphaWholeImage(): Unit {
+        let alpha: Array<Byte> = [0, 128, 255]
+        let decoded = paletteBackgroundDecoded(alpha)
+        let state = PngReadTransformState()
+        @Assert(
+            state.setAlphaModeFixed(AlphaOptimized, Int32(220000)),
+            true
+        )
+        @Assert(state.setExpand(), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        let transformed = applyInitializedPngReadStages(
+            initialized,
+            PngReadRowInfo(decoded.ihdr),
+            decoded.row(0)
+        )
+        let palette = expectedOptimizedPalette(
+            alpha,
+            initialized.gamma8BitTables()
+        )
+        let expected: Array<Byte> = [
+            palette[0], palette[1], palette[2], alpha[0],
+            palette[3], palette[4], palette[5], alpha[1],
+            palette[6], palette[7], palette[8], alpha[2]
+        ]
+        @Assert(transformed.info.colorType, TruecolorAlpha)
+        @Assert(transformed.info.channels, UInt8(4))
+        @Assert(transformed.row(), expected)
+
+        let wholeState = PngReadTransformState()
+        @Assert(
+            wholeState.setAlphaModeFixed(AlphaOptimized, Int32(220000)),
+            true
+        )
+        @Assert(wholeState.setExpand(), true)
+        let whole = transformPngRowsInitialized(decoded, wholeState)
+        @Assert(whole.info.colorType, TruecolorAlpha)
+        @Assert(whole.info.channels, UInt8(4))
+        @Assert(whole.row(0), expected)
+        @Assert(decoded.metadata.palette(), paletteBackgroundPalette())
+        @Assert(decoded.metadata.paletteAlpha(), alpha)
     }
 
     @TestCase

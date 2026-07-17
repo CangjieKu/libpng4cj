@@ -265,6 +265,14 @@ implicit-tail entries use direct correction only when required. Screen, File,
 and Unique background modes are resolved at 8-bit palette depth regardless of
 the Indexed sample bit depth.
 
+When effective `AlphaOptimized` survives initialization, partial palette
+entries use the frozen optimized branch instead: convert to linear, compute
+`round(component * alpha / 255)`, and convert back to the requested output
+Gamma without adding a background contribution. Transparent entries become
+black, opaque entries receive direct correction, and the retained alpha prefix
+continues into Expanded associated-alpha output. Source PLTE/tRNS ownership is
+unchanged.
+
 The Gamma-only optimization is suppressed when Indexed input will Expand into
 gamma-aware RGB-to-gray. In that topology the original PLTE reaches the
 RGB-to-gray stage so color samples are linearized exactly once.
@@ -297,6 +305,13 @@ facts and resolves them into `fileGamma()` and `screenGamma()`. This surface is
 configuration and initialization state; row execution is provided by the
 separate helpers below.
 
+Input classification follows the frozen initializer: palette input counts only
+partial tRNS values as alpha, while inherent GA/RGBA counts as alpha by color
+type. Opaque input and binary-only palette transparency cancel effective Encode
+and Optimize, as does insignificant screen Gamma. These cancellations affect
+the immutable initialization snapshot only; the caller's configured setter
+intent remains readable from `PngReadTransformState`.
+
 `pngDoEncodeAlpha(rowInfo, row, table)` provides 8-bit and 16-bit overloads for
 GA/RGBA rows. It applies only the supplied from-linear Gamma table to the final
 alpha component and returns a copy-owned `PngReadTransformRow`.
@@ -306,6 +321,8 @@ When Broken alpha mode remains effective after initialization,
 Alpha, then before Scale/Strip 16-to-8. `encodeAlphaEnabled()` and
 `optimizeAlphaEnabled()` on the initialization expose effective state after
 near-linear screen-Gamma and surviving-alpha cancellation.
+For partial Indexed alpha, effective Optimize is consumed by initialization-time
+palette premultiplication and is shared by Expand and non-Expand consumers.
 
 ## Invalid Palette Index Diagnosis
 

@@ -460,6 +460,40 @@ main(): Int64 {
         println("libpng4cj indexed palette background check failed")
         return 1
     }
+    let optimizedPaletteState = PngReadTransformState()
+    if (!optimizedPaletteState.setAlphaModeFixed(
+        AlphaOptimized,
+        Int32(220000)
+    ) || !optimizedPaletteState.setExpand()) {
+        println("libpng4cj optimized palette setup failed")
+        return 1
+    }
+    let optimizedPaletteInit = initializePngReadTransformations(
+        optimizedPaletteState,
+        indexedBackgroundDecoded
+    )
+    let optimizedPaletteRow = applyInitializedPngReadStages(
+        optimizedPaletteInit,
+        PngReadRowInfo(indexedBackgroundDecoded.ihdr),
+        indexedBackgroundDecoded.row(0)
+    )
+    let optimizedPalette = optimizedPaletteInit.effectivePalette()
+    let optimizedAlpha = optimizedPaletteInit.effectivePaletteAlpha()
+    let optimizedExpected: Array<Byte> = [
+        optimizedPalette[0], optimizedPalette[1], optimizedPalette[2],
+        optimizedAlpha[0],
+        optimizedPalette[3], optimizedPalette[4], optimizedPalette[5],
+        optimizedAlpha[1],
+        optimizedPalette[6], optimizedPalette[7], optimizedPalette[8],
+        optimizedAlpha[2]
+    ]
+    if (!optimizedPaletteInit.optimizeAlphaEnabled() ||
+        !optimizedPaletteInit.paletteComposeApplied() ||
+        optimizedPaletteRow.info.colorType != TruecolorAlpha ||
+        optimizedPaletteRow.row() != optimizedExpected) {
+        println("libpng4cj optimized palette alpha check failed")
+        return 1
+    }
     let alphaModeState = PngReadTransformState()
     if (!alphaModeState.setAlphaMode(AlphaAssociated, 2.2)) {
         println("libpng4cj alpha-mode setup failed")

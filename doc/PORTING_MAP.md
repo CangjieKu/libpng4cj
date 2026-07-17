@@ -881,6 +881,30 @@ This moves the last pending `pngrtran.c` function to translated. The ledger is
 now `37 translated / 8 partial / 0 pending`; partial rows still track remaining
 initializer, info-projection, callback/C ABI, and dispatcher fidelity.
 
+## Implemented Alpha Initializer Optimization Parity
+
+LP-S004BJ closes the remaining Alpha Optimize/Encode initialization branches:
+
+- Indexed tRNS is classified as opaque, binary-only transparency, or partial
+  alpha before effective alpha-mode decisions are frozen
+- opaque and binary-only inputs cancel effective Encode/Optimize while
+  retaining the caller's setter intent independently
+- insignificant screen Gamma cancels both effective flags for palette and
+  inherent-alpha inputs
+- partial palette alpha keeps effective Optimize and uses the frozen
+  `round(component * alpha / 255)` arithmetic in linear space
+- transparent palette entries become black, opaque entries receive direct
+  Gamma correction, and source PLTE/tRNS remains copy-owned and unchanged
+- Expanded Indexed rows retain associated alpha beside the premultiplied RGB;
+  non-Expand consumers share the same effective palette snapshot
+- whole-image and standalone consumer paths exercise the same initialized
+  result
+
+`png_init_rgb_transformations` now has all frozen cancellation and sub-byte
+background-expansion branches under tests and advances to translated. Palette
+and complete read initialization remain partial for their other deferred
+branches, so the ledger becomes `38 translated / 7 partial / 0 pending`.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

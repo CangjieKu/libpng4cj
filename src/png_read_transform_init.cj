@@ -1259,6 +1259,13 @@ public func initializePngReadTransformations(
         classification.hasAlpha ||
             (classification.hasTransparency && state.expandTransparencyEnabled())
     }
+    let alphaGammaEffective = pngGammaSignificant(
+        initializedGammaValues.screenGamma
+    )
+    let encodeAlphaEnabled = state.encodeAlphaEnabled() &&
+        classification.hasAlpha && effectiveOutputHasAlpha && alphaGammaEffective
+    let optimizeAlphaEnabled = state.optimizeAlphaEnabled() &&
+        classification.hasAlpha && alphaGammaEffective
     let expandEnabled = state.expandEnabled()
     let expandTransparency = if (expandEnabled && !usesPaletteInitializer &&
         state.expandTransparencyEnabled() && metadata.hasTransparency) {
@@ -1326,7 +1333,8 @@ public func initializePngReadTransformations(
             },
             initializedGammaValues.correctionRequired &&
                 (!expandEnabled || !rgbToGrayEnabled),
-            initializedGamma8BitTables
+            initializedGamma8BitTables,
+            optimizeAlphaEnabled
         )
     } else {
         PngPaletteTransformInitialization(
@@ -1414,13 +1422,6 @@ public func initializePngReadTransformations(
         ihdr.colorType != Indexed && !rowComposeEnabled
     let stripAlphaAfterCompose = state.stripAlphaEnabled() &&
         rowComposeEnabled
-    let alphaGammaEffective = pngGammaSignificant(
-        initializedGammaValues.screenGamma
-    )
-    let encodeAlphaEnabled = state.encodeAlphaEnabled() &&
-        classification.hasAlpha && effectiveOutputHasAlpha && alphaGammaEffective
-    let optimizeAlphaEnabled = state.optimizeAlphaEnabled() &&
-        classification.hasAlpha && alphaGammaEffective
     let stages = pngReadTransformStages(
         state,
         checkForInvalidIndexEnabled,

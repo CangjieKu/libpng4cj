@@ -45,8 +45,8 @@ Status meanings:
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | setter/state/initialization connected; table integration deferred |
-| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` plus `pngInitPaletteBackgroundTransformations` | partial | no-alpha cancellation, palette-index background expansion, copy-owned PLTE/tRNS preprocessing, direct/linear Gamma, and Compose/Gamma cancellation translated; optimize-alpha palette arithmetic deferred |
-| 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | no-alpha background cancellation and sub-byte gray background expansion translated; optimize/encode cancellation branches deferred |
+| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` plus `pngInitPaletteBackgroundTransformations` | partial | no-alpha/binary cancellation, palette-index background expansion, copy-owned PLTE/tRNS preprocessing, direct/linear Gamma, optimized partial-alpha premultiplication, and Compose/Gamma cancellation translated; non-expanded tRNS invert initialization remains deferred |
+| 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | translated | inherent-alpha/tRNS classification, no-alpha Compose/background cancellation, effective Optimize/Encode cancellation, and sub-byte gray background expansion translated |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
 | 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, alpha-mode/default/screen Gamma facts, effective Encode/Optimize cancellation, Expand16/16-to-8 normalization, Screen/File/Unique gamma snapshots, non-palette Compose/Encode stages, Indexed PLTE/tRNS preprocessing, quantize, packing, packswap, and native user-transform are snapshotted; coefficient defaulting and complete dispatcher state remain |
@@ -501,3 +501,15 @@ Compose/Gamma/post-Compose Strip and before 16-to-8 reduction. Whole-image and
 consumer paths execute the same stage. The row body becomes translated and the
 ledger reaches
 `37 translated / 8 partial / 0 pending`.
+
+LP-S004BJ closes Alpha Optimize/Encode initializer parity. Palette input now
+distinguishes opaque, binary-only, and partial tRNS; opaque and binary-only
+inputs cancel effective Encode/Optimize without mutating configured setter
+intent, and insignificant screen Gamma performs the same cancellation. Partial
+Indexed alpha keeps Optimize and preprocesses PLTE through the frozen
+to-linear, `round(component * alpha / 255)`, and from-linear arithmetic while
+retaining tRNS for associated-alpha Expand output. Non-Expand snapshots,
+source-metadata ownership, whole-image execution, and standalone consumer use
+are covered. `png_init_rgb_transformations` advances from partial to translated;
+the palette and complete read initializer rows retain other deferred branches,
+so the ledger becomes `38 translated / 7 partial / 0 pending`.

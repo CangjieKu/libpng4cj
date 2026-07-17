@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Complete alpha initializer optimization parity for Indexed input: classify
+  opaque, binary, and partial alpha before freezing effective Encode/Optimize
+  state, preserve setter intent independently, and premultiply partial palette
+  entries with the frozen linear-Gamma arithmetic for Expand and non-Expand
+  consumers.
 - Translate `png_do_encode_alpha` for 8/16-bit GA/RGBA rows, including
   alpha-only from-linear lookup, network order, effective initialization
   cancellation, and stage placement after Compose/post-Compose Strip Alpha and

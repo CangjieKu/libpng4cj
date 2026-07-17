@@ -62,6 +62,15 @@ private func pngPaletteComposite8(
     UInt8(((temporary + (temporary >> UInt32(8))) >> UInt32(8)) & UInt32(0xff))
 }
 
+private func pngPalettePremultiply8(
+    foreground: UInt8,
+    alpha: UInt8
+): UInt8 {
+    UInt8(
+        (UInt32(foreground) * UInt32(alpha) + UInt32(128)) / UInt32(255)
+    )
+}
+
 private func pngPaletteBackgroundChannel(
     background: PngBackground,
     channel: Int64
@@ -151,6 +160,66 @@ private func pngComposePaletteWithGamma(
     output
 }
 
+private func pngPremultiplyPaletteWithoutGamma(
+    palette: Array<Byte>,
+    paletteAlpha: Array<Byte>
+): Array<Byte> {
+    let output = palette.clone()
+    let entryCount = pngValidatePaletteTransformInputs(palette, paletteAlpha)
+    var entry: Int64 = 0
+    while (entry < entryCount) {
+        let alpha = if (entry < paletteAlpha.size) {
+            paletteAlpha[entry]
+        } else {
+            UInt8(0xff)
+        }
+        if (alpha != UInt8(0xff)) {
+            var channel: Int64 = 0
+            while (channel < 3) {
+                let offset = entry * 3 + channel
+                output[offset] = pngPalettePremultiply8(output[offset], alpha)
+                channel += 1
+            }
+        }
+        entry += 1
+    }
+    output
+}
+
+private func pngPremultiplyPaletteWithGamma(
+    palette: Array<Byte>,
+    paletteAlpha: Array<Byte>,
+    tables: PngGamma8BitTables
+): Array<Byte> {
+    let output = palette.clone()
+    let entryCount = pngValidatePaletteTransformInputs(palette, paletteAlpha)
+    let direct = tables.direct()
+    let toLinear = tables.toLinear()
+    let fromLinear = tables.fromLinear()
+    var entry: Int64 = 0
+    while (entry < entryCount) {
+        let alpha = if (entry < paletteAlpha.size) {
+            paletteAlpha[entry]
+        } else {
+            UInt8(0xff)
+        }
+        var channel: Int64 = 0
+        while (channel < 3) {
+            let offset = entry * 3 + channel
+            output[offset] = if (alpha == UInt8(0xff)) {
+                direct.value(output[offset])
+            } else {
+                fromLinear.value(
+                    pngPalettePremultiply8(toLinear.value(output[offset]), alpha)
+                )
+            }
+            channel += 1
+        }
+        entry += 1
+    }
+    output
+}
+
 private func pngCorrectPaletteGamma(
     palette: Array<Byte>,
     paletteAlpha: Array<Byte>,
@@ -174,11 +243,20 @@ public func pngInitPaletteBackgroundTransformations(
     background: PngBackground,
     backgroundLinear: PngBackground,
     gammaCorrectionRequired: Bool,
-    tables: PngGamma8BitTables
+    tables: PngGamma8BitTables,
+    optimizeAlphaEnabled: Bool
 ): PngPaletteTransformInitialization {
     pngValidatePaletteTransformInputs(palette, paletteAlpha)
     if (composeEnabled) {
-        let transformed = if (tables.linearTablesBuilt()) {
+        let transformed = if (optimizeAlphaEnabled && tables.linearTablesBuilt()) {
+            pngPremultiplyPaletteWithGamma(
+                palette,
+                paletteAlpha,
+                tables
+            )
+        } else if (optimizeAlphaEnabled) {
+            pngPremultiplyPaletteWithoutGamma(palette, paletteAlpha)
+        } else if (tables.linearTablesBuilt()) {
             pngComposePaletteWithGamma(
                 palette,
                 paletteAlpha,
@@ -215,6 +293,27 @@ public func pngInitPaletteBackgroundTransformations(
         paletteAlpha,
         false,
         false,
+        false
+    )
+}
+
+public func pngInitPaletteBackgroundTransformations(
+    palette: Array<Byte>,
+    paletteAlpha: Array<Byte>,
+    composeEnabled: Bool,
+    background: PngBackground,
+    backgroundLinear: PngBackground,
+    gammaCorrectionRequired: Bool,
+    tables: PngGamma8BitTables
+): PngPaletteTransformInitialization {
+    pngInitPaletteBackgroundTransformations(
+        palette,
+        paletteAlpha,
+        composeEnabled,
+        background,
+        backgroundLinear,
+        gammaCorrectionRequired,
+        tables,
         false
     )
 }
