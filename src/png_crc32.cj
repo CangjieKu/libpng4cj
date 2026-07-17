@@ -3,7 +3,11 @@ package libpng4cj
 private let PNG_CRC_POLYNOMIAL: UInt32 = UInt32(0xedb88320)
 private let PNG_CRC_INITIAL: UInt32 = UInt32(0xffff_ffff)
 
-private func updateCrc32(crcValue: UInt32, bytes: Array<Byte>): UInt32 {
+func pngCrc32Start(): UInt32 {
+    PNG_CRC_INITIAL
+}
+
+func pngCrc32Update(crcValue: UInt32, bytes: Array<Byte>): UInt32 {
     var crc = crcValue
     var index = 0
     while (index < bytes.size) {
@@ -22,8 +26,12 @@ private func updateCrc32(crcValue: UInt32, bytes: Array<Byte>): UInt32 {
     crc
 }
 
+func pngCrc32Finish(crcValue: UInt32): UInt32 {
+    crcValue ^ PNG_CRC_INITIAL
+}
+
 public func pngCrc32(bytes: Array<Byte>): UInt32 {
-    updateCrc32(PNG_CRC_INITIAL, bytes) ^ PNG_CRC_INITIAL
+    pngCrc32Finish(pngCrc32Update(pngCrc32Start(), bytes))
 }
 
 public func pngChunkCrc32(chunkType: Array<Byte>, data: Array<Byte>): UInt32 {
@@ -34,6 +42,6 @@ public func pngChunkCrc32(chunkType: Array<Byte>, data: Array<Byte>): UInt32 {
             "PNG chunk type must contain four ASCII letters"
         )
     }
-    let afterType = updateCrc32(PNG_CRC_INITIAL, chunkType)
-    updateCrc32(afterType, data) ^ PNG_CRC_INITIAL
+    let afterType = pngCrc32Update(pngCrc32Start(), chunkType)
+    pngCrc32Finish(pngCrc32Update(afterType, data))
 }

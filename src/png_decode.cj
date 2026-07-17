@@ -57,7 +57,7 @@ private func appendIdatPayload(
     nextSize
 }
 
-private func validatePaletteChunk(chunk: PngChunk, ihdr: PngIhdr): Unit {
+func validatePaletteChunk(chunk: PngChunk, ihdr: PngIhdr): Unit {
     if (ihdr.colorType == Grayscale || ihdr.colorType == GrayscaleAlpha) {
         throw PngFormatException(InvalidPalette, chunk.offset, "PLTE is not allowed for grayscale PNG images")
     }
@@ -74,7 +74,7 @@ private func validatePaletteChunk(chunk: PngChunk, ihdr: PngIhdr): Unit {
     }
 }
 
-private func expectedNonInterlacedInflatedSize(ihdr: PngIhdr, limits: PngReadLimits): Int64 {
+func expectedNonInterlacedInflatedSize(ihdr: PngIhdr, limits: PngReadLimits): Int64 {
     let rowFrameBytes = ihdr.rowBytes + UInt64(1)
     let height = UInt64(ihdr.height)
     if (height > limits.maxInflatedBytes / rowFrameBytes) {

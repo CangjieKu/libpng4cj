@@ -67,14 +67,13 @@ and metadata retain the same copy-ownership contract as non-interlaced input.
 
 The explicit `decodePngNonInterlaced`, `decodePngRgba8NonInterlaced`, and
 `decodePngRgba16NonInterlaced` families remain available and still reject
-Adam7 input with `UnsupportedInterlace`. This packet does not add progressive
-callbacks, row-combine delivery, pause/resume, or pass-aware user-transform
-execution.
+Adam7 input with `UnsupportedInterlace`. Progressive pass delivery is described
+below; pass-aware user-transform execution remains separate.
 
-## Buffered Progressive Feed
+## Incremental Progressive Feed
 
-`PngProgressiveReader` accepts arbitrary input splits and finalizes through the
-same packed-row decoder:
+`PngProgressiveReader` accepts arbitrary input splits, parses chunks and CRCs
+incrementally, and streams IDAT data through a bounded zlib state:
 
 ```cangjie
 let reader = PngProgressiveReader()
@@ -87,22 +86,45 @@ reader.feed(secondChunk)
 let decoded = reader.finish()
 ```
 
-The reader copy-owns every feed and exposes `state()` plus `receivedBytes()`.
+Info is delivered when the first IDAT header makes the pre-IDAT contract
+complete. Non-interlaced rows are delivered as soon as each filter byte and
+row payload is inflated. Adam7 callbacks expose `passNumber`,
+`passRowNumber`, and `imageRowNumber`; callback rows are owned canonical rows
+after applying the current pass through `pngProgressiveCombineRow`.
+
+The reader exposes `state()`, `receivedBytes()`, `processedBytes()`, and
+`lastUnconsumedBytes()`.
 Constructors accept `PngReadLimits` and an optional total progressive-input
 limit; the default is `PNG_DEFAULT_MAX_PROGRESSIVE_INPUT_BYTES`. Unknown-chunk
-and CRC actions can be configured before finalization. Callback registration is
-replaceable while state is Open.
+and CRC actions are configured before the first feed. Callback registration is
+replaceable while state is Open or Paused and no callback is active.
+
+For explicit pause accounting, use `feedAvailable`. A callback may call
+`pause()`, after which the returned count identifies the consumed input prefix:
+
+```cangjie
+let consumed = reader.feedAvailable(bytes)
+if (reader.state() == ProgressivePaused) {
+    reader.resume()
+    reader.feed(copyByteRange(bytes, consumed, bytes.size - consumed))
+}
+```
+
+The compatibility `feed` entry retains any unprocessed suffix internally when
+a callback pauses; `resume()` continues that suffix without duplicate parsing,
+CRC mutation, inflate, or callback delivery.
 
 Info executes before rows, End executes after the final row, and any decode or
 callback exception moves the reader to Failed. Feed after completion, repeated
 finish, and callback/configuration changes outside Open are rejected; Close
 releases buffered input and permanently selects Closed.
 
-For non-interlaced input, row context reports pass `0`. Adam7 rows are delivered
-only after all seven passes have been reconstructed, so context reports
-`passNumber = -1` and `canonicalCombined = true`. This API currently buffers
-until `finish`; it does not yet provide streaming zlib windows, early IHDR/info
-callbacks, pass-fragment timing, row-combine callbacks, or pause/resume.
+For non-interlaced input, row context reports pass `0` and the image row.
+Adam7 reports exact passes `0..6`, pass-local and image row numbers,
+`passRowPresent = true`, and `canonicalCombined = true`. An empty pass row is a
+copy-owned no-op for `pngProgressiveCombineRow`, matching the nullable-row role
+of upstream progressive combination without exposing borrowed native memory.
+Custom IO and C ABI callback trampolines remain outside this surface.
 
 ## Standard Ancillary Metadata
 

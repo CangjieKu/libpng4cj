@@ -140,6 +140,42 @@ private func pngAdam7ScatterRow(
     }
 }
 
+public func pngProgressiveCombineRow(
+    existingRow: Array<Byte>,
+    passRow: Array<Byte>,
+    ihdr: PngIhdr,
+    pass: Int64
+): Array<Byte> {
+    if (existingRow.size != Int64(ihdr.rowBytes)) {
+        throw PngFormatException(
+            InvalidArgument,
+            -1,
+            "Adam7 destination row does not match the full image row size"
+        )
+    }
+    let geometry = pngAdam7PassGeometry(ihdr, pass)
+    let combined = existingRow.clone()
+    if (passRow.size == 0) {
+        return combined
+    }
+    if (geometry.width == UInt32(0) || geometry.height == UInt32(0)) {
+        throw PngFormatException(
+            InvalidArgument,
+            pass,
+            "Adam7 empty pass cannot contain row data"
+        )
+    }
+    if (passRow.size != Int64(geometry.rowBytes)) {
+        throw PngFormatException(
+            InvalidArgument,
+            pass,
+            "Adam7 pass row does not match pass geometry"
+        )
+    }
+    pngAdam7ScatterRow(combined, passRow, ihdr, geometry)
+    combined
+}
+
 func decodeAdam7InflatedRows(inflated: Array<Byte>, ihdr: PngIhdr): Array<Array<Byte>> {
     let fullRowBytes = Int64(ihdr.rowBytes)
     let rows = Array<Array<Byte>>(Int64(ihdr.height), repeat: Array<Byte>())

@@ -44,6 +44,7 @@ private func expectProgressiveError(
 
 private class ProgressiveProbe {
     let events = ArrayList<String>()
+    let adam7PassSeen = Array<Bool>(Int64(7), repeat: false)
     var infoSeen: Bool = false
     var rowCount: Int64 = 0
     var replacedCount: Int64 = 0
@@ -85,6 +86,9 @@ public class PngProgressiveTestSuite {
 
         progressiveFeedOneByte(reader, bytes)
         @Assert(reader.receivedBytes(), UInt64(bytes.size))
+        @Assert(probe.infoSeen, true)
+        @Assert(probe.rowCount, expected.rowCount())
+        @Assert(probe.events[probe.events.size - Int64(1)], "end")
         let decoded = reader.finish()
         @Assert(decoded.rows(), expected.rows())
         @Assert(reader.state(), ProgressiveCompleted)
@@ -112,8 +116,12 @@ public class PngProgressiveTestSuite {
             context, _ =>
                 @Assert(probe.infoSeen, true)
                 @Assert(context.interlaceMethod, Adam7)
-                @Assert(context.passNumber, Int64(-1))
+                @Assert(context.passNumber >= Int64(0), true)
+                @Assert(context.passNumber < Int64(7), true)
+                @Assert(context.rowNumber, context.imageRowNumber)
+                @Assert(context.passRowPresent, true)
                 @Assert(context.canonicalCombined, true)
+                probe.adam7PassSeen[context.passNumber] = true
                 probe.activeCount += 1
         })
         reader.setEndCallback({
@@ -123,12 +131,17 @@ public class PngProgressiveTestSuite {
                 probe.endCalled = true
         })
         progressiveFeedIrregular(reader, bytes)
+        var pass: Int64 = 0
+        while (pass < Int64(7)) {
+            @Assert(probe.adam7PassSeen[pass], true)
+            pass += 1
+        }
+        @Assert(probe.endCalled, true)
         let decoded = reader.finish()
         @Assert(decoded.ihdr.interlaceMethod, Adam7)
         @Assert(decoded.metadata.hasPalette, true)
         @Assert(probe.replacedCount, Int64(0))
-        @Assert(probe.activeCount, decoded.rowCount())
-        @Assert(probe.endCalled, true)
+        @Assert(probe.activeCount > decoded.rowCount(), true)
         @Assert(decoded.rows(), decodePng(bytes).rows())
     }
 
@@ -188,8 +201,7 @@ public class PngProgressiveTestSuite {
         reentrant.setInfoCallback({
             _, _ => reentrant.close()
         })
-        reentrant.feed(bytes)
-        expectProgressiveError({=> reentrant.finish(); ()}, InvalidArgument)
+        expectProgressiveError({=> reentrant.feed(bytes)}, InvalidArgument)
         @Assert(reentrant.state(), ProgressiveFailed)
     }
 }

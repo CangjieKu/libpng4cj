@@ -918,7 +918,8 @@ main(): Int64 {
     })
     progressive.setRowCallback({
         context, _ =>
-            if (context.canonicalCombined && context.passNumber == Int64(-1)) {
+            if (context.canonicalCombined && context.passNumber >= Int64(0) &&
+                context.passNumber < Int64(7) && context.passRowPresent) {
                 progressiveFacts[1] += 1
             }
     })
@@ -927,9 +928,37 @@ main(): Int64 {
     let progressiveDecoded = progressive.finish()
     if (progressive.state() != ProgressiveCompleted ||
         progressiveFacts[0] != Int64(1) ||
-        progressiveFacts[1] != progressiveDecoded.rowCount() ||
+        progressiveFacts[1] <= progressiveDecoded.rowCount() ||
         progressiveDecoded.rows() != decodePng(adam7Bytes).rows()) {
         println("libpng4cj progressive consumer check failed")
+        return 1
+    }
+    let pausedProgressive = PngProgressiveReader()
+    let pauseFacts = Array<Int64>(2, repeat: Int64(0))
+    pausedProgressive.setRowCallback({
+        _, _ =>
+            pauseFacts[0] += Int64(1)
+            if (pauseFacts[1] == Int64(0)) {
+                pauseFacts[1] = Int64(1)
+                pausedProgressive.pause()
+            }
+    })
+    let pausedConsumed = pausedProgressive.feedAvailable(adam7Bytes)
+    if (pausedProgressive.state() != ProgressivePaused || pausedConsumed <= Int64(0) ||
+        pausedConsumed >= adam7Bytes.size) {
+        println("libpng4cj progressive pause accounting failed")
+        return 1
+    }
+    pausedProgressive.resume()
+    pausedProgressive.feed(consumerByteRange(
+        adam7Bytes,
+        pausedConsumed,
+        adam7Bytes.size - pausedConsumed
+    ))
+    let pausedDecoded = pausedProgressive.finish()
+    if (pauseFacts[0] != progressiveFacts[1] ||
+        pausedDecoded.rows() != progressiveDecoded.rows()) {
+        println("libpng4cj progressive resume consumer check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

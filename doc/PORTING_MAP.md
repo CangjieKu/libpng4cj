@@ -76,32 +76,37 @@ LP-S005A extends the high-level `pngread.c` / `pngrutil.c` row path through
 - existing `*NonInterlaced` entry points retain their explicit Adam7 rejection
   behavior
 
-Metadata parsing, CRC actions, IDAT collection, exact zlib consumption, and
-the existing RGBA transforms remain shared. The packet is whole-image decode,
-not progressive delivery: row-combine callbacks, pass-aware user-transform
-callbacks, pause/resume, custom IO, and the C ABI remain later work.
+Metadata parsing, CRC actions, exact zlib consumption, and the existing RGBA
+transforms remain shared. The whole-image entries coexist with the incremental
+progressive path below; pass-aware user-transform callbacks, custom IO, and C
+ABI callback trampolines remain later work.
 
-## Implemented Buffered Progressive Feed Lifecycle
+## Implemented Incremental Progressive Feed Lifecycle
 
-LP-S005B adds the first native `pngpread.c`-facing facade in
-`png_progressive.cj`:
+LP-S005B established the callback lifecycle. LP-S005C replaces its finalize-only
+buffer with the native incremental `pngpread.c`-facing path in
+`png_progressive.cj` and `png_zlib_stream.cj`:
 
-- `PngProgressiveReader.feed` copy-owns arbitrary input splits under a separate
-  configurable total-input limit
-- state is explicit as Open, Finalizing, Completed, Failed, or Closed
-- unknown-chunk and critical/ancillary CRC policies are frozen before finish
-- replaceable info, row, and end callbacks execute in that order
+- signature, chunk header/data/CRC, metadata, IDAT, and IEND state advance
+  without retaining the complete PNG or combined compressed stream
+- direct zlib FFI keeps bounded output windows, fragmented input, exact
+  consumed-byte accounting, stream-end/trailing detection, and explicit close
+- state is explicit as Open, Paused, Finalizing, Completed, Failed, or Closed
+- unknown-chunk and critical/ancillary CRC policies are frozen before first feed
+- replaceable info, row, and end callbacks execute at incremental milestones
 - callback rows are copy-owned, and callback exceptions move the reader to
   Failed without invoking End
 - `finish` returns the same `PngDecodedRows` as the shared whole-image decoder
-- non-interlaced callbacks report pass `0`; Adam7 callbacks report pass `-1`
-  plus `canonicalCombined = true` because each delivered row is the completed
-  seven-pass canonical result rather than one upstream pass fragment
+- non-interlaced rows emit early with pass `0`; Adam7 callbacks report exact
+  pass/pass-row/image-row context and an owned canonical row after each pass row
+- `pngProgressiveCombineRow` covers packed 1/2/4-bit and 8/16-bit channel rows;
+  an empty pass row is an owned no-op
+- callback-driven pause records the consumed prefix and resumes retained zlib,
+  row-frame, CRC, and caller-input state without duplicate delivery
 
-This is an executable bounded feed and callback lifecycle, not complete libpng
-progressive parity. It buffers input until `finish`; streaming zlib windows,
-early info delivery, pass-row callbacks, `png_progressive_combine_row`,
-pause/resume, custom IO, and C ABI callback trampolines remain later packets.
+This closes the native progressive read main circuit for the current packed-row
+surface. Custom IO, warning/error/allocator callbacks, pass-aware user
+transforms, and C ABI callback trampolines remain later packets.
 
 ## Implemented First Read Transforms
 
