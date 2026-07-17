@@ -946,6 +946,29 @@ LP-S004BL translates `png.c::png_set_rgb_coefficients` as consumed by
 The complete read dispatcher remains open, so `png_init_read_transformations`
 stays partial and the ledger remains `39 translated / 6 partial / 0 pending`.
 
+## Implemented Background-Aware Gray-to-RGB Dispatch
+
+LP-S004BM closes the remaining default-config topology shared by
+`png_init_read_transformations` and `png_do_read_transformations`:
+
+- Background Expand on Grayscale/Grayscale Alpha marks the effective
+  background gray
+- Compose with Gray-to-RGB and equal red/green/blue background values also
+  marks it gray and synchronizes the gray component from red
+- non-gray backgrounds run Gray-to-RGB before Compose so composition can use
+  distinct RGB background components
+- gray backgrounds retain grayscale through Compose and optional Expand16,
+  then run Gray-to-RGB afterward
+- the two positions are mutually exclusive in the immutable stage list and
+  the row/whole-image dispatcher
+- direct 8/16-bit output topology, stage order, lifecycle, ownership, and
+  standalone consumer use are covered
+
+The native initializer and all 23 frozen read-stage positions are now
+traceable. Both inventoried rows advance to translated, so the ledger becomes
+`41 translated / 4 partial / 0 pending`; C ABI trampolines remain a separate
+program boundary.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

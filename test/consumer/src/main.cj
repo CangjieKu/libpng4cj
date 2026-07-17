@@ -15,6 +15,11 @@ private let CONSUMER_INDEXED_ZLIB: Array<Byte> = [
     0x78, 0x9c, 0x63, 0x90, 0x06, 0x00, 0x00, 0x1d, 0x00, 0x1c
 ]
 
+private let CONSUMER_GRAY_ALPHA_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x60, 0xe7, 0xe0, 0xe4, 0x02,
+    0x00, 0x00, 0x55, 0x00, 0x23
+]
+
 private func joinConsumerBytes(
     left: Array<Byte>,
     right: Array<Byte>
@@ -110,6 +115,23 @@ private func consumerChromaticityPng(): Array<Byte> {
     png = joinConsumerBytes(
         png,
         makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_RGBA_ZLIB)
+    )
+    joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
+}
+
+private func consumerGrayDispatchPng(): Array<Byte> {
+    let ihdr = Array<Byte>(13, repeat: 0)
+    ihdr[3] = UInt8(2)
+    ihdr[7] = UInt8(1)
+    ihdr[8] = UInt8(8)
+    ihdr[9] = UInt8(4)
+    var png = joinConsumerBytes(
+        PNG_SIGNATURE,
+        makeConsumerChunk(PNG_CHUNK_IHDR, ihdr)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_GRAY_ALPHA_ZLIB)
     )
     joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
 }
@@ -436,6 +458,39 @@ main(): Int64 {
     if (chromaticityRows.info.colorType != GrayscaleAlpha ||
         chromaticityRows.info.channels != UInt8(2)) {
         println("libpng4cj cHRM RGB-to-gray whole-image check failed")
+        return 1
+    }
+    let grayDispatchDecoded = decodePngNonInterlaced(
+        consumerGrayDispatchPng()
+    )
+    let grayDispatchState = PngReadTransformState()
+    grayDispatchState.markIhdrRead(grayDispatchDecoded.ihdr)
+    if (!grayDispatchState.setBackgroundFixed(
+        PngBackground(
+            UInt8(0), UInt16(200), UInt16(40), UInt16(40), UInt16(40)
+        ),
+        BackgroundGammaScreen,
+        false,
+        PNG_FP_1
+    ) || !grayDispatchState.setGrayToRgb()) {
+        println("libpng4cj background-aware Gray-to-RGB setup failed")
+        return 1
+    }
+    let grayDispatchInit = initializePngReadTransformations(
+        grayDispatchState,
+        grayDispatchDecoded
+    )
+    let grayDispatchRow = applyInitializedPngReadStages(
+        grayDispatchInit,
+        PngReadRowInfo(UInt32(1), UInt8(8), GrayscaleAlpha),
+        [UInt8(100), UInt8(0)]
+    )
+    if (!grayDispatchInit.backgroundIsGray() ||
+        !grayDispatchInit.grayToRgbAfterExpand16() ||
+        grayDispatchInit.background().gray != UInt16(40) ||
+        grayDispatchRow.info.colorType != Truecolor ||
+        grayDispatchRow.row() != [UInt8(40), UInt8(40), UInt8(40)]) {
+        println("libpng4cj background-aware Gray-to-RGB check failed")
         return 1
     }
     let gamma16Table = pngBuildGamma16BitTable(UInt8(8), Int32(220000))

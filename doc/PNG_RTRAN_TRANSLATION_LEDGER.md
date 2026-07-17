@@ -49,7 +49,7 @@ Status meanings:
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | translated | inherent-alpha/tRNS classification, no-alpha Compose/background cancellation, effective Optimize/Encode cancellation, and sub-byte gray background expansion translated |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, alpha-mode/default/screen Gamma facts, effective Encode/Optimize cancellation, cHRM-derived RGB-to-gray coefficient defaulting, Expand16/16-to-8 normalization, Screen/File/Unique gamma snapshots, non-palette Compose/Encode stages, Indexed PLTE/tRNS preprocessing, quantize, packing, packswap, and native user-transform are snapshotted; complete dispatcher state remains |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | translated | complete native initialization topology, including Gamma/background/alpha interdependencies, cHRM coefficients, palette/RGB preprocessing, background-aware Gray-to-RGB placement, and all row-stage snapshots, is translated; in-place C state and C ABI remain separate |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, effective palette/background synchronization, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; filler and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -67,7 +67,7 @@ Status meanings:
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated expansion, pre/post-Compose Strip Alpha, RGB/gray, non-palette Compose, Gamma, Encode Alpha, reduction, quantize, and late stages through User Transform have bounded composition; Indexed palette Compose/Gamma is consumed during initialization; C ABI callbacks and remaining dispatcher branches remain |
+| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | translated | all 23 frozen native read stages are composed in order, including mutually exclusive pre-Compose/post-Expand16 Gray-to-RGB placement; Indexed palette Compose/Gamma is consumed during initialization; C ABI trampolines remain separate |
 
 ## Translation Rule
 
@@ -534,3 +534,13 @@ Initialization freezes the result before 8/16-bit row and whole-image
 execution, and standalone consumer use is covered. The read initializer still
 has complete dispatcher state outstanding, so the ledger remains
 `39 translated / 6 partial / 0 pending`.
+
+LP-S004BM closes the background-aware Gray-to-RGB dispatcher split. Background
+Expand on grayscale-family input and equal-RGB Compose backgrounds mark the
+effective background gray; the latter also synchronizes `background.gray` from
+red before composition. Gray-to-RGB runs before Compose for non-gray
+backgrounds and after Expand16 for gray backgrounds, never both. With this
+branch, the immutable initializer and native dispatcher trace all frozen
+interdependencies and all 23 row-stage positions. Both inventoried rows advance
+to translated, so the ledger becomes
+`41 translated / 4 partial / 0 pending`.

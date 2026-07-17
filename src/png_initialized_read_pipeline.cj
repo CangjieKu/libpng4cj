@@ -451,7 +451,7 @@ private func applyInitializedPngReadStagesWithPaletteMaximum(
     let gray = applyInitializedPngRgbToGrayStage(
         initialization, stripped.info, stripped.row()
     )
-    let grayToRgb = applyInitializedPngGrayToRgbStage(
+    let grayToRgb = applyInitializedPngGrayToRgbBeforeComposeStage(
         initialization, gray.info, gray.row()
     )
     let composed = applyInitializedPngComposeStage(
@@ -479,8 +479,15 @@ private func applyInitializedPngReadStagesWithPaletteMaximum(
     let expanded16 = applyInitializedPngExpand16Stage(
         initialization, quantized.info, quantized.row()
     )
+    let grayToRgbAfterExpand16 = applyInitializedPngGrayToRgbAfterExpand16Stage(
+        initialization,
+        expanded16.info,
+        expanded16.row()
+    )
     let invertedMono = applyInitializedPngInvertMonoStage(
-        initialization, expanded16.info, expanded16.row()
+        initialization,
+        grayToRgbAfterExpand16.info,
+        grayToRgbAfterExpand16.row()
     )
     let invertedAlpha = applyInitializedPngInvertAlphaStage(
         initialization, invertedMono.info, invertedMono.row()

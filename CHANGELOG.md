@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Complete background-aware Gray-to-RGB initialization and dispatch, including
+  equal-RGB gray synchronization and mutually exclusive pre-Compose versus
+  post-Expand16 placement across row, whole-image, and consumer paths.
 - Translate cHRM-derived RGB-to-gray coefficient initialization with explicit
   setter precedence, sRGB/historical fallback, immutable row/whole-image
   execution, and standalone consumer proof.

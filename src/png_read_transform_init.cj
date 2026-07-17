@@ -103,6 +103,7 @@ public class PngReadTransformInitialization {
     private let backgroundConfiguredValue: Bool
     private let composeEnabledValue: Bool
     private let backgroundExpandEnabledValue: Bool
+    private let backgroundIsGrayValue: Bool
     private let backgroundValue: PngBackground
     private let backgroundOriginalValue: PngBackground
     private let backgroundLinearValue: PngBackground
@@ -174,6 +175,7 @@ public class PngReadTransformInitialization {
         backgroundConfigured: Bool,
         composeEnabled: Bool,
         backgroundExpandEnabled: Bool,
+        backgroundIsGray: Bool,
         background: PngBackground,
         backgroundOriginal: PngBackground,
         backgroundLinear: PngBackground,
@@ -244,6 +246,7 @@ public class PngReadTransformInitialization {
         backgroundConfiguredValue = backgroundConfigured
         composeEnabledValue = composeEnabled
         backgroundExpandEnabledValue = backgroundExpandEnabled
+        backgroundIsGrayValue = backgroundIsGray
         backgroundValue = PngBackground(background)
         backgroundOriginalValue = PngBackground(backgroundOriginal)
         backgroundLinearValue = PngBackground(backgroundLinear)
@@ -359,6 +362,14 @@ public class PngReadTransformInitialization {
 
     public func backgroundExpandEnabled(): Bool {
         backgroundExpandEnabledValue
+    }
+
+    public func backgroundIsGray(): Bool {
+        backgroundIsGrayValue
+    }
+
+    public func grayToRgbAfterExpand16(): Bool {
+        backgroundIsGrayValue && hasStage(ReadStageGrayToRgb)
     }
 
     public func background(): PngBackground {
@@ -737,6 +748,19 @@ private class PngInputAlphaClassification {
     }
 }
 
+private class PngGrayToRgbBackgroundInitialization {
+    let background: PngEffectiveBackgroundInitialization
+    let backgroundIsGray: Bool
+
+    init(
+        background: PngEffectiveBackgroundInitialization,
+        backgroundIsGray: Bool
+    ) {
+        this.background = background
+        this.backgroundIsGray = backgroundIsGray
+    }
+}
+
 private class PngEffectiveBackgroundInitialization {
     let configured: Bool
     let composeEnabled: Bool
@@ -886,6 +910,53 @@ private func pngInitializeEffectiveBackground(
         background,
         state.backgroundGammaCode(),
         state.backgroundGamma()
+    )
+}
+
+private func pngInitializeGrayToRgbBackground(
+    state: PngReadTransformState,
+    ihdr: PngIhdr,
+    initialized: PngEffectiveBackgroundInitialization
+): PngGrayToRgbBackgroundInitialization {
+    if (!state.grayToRgbEnabled()) {
+        return PngGrayToRgbBackgroundInitialization(initialized, false)
+    }
+    if (initialized.expandEnabled) {
+        return PngGrayToRgbBackgroundInitialization(
+            initialized,
+            ihdr.colorType == Grayscale || ihdr.colorType == GrayscaleAlpha
+        )
+    }
+    if (!initialized.composeEnabled ||
+        initialized.background.red != initialized.background.green ||
+        initialized.background.red != initialized.background.blue) {
+        return PngGrayToRgbBackgroundInitialization(initialized, false)
+    }
+
+    let grayBackground = PngBackground(
+        initialized.background.index,
+        initialized.background.red,
+        initialized.background.red,
+        initialized.background.green,
+        initialized.background.blue
+    )
+    PngGrayToRgbBackgroundInitialization(
+        PngEffectiveBackgroundInitialization(
+            initialized.configured,
+            initialized.composeEnabled,
+            initialized.expandEnabled,
+            grayBackground,
+            grayBackground,
+            grayBackground,
+            initialized.gammaCode,
+            initialized.effectiveGammaCode,
+            initialized.gamma,
+            initialized.depthNormalized,
+            initialized.gammaInitialized,
+            initialized.toLinearGamma,
+            initialized.toScreenGamma
+        ),
+        true
     )
 }
 
@@ -1125,6 +1196,7 @@ private func pngReadTransformStages(
     state: PngReadTransformState,
     checkForInvalidIndexEnabled: Bool,
     gammaStageEnabled: Bool,
+    grayToRgbAfterExpand16: Bool,
     stripAlphaBeforeCompose: Bool,
     composeEnabled: Bool,
     stripAlphaAfterCompose: Bool,
@@ -1140,7 +1212,7 @@ private func pngReadTransformStages(
     if (state.rgbToGrayEnabled()) {
         stages.add(ReadStageRgbToGray)
     }
-    if (state.grayToRgbEnabled()) {
+    if (state.grayToRgbEnabled() && !grayToRgbAfterExpand16) {
         stages.add(ReadStageGrayToRgb)
     }
     if (composeEnabled) {
@@ -1166,6 +1238,9 @@ private func pngReadTransformStages(
     }
     if (state.expand16Enabled()) {
         stages.add(ReadStageExpand16)
+    }
+    if (state.grayToRgbEnabled() && grayToRgbAfterExpand16) {
+        stages.add(ReadStageGrayToRgb)
     }
     if (state.invertMonoEnabled()) {
         stages.add(ReadStageInvertMono)
@@ -1256,8 +1331,13 @@ public func initializePngReadTransformations(
         metadata,
         classification
     )
+    let grayToRgbBackground = pngInitializeGrayToRgbBackground(
+        state,
+        ihdr,
+        effectiveBackground
+    )
     let normalizedBackground = pngNormalizeInitializedBackgroundDepth(
-        effectiveBackground,
+        grayToRgbBackground.background,
         state,
         ihdr
     )
@@ -1451,6 +1531,7 @@ public func initializePngReadTransformations(
         state,
         checkForInvalidIndexEnabled,
         gammaStageEnabled,
+        grayToRgbBackground.backgroundIsGray,
         effectiveStripAlphaBeforeCompose,
         rowComposeEnabled,
         stripAlphaAfterCompose,
@@ -1469,6 +1550,7 @@ public func initializePngReadTransformations(
         initializedBackground.configured,
         rowComposeEnabled,
         initializedBackground.expandEnabled,
+        grayToRgbBackground.backgroundIsGray,
         initializedBackground.background,
         initializedBackground.original,
         initializedBackground.linear,

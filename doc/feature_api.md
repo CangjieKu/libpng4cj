@@ -71,6 +71,19 @@ The resolved `PngRgbToGrayTransform` is copy-frozen in
 `PngReadTransformInitialization` and is used by direct initialized row and
 whole-image execution. The source metadata remains unchanged.
 
+## Background-Aware Gray To RGB Dispatch
+
+`PngReadTransformInitialization.backgroundIsGray()` exposes the frozen
+background classification used by Gray-to-RGB dispatch.
+`grayToRgbAfterExpand16()` is true when Gray-to-RGB runs after Compose and
+Expand16; otherwise the selected stage runs before Compose.
+
+Background Expand on grayscale-family input is gray by definition. For normal
+Compose, equal red/green/blue values are treated as gray and the effective
+background gray component is synchronized from red. The initialized pipeline
+therefore applies exactly one Gray-to-RGB stage and preserves the upstream
+composition order for gray and non-gray backgrounds.
+
 ## Background Setter State
 
 `PngBackground(index, gray, red, green, blue)` is the immutable

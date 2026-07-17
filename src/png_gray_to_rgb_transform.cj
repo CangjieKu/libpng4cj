@@ -184,3 +184,28 @@ public func applyInitializedPngGrayToRgbStage(
     }
     pngDoGrayToRgb(rowInfo, row)
 }
+
+public func applyInitializedPngGrayToRgbBeforeComposeStage(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>
+): PngReadTransformRow {
+    validatePngTransformRowLength(rowInfo, row)
+    if (!initialization.hasStage(ReadStageGrayToRgb) ||
+        initialization.grayToRgbAfterExpand16()) {
+        return PngReadTransformRow(rowInfo, row)
+    }
+    pngDoGrayToRgb(rowInfo, row)
+}
+
+public func applyInitializedPngGrayToRgbAfterExpand16Stage(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>
+): PngReadTransformRow {
+    validatePngTransformRowLength(rowInfo, row)
+    if (!initialization.grayToRgbAfterExpand16()) {
+        return PngReadTransformRow(rowInfo, row)
+    }
+    pngDoGrayToRgb(rowInfo, row)
+}
