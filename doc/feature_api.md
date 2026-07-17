@@ -58,6 +58,19 @@ retain historical defaults; nonnegative red/green pairs whose sum exceeds
 `100000` are ignored by the fixed setter while RGB-to-gray remains selected,
 matching the upstream setter behavior.
 
+## cHRM RGB To Gray Initialization
+
+When RGB-to-gray is enabled with default or rejected coefficients,
+`initializePngReadTransformations` resolves retained cHRM chromaticities into
+red, green, and blue Y coefficients on libpng's `32768` scale. Accepted
+explicit setter coefficients always win. An sRGB chunk, absent cHRM data, or
+unusable chromaticities keep the historical `6968`, `23434`, and `2366`
+coefficients.
+
+The resolved `PngRgbToGrayTransform` is copy-frozen in
+`PngReadTransformInitialization` and is used by direct initialized row and
+whole-image execution. The source metadata remains unchanged.
+
 ## Background Setter State
 
 `PngBackground(index, gray, red, green, blue)` is the immutable

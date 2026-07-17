@@ -49,7 +49,7 @@ Status meanings:
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | translated | inherent-alpha/tRNS classification, no-alpha Compose/background cancellation, effective Optimize/Encode cancellation, and sub-byte gray background expansion translated |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, alpha-mode/default/screen Gamma facts, effective Encode/Optimize cancellation, Expand16/16-to-8 normalization, Screen/File/Unique gamma snapshots, non-palette Compose/Encode stages, Indexed PLTE/tRNS preprocessing, quantize, packing, packswap, and native user-transform are snapshotted; coefficient defaulting and complete dispatcher state remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, alpha-mode/default/screen Gamma facts, effective Encode/Optimize cancellation, cHRM-derived RGB-to-gray coefficient defaulting, Expand16/16-to-8 normalization, Screen/File/Unique gamma snapshots, non-palette Compose/Encode stages, Indexed PLTE/tRNS preprocessing, quantize, packing, packswap, and native user-transform are snapshotted; complete dispatcher state remains |
 | 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, effective palette/background synchronization, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; filler and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
@@ -523,3 +523,14 @@ handling. Transparent/partial/opaque values, Expand/non-Expand snapshots,
 whole-image execution, malformed-prefix behavior, and consumer use are covered.
 `png_init_palette_transformations` advances from partial to translated, so the
 ledger becomes `39 translated / 6 partial / 0 pending`.
+
+LP-S004BL translates the RGB-to-gray coefficient-defaulting branch reached from
+`png_init_read_transformations`. Accepted explicit setter coefficients retain
+priority; otherwise valid retained cHRM primaries and reference white are
+converted to normalized Y contributions on the `32768` scale, with the frozen
+largest-component one-step sum correction. sRGB, absent cHRM, out-of-range or
+degenerate chromaticities retain the historical `6968/23434/2366` values.
+Initialization freezes the result before 8/16-bit row and whole-image
+execution, and standalone consumer use is covered. The read initializer still
+has complete dispatcher state outstanding, so the ledger remains
+`39 translated / 6 partial / 0 pending`.

@@ -68,6 +68,52 @@ private func consumerGammaPng(): Array<Byte> {
     joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
 }
 
+private func consumerChromaticityPng(): Array<Byte> {
+    let ihdr = Array<Byte>(13, repeat: 0)
+    let width = writeUInt32Be(UInt32(2))
+    let height = writeUInt32Be(UInt32(1))
+    var index: Int64 = 0
+    while (index < 4) {
+        ihdr[index] = width[index]
+        ihdr[index + 4] = height[index]
+        index += 1
+    }
+    ihdr[8] = UInt8(8)
+    ihdr[9] = UInt8(6)
+
+    let chromaticityValues: Array<UInt32> = [
+        UInt32(34570), UInt32(35850),
+        UInt32(73470), UInt32(26530),
+        UInt32(15960), UInt32(84040),
+        UInt32(3660), UInt32(10)
+    ]
+    let chromaticities = Array<Byte>(32, repeat: 0)
+    var valueIndex: Int64 = 0
+    while (valueIndex < chromaticityValues.size) {
+        let encoded = writeUInt32Be(chromaticityValues[valueIndex])
+        var byteIndex: Int64 = 0
+        while (byteIndex < encoded.size) {
+            chromaticities[valueIndex * 4 + byteIndex] = encoded[byteIndex]
+            byteIndex += 1
+        }
+        valueIndex += 1
+    }
+
+    var png = joinConsumerBytes(
+        PNG_SIGNATURE,
+        makeConsumerChunk(PNG_CHUNK_IHDR, ihdr)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_cHRM, chromaticities)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_RGBA_ZLIB)
+    )
+    joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
+}
+
 private func consumerGamma16Png(): Array<Byte> {
     let ihdr = Array<Byte>(13, repeat: 0)
     ihdr[3] = UInt8(1)
@@ -347,6 +393,49 @@ main(): Int64 {
         !gammaRgbRow.hadNonGrayPixels ||
         gammaRgbRow.info.colorType != GrayscaleAlpha) {
         println("libpng4cj gamma-aware 8-bit RGB-to-gray check failed")
+        return 1
+    }
+    let chromaticityDecoded = decodePngNonInterlaced(
+        consumerChromaticityPng()
+    )
+    let chromaticityState = PngReadTransformState()
+    chromaticityState.markIhdrRead(chromaticityDecoded.ihdr)
+    if (!chromaticityState.setRgbToGrayFixed(
+        Convert,
+        Int64(-1),
+        Int64(-1)
+    )) {
+        println("libpng4cj cHRM RGB-to-gray setup failed")
+        return 1
+    }
+    let chromaticityInit = initializePngReadTransformations(
+        chromaticityState,
+        chromaticityDecoded
+    )
+    let chromaticityTransform = chromaticityInit.rgbToGrayTransform()
+    if (chromaticityTransform.redCoefficient != UInt16(9440) ||
+        chromaticityTransform.greenCoefficient != UInt16(23325) ||
+        chromaticityTransform.blueCoefficient != UInt16(3)) {
+        println("libpng4cj cHRM RGB-to-gray coefficient check failed")
+        return 1
+    }
+    let chromaticityWholeState = PngReadTransformState()
+    chromaticityWholeState.markIhdrRead(chromaticityDecoded.ihdr)
+    if (!chromaticityWholeState.setRgbToGrayFixed(
+        Convert,
+        Int64(-1),
+        Int64(-1)
+    )) {
+        println("libpng4cj cHRM RGB-to-gray whole-image setup failed")
+        return 1
+    }
+    let chromaticityRows = transformPngRowsInitialized(
+        chromaticityDecoded,
+        chromaticityWholeState
+    )
+    if (chromaticityRows.info.colorType != GrayscaleAlpha ||
+        chromaticityRows.info.channels != UInt8(2)) {
+        println("libpng4cj cHRM RGB-to-gray whole-image check failed")
         return 1
     }
     let gamma16Table = pngBuildGamma16BitTable(UInt8(8), Int32(220000))

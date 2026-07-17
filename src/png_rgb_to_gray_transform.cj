@@ -137,6 +137,19 @@ public class PngRgbToGrayTransform {
         customCoefficientsAccepted = fixed.accepted
     }
 
+    init(
+        policy: PngRgbToGrayPolicy,
+        redCoefficient: UInt16,
+        greenCoefficient: UInt16,
+        blueCoefficient: UInt16
+    ) {
+        this.policy = policy
+        this.redCoefficient = redCoefficient
+        this.greenCoefficient = greenCoefficient
+        this.blueCoefficient = blueCoefficient
+        customCoefficientsAccepted = false
+    }
+
     public init(source: PngRgbToGrayTransform) {
         policy = source.policy
         redCoefficient = source.redCoefficient

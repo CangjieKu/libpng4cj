@@ -88,6 +88,42 @@ private func makeGrayPng(
     joinGrayBytes(out, makeGrayChunk(PNG_CHUNK_IEND, []))
 }
 
+private func makeGrayChromaticitiesChunk(
+    whiteX: UInt32,
+    whiteY: UInt32,
+    redX: UInt32,
+    redY: UInt32,
+    greenX: UInt32,
+    greenY: UInt32,
+    blueX: UInt32,
+    blueY: UInt32
+): Array<Byte> {
+    let values: Array<UInt32> = [
+        whiteX, whiteY, redX, redY, greenX, greenY, blueX, blueY
+    ]
+    let data = Array<Byte>(32, repeat: 0)
+    var valueIndex: Int64 = 0
+    while (valueIndex < values.size) {
+        let encoded = writeUInt32Be(values[valueIndex])
+        var byteIndex: Int64 = 0
+        while (byteIndex < encoded.size) {
+            data[valueIndex * 4 + byteIndex] = encoded[byteIndex]
+            byteIndex += 1
+        }
+        valueIndex += 1
+    }
+    makeGrayChunk(PNG_CHUNK_cHRM, data)
+}
+
+private func makeProPhotoChromaticitiesChunk(): Array<Byte> {
+    makeGrayChromaticitiesChunk(
+        UInt32(34570), UInt32(35850),
+        UInt32(73470), UInt32(26530),
+        UInt32(15960), UInt32(84040),
+        UInt32(3660), UInt32(10)
+    )
+}
+
 @Test
 public class PngRgbToGrayTransformTestSuite {
     @TestCase
@@ -402,5 +438,174 @@ public class PngRgbToGrayTransformTestSuite {
         let rows = transformPngRowsToGray8(decoded, state.rgbToGrayTransform())
         let expected: Array<Byte> = [10, 40]
         @Assert(rows.row(0), expected)
+    }
+
+    @TestCase
+    public func derivesRgbToGrayCoefficientsFromProPhotoChromaticities(): Unit {
+        let png = makeGrayPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [makeProPhotoChromaticitiesChunk()],
+            GRAY_RGB8_ZLIB
+        )
+        let decoded = decodePngNonInterlaced(png)
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(state.setRgbToGrayFixed(Convert, Int64(-1), Int64(-1)), true)
+
+        let initialized = initializePngReadTransformations(state, decoded)
+        let resolved = initialized.rgbToGrayTransform()
+        @Assert(resolved.redCoefficient, UInt16(9440))
+        @Assert(resolved.greenCoefficient, UInt16(23325))
+        @Assert(resolved.blueCoefficient, UInt16(3))
+        @Assert(resolved.customCoefficientsAccepted, false)
+
+        let wholeImageState = PngReadTransformState()
+        wholeImageState.markIhdrRead(decoded.ihdr)
+        @Assert(
+            wholeImageState.setRgbToGrayFixed(
+                Convert,
+                Int64(-1),
+                Int64(-1)
+            ),
+            true
+        )
+        let transformed = transformPngRowsInitialized(decoded, wholeImageState)
+        let expected: Array<Byte> = [17, 47]
+        @Assert(transformed.info.colorType, Grayscale)
+        @Assert(transformed.row(0), expected)
+    }
+
+    @TestCase
+    public func preservesExplicitCoefficientsOverChromaticities(): Unit {
+        let png = makeGrayPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [makeProPhotoChromaticitiesChunk()],
+            GRAY_RGB8_ZLIB
+        )
+        let decoded = decodePngNonInterlaced(png)
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(100000), UInt32(0)),
+            true
+        )
+        let initialized = initializePngReadTransformations(state, decoded)
+        let resolved = initialized.rgbToGrayTransform()
+        @Assert(resolved.redCoefficient, UInt16(32768))
+        @Assert(resolved.greenCoefficient, UInt16(0))
+        @Assert(resolved.blueCoefficient, UInt16(0))
+        @Assert(resolved.customCoefficientsAccepted, true)
+    }
+
+    @TestCase
+    public func keepsHistoricalCoefficientsForSrgbAndDegenerateChrm(): Unit {
+        let srgbChromaticities = makeGrayChromaticitiesChunk(
+            UInt32(31270), UInt32(32900),
+            UInt32(64000), UInt32(33000),
+            UInt32(30000), UInt32(60000),
+            UInt32(15000), UInt32(6000)
+        )
+        let derivedSrgbPng = makeGrayPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [srgbChromaticities],
+            GRAY_RGB8_ZLIB
+        )
+        let derivedSrgbDecoded = decodePngNonInterlaced(derivedSrgbPng)
+        let derivedSrgbState = PngReadTransformState()
+        derivedSrgbState.markIhdrRead(derivedSrgbDecoded.ihdr)
+        @Assert(
+            derivedSrgbState.setRgbToGrayFixed(
+                Convert,
+                Int64(-1),
+                Int64(-1)
+            ),
+            true
+        )
+        let derivedSrgb = initializePngReadTransformations(
+            derivedSrgbState,
+            derivedSrgbDecoded
+        ).rgbToGrayTransform()
+        @Assert(derivedSrgb.redCoefficient, UInt16(6968))
+        @Assert(derivedSrgb.greenCoefficient, UInt16(23434))
+        @Assert(derivedSrgb.blueCoefficient, UInt16(2366))
+
+        let adobeChromaticities = makeGrayChromaticitiesChunk(
+            UInt32(31270), UInt32(32900),
+            UInt32(64000), UInt32(33000),
+            UInt32(21000), UInt32(71000),
+            UInt32(15000), UInt32(6000)
+        )
+        let adobePng = makeGrayPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [adobeChromaticities],
+            GRAY_RGB8_ZLIB
+        )
+        let adobeDecoded = decodePngNonInterlaced(adobePng)
+        let adobeState = PngReadTransformState()
+        adobeState.markIhdrRead(adobeDecoded.ihdr)
+        @Assert(
+            adobeState.setRgbToGrayFixed(Convert, Int64(-1), Int64(-1)),
+            true
+        )
+        let adobe = initializePngReadTransformations(adobeState, adobeDecoded)
+            .rgbToGrayTransform()
+        @Assert(adobe.redCoefficient, UInt16(9743))
+        @Assert(adobe.greenCoefficient, UInt16(20558))
+        @Assert(adobe.blueCoefficient, UInt16(2467))
+
+        let srgbPng = makeGrayPng(
+            UInt32(2),
+            UInt8(8),
+            UInt8(2),
+            [
+                makeProPhotoChromaticitiesChunk(),
+                makeGrayChunk(PNG_CHUNK_sRGB, [UInt8(0)])
+            ],
+            GRAY_RGB8_ZLIB
+        )
+        let srgbDecoded = decodePngNonInterlaced(srgbPng)
+        let srgbState = PngReadTransformState()
+        srgbState.markIhdrRead(srgbDecoded.ihdr)
+        @Assert(
+            srgbState.setRgbToGrayFixed(Convert, Int64(-1), Int64(-1)),
+            true
+        )
+        let srgb = initializePngReadTransformations(srgbState, srgbDecoded)
+            .rgbToGrayTransform()
+        @Assert(srgb.redCoefficient, UInt16(6968))
+        @Assert(srgb.greenCoefficient, UInt16(23434))
+        @Assert(srgb.blueCoefficient, UInt16(2366))
+
+        let degenerate = makeGrayChromaticitiesChunk(
+            UInt32(31270), UInt32(32900),
+            UInt32(20000), UInt32(30000),
+            UInt32(20000), UInt32(30000),
+            UInt32(20000), UInt32(30000)
+        )
+        let fallbackPng = makeGrayPng(
+            UInt32(2), UInt8(8), UInt8(2), [degenerate], GRAY_RGB8_ZLIB
+        )
+        let fallbackDecoded = decodePngNonInterlaced(fallbackPng)
+        let fallbackState = PngReadTransformState()
+        fallbackState.markIhdrRead(fallbackDecoded.ihdr)
+        @Assert(
+            fallbackState.setRgbToGrayFixed(Convert, Int64(-1), Int64(-1)),
+            true
+        )
+        let fallback = initializePngReadTransformations(
+            fallbackState,
+            fallbackDecoded
+        ).rgbToGrayTransform()
+        @Assert(fallback.redCoefficient, UInt16(6968))
+        @Assert(fallback.greenCoefficient, UInt16(23434))
+        @Assert(fallback.blueCoefficient, UInt16(2366))
     }
 }

@@ -1322,7 +1322,7 @@ public func initializePngReadTransformations(
     }
     let rgbToGrayEnabled = state.rgbToGrayEnabled()
     let rgbToGrayTransform = if (rgbToGrayEnabled) {
-        PngRgbToGrayTransform(state.rgbToGrayTransform())
+        pngResolveRgbToGrayTransform(state.rgbToGrayTransform(), metadata)
     } else {
         PngRgbToGrayTransform()
     }

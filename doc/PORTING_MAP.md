@@ -222,8 +222,9 @@ configuration behavior into `png_rgb_to_gray_transform.cj`:
 Palette, grayscale-family, native 8-bit, native UInt16, and explicit Strip/Scale
 inputs share the same output contract. Retained metadata remains unchanged.
 
-cHRM-derived default coefficients, gamma linearization and lookup tables,
-background/alpha composition, warning callbacks, transformed metadata
+cHRM-derived default coefficients were outside LP-S004H and are now connected
+through LP-S004BL. Gamma linearization and lookup tables, background/alpha
+composition, warning callbacks, transformed metadata
 projection, quantization, packing/packswap, byte swap, and user callbacks were
 outside the LP-S004H packet; later sections record their current status.
 
@@ -285,10 +286,10 @@ the non-gamma portions of the three read initializer functions:
 - initialization is one-shot, marks row state initialized, and therefore makes
   subsequent setters fail through the translated `png_rtran_ok` lifecycle
 
-The initializer ledger entries remain partial: background and alpha-mode
-optimization, gamma, cHRM-derived RGB coefficients, remaining palette
-initialization mutation, transformed info projection, and complete row dispatch
-are still absent.
+The initializer ledger entries remain partial: later packets connected
+background and alpha-mode optimization, Gamma, cHRM-derived RGB coefficients,
+and palette initialization, while complete row dispatch and transformed info
+projection still remain open.
 
 ## Implemented Initialized Non-Gamma Read Pipeline
 
@@ -924,6 +925,26 @@ LP-S004BK closes the final frozen branch in
 All frozen branches of `png_init_palette_transformations` are now traceable, so
 the row advances to translated. The ledger becomes
 `39 translated / 6 partial / 0 pending`.
+
+## Implemented cHRM RGB-to-Gray Coefficient Initialization
+
+LP-S004BL translates `png.c::png_set_rgb_coefficients` as consumed by
+`pngrtran.c::png_init_read_transformations`:
+
+- accepted explicit fixed/floating setter coefficients remain authoritative
+- valid retained cHRM reference-white and primary chromaticities are solved into
+  normalized red, green, and blue Y contributions on the `32768` scale
+- nearest rounding preserves the frozen largest-component correction when the
+  three independently rounded coefficients sum to `32767` or `32769`
+- sRGB metadata intentionally keeps the historical REC 709 defaults, matching
+  upstream colorspace precedence
+- absent, out-of-range, singular, negative-scale, and otherwise unusable cHRM
+  values fall back to `6968/23434/2366`
+- immutable initialization, 8-bit row execution, whole-image execution,
+  explicit setter precedence, and standalone consumer use are covered
+
+The complete read dispatcher remains open, so `png_init_read_transformations`
+stays partial and the ledger remains `39 translated / 6 partial / 0 pending`.
 
 ## Implemented Direct Invert-Monochrome Row Body
 

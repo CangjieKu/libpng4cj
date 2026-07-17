@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Translate cHRM-derived RGB-to-gray coefficient initialization with explicit
+  setter precedence, sRGB/historical fallback, immutable row/whole-image
+  execution, and standalone consumer proof.
 - Complete Indexed tRNS inversion during palette initialization when Background
   Expand and Expand are active without tRNS-to-alpha expansion, using a
   copy-owned effective alpha prefix while preserving ordinary Expand row-alpha
