@@ -1484,3 +1484,24 @@ LP-S004BO translates `pngrtran.c::png_set_crc_action` into
 `decodePngNonInterlaced` also accepts explicit critical and ancillary actions
 for the native high-level read path. Native warning/error callbacks, write-side
 CRC policy, and the C ABI remain separate work.
+
+## Implemented Remaining Standard Ancillary Metadata
+
+LP-S004BR translates the frozen native read handling for cICP, cLLI, mDCV,
+eXIf, hIST, oFFs, pCAL, sCAL, and sPLT:
+
+- fixed-size chunks preserve length, signed/fixed field, luminance-limit,
+  matrix-coefficient, TIFF-header, and palette-relative validation
+- pCAL and sCAL retain validated PNG numeric strings without converting their
+  public representation through host floating-point formatting
+- sPLT retains 8-bit and 16-bit entries, validates its keyword and entry shape,
+  and preserves multiple palettes in file order
+- eXIf remains recognized after IDAT, while the other families retain their
+  frozen PLTE/IDAT placement constraints
+- result objects expose immutable scalar models and copy-owned byte, histogram,
+  parameter, scale, EXIF, and palette-name arrays
+- raw, RGBA8, RGBA16, whole decoder, unknown-policy separation, and standalone
+  consumer paths retain the metadata without changing pixel bytes
+
+The iCCP path continues to validate and retain ICC profile bytes. Neither
+upstream libpng nor this translation performs ICC pixel color conversion.

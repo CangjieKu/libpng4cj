@@ -213,6 +213,7 @@ class ParsedPngMetadata {
     var background: PngBackground = PngBackground()
     var hasPhysicalDimensions: Bool = false
     var physicalDimensions: PngPhysicalDimensions = PngPhysicalDimensions()
+    let ancillary: ParsedPngAncillaryMetadata = ParsedPngAncillaryMetadata()
     let extended: ParsedExtendedMetadata = ParsedExtendedMetadata()
 }
 
@@ -231,6 +232,20 @@ public class PngReadMetadata {
     public let background: PngBackground
     public let hasPhysicalDimensions: Bool
     public let physicalDimensions: PngPhysicalDimensions
+    public let hasCodingIndependentCodePoints: Bool
+    public let codingIndependentCodePoints: PngCodingIndependentCodePoints
+    public let hasContentLightLevel: Bool
+    public let contentLightLevel: PngContentLightLevel
+    public let hasMasteringDisplayColorVolume: Bool
+    public let masteringDisplayColorVolume: PngMasteringDisplayColorVolume
+    public let hasExif: Bool
+    public let hasHistogram: Bool
+    public let hasImageOffset: Bool
+    public let imageOffset: PngImageOffset
+    public let hasPixelCalibration: Bool
+    public let pixelCalibration: PngPixelCalibration
+    public let hasPhysicalScale: Bool
+    public let physicalScale: PngPhysicalScale
     public let hasIccProfile: Bool
     public let iccProfile: PngIccProfile
     public let hasModificationTime: Bool
@@ -241,6 +256,9 @@ public class PngReadMetadata {
     public let transparentBlue: UInt16
     private let ownedPalette: Array<Byte>
     private let ownedPaletteAlpha: Array<Byte>
+    private let ownedExif: Array<Byte>
+    private let ownedHistogram: Array<UInt16>
+    private let ownedSuggestedPalettes: Array<PngSuggestedPalette>
     private let ownedTextEntries: Array<PngTextEntry>
     private let ownedUnknownChunks: Array<PngUnknownChunk>
 
@@ -265,6 +283,23 @@ public class PngReadMetadata {
         background = parsed.background
         hasPhysicalDimensions = parsed.hasPhysicalDimensions
         physicalDimensions = parsed.physicalDimensions
+        hasCodingIndependentCodePoints = parsed.ancillary.hasCicp
+        codingIndependentCodePoints = parsed.ancillary.cicp
+        hasContentLightLevel = parsed.ancillary.hasContentLightLevel
+        contentLightLevel = parsed.ancillary.contentLightLevel
+        hasMasteringDisplayColorVolume = parsed.ancillary.hasMasteringDisplay
+        masteringDisplayColorVolume = parsed.ancillary.masteringDisplay
+        hasExif = parsed.ancillary.hasExif
+        ownedExif = parsed.ancillary.exif.clone()
+        hasHistogram = parsed.ancillary.hasHistogram
+        ownedHistogram = parsed.ancillary.histogram.clone()
+        hasImageOffset = parsed.ancillary.hasOffset
+        imageOffset = parsed.ancillary.imageOffset
+        hasPixelCalibration = parsed.ancillary.hasCalibration
+        pixelCalibration = parsed.ancillary.calibration
+        hasPhysicalScale = parsed.ancillary.hasPhysicalScale
+        physicalScale = parsed.ancillary.physicalScale
+        ownedSuggestedPalettes = parsed.ancillary.suggestedPalettes()
         hasIccProfile = parsed.extended.hasIccProfile
         iccProfile = parsed.extended.iccProfile
         hasModificationTime = parsed.extended.hasModificationTime
@@ -283,6 +318,29 @@ public class PngReadMetadata {
 
     public func paletteAlpha(): Array<Byte> {
         ownedPaletteAlpha.clone()
+    }
+
+    public func exif(): Array<Byte> {
+        ownedExif.clone()
+    }
+
+    public func histogram(): Array<UInt16> {
+        ownedHistogram.clone()
+    }
+
+    public func suggestedPaletteCount(): Int64 {
+        ownedSuggestedPalettes.size
+    }
+
+    public func suggestedPalette(index: Int64): PngSuggestedPalette {
+        if (index < 0 || index >= ownedSuggestedPalettes.size) {
+            throw PngFormatException(InvalidArgument, index, "PNG suggested palette index is out of bounds")
+        }
+        ownedSuggestedPalettes[index]
+    }
+
+    public func suggestedPalettes(): Array<PngSuggestedPalette> {
+        ownedSuggestedPalettes.clone()
     }
 
     public func textEntryCount(): Int64 {
@@ -582,6 +640,9 @@ class PngMetadataBuilder {
                 data[8]
             )
             parsed.hasPhysicalDimensions = true
+            return true
+        }
+        if (parsed.ancillary.handleChunk(chunk, seenPalette, seenIdat, palette)) {
             return true
         }
         handleExtendedMetadataChunk(parsed.extended, chunk, ihdr, seenPalette, seenIdat, limits)

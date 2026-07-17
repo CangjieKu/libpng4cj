@@ -38,9 +38,29 @@ import libpng4cj.*
   swapping, 16-bit byte swapping, and native Cangjie read user transforms
 - fixed/floating background setter state with immutable color, gamma-code,
   expansion, Compose/Strip Alpha, and alpha-encoding override facts
+- copy-owned standard ancillary metadata for cICP, cLLI, mDCV, eXIf, hIST,
+  oFFs, pCAL, sCAL, and sPLT
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).
+
+## Standard Ancillary Metadata
+
+`PngReadMetadata` exposes immutable presence/value pairs for coding-independent
+code points, content light level, mastering-display color volume, image offset,
+pixel calibration, and physical scale. `exif()` and `histogram()` return owned
+copies. Suggested palettes are available through `suggestedPaletteCount()`,
+`suggestedPalette(index)`, and `suggestedPalettes()`; palette names and pCAL or
+sCAL byte strings are copy-owned at their accessors.
+
+The native decoder recognizes cICP, cLLI, and mDCV before PLTE/IDAT; hIST after
+PLTE and before IDAT; oFFs, pCAL, sCAL, and sPLT before IDAT; and eXIf on either
+side of IDAT. Single-instance chunks reject duplicates, while multiple sPLT
+chunks are retained in file order. These values do not alter pixel data.
+
+iCCP profile retention remains separate. libpng validates and stores ICC
+profiles but does not perform ICC pixel color conversion, and libpng4cj makes
+the same boundary explicit.
 
 ## Floating RGB To Gray Setter
 

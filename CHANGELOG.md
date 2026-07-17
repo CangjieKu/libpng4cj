@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Translate cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and sPLT read
+  metadata with ordering, duplicate, field, numeric-string, copy-ownership,
+  transformed-result, post-IDAT eXIf, and standalone consumer coverage.
 - Complete background-aware Gray-to-RGB initialization and dispatch, including
   equal-RGB gray synchronization and mutually exclusive pre-Compose versus
   post-Expand16 placement across row, whole-image, and consumer paths.

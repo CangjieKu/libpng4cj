@@ -5,16 +5,17 @@
 | Capability | Status | Current truth |
 | --- | --- | --- |
 | ICC color application | Pending | iCCP bytes and validated profile metadata are retained; pixel colors are not converted |
-| Gamma correction | Partial | gAMA/sRGB/cHRM metadata is retained; initialized packed/8/16-bit row correction and gamma-aware RGB-to-gray execute through frozen direct/linear tables; background/alpha-mode and ICC color application remain open |
-| Background composition | Partial | bKGD and fixed/floating application state are retained; initialization covers cancellation, expansion, exact depth normalization, Screen/File/Unique gamma snapshots, and Compose-driven tables; non-palette packed/8/16-bit Gray/GA/RGB/RGBA tRNS and alpha composition now execute with direct/linear Gamma and post-Compose Strip Alpha; palette mutation and alpha-mode behavior remain open |
+| Gamma correction | Implemented for current read pipeline | gAMA/sRGB/cHRM metadata, packed/8/16-bit correction, gamma-aware RGB-to-gray, background composition, and alpha-mode paths execute through frozen direct/linear tables; ICC pixel color conversion remains outside libpng parity |
+| Background composition | Implemented for current read pipeline | bKGD, fixed/floating application state, palette and non-palette composition, depth normalization, Screen/File/Unique gamma snapshots, alpha modes, and post-Compose Strip Alpha execute in initialized row and whole-image paths |
+| Standard ancillary metadata | Implemented for current read pipeline | cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and multiple sPLT entries are validated and retained through raw/RGBA result surfaces; recognized eXIf remains available after IDAT |
 | Adam7 decoding | Pending | Adam7 IHDR values are recognized; interlaced row execution is not implemented |
 | Progressive reading | Pending | No progressive state machine or callback surface is implemented |
 | Write API | Pending | PNG encoding and write-side transforms are not implemented |
 | C ABI compatibility | Pending | No `libpng16` headers, exported symbols, or callback/longjmp bridge is shipped |
 | User callbacks | Partial | Native Cangjie read user-transform callbacks execute with row/pass context and copy ownership; custom IO, warning/error, allocator, and chunk callback families remain open |
 
-The read-transform ledger currently records `33/45` translated, `8/45`
-partial, and `4/45` pending top-level `pngrtran.c` functions. The complete
+The read-transform ledger currently records `45/45` translated, `0/45`
+partial, and `0/45` pending top-level `pngrtran.c` functions. The complete
 source-backed status is maintained in
 [`PNG_RTRAN_TRANSLATION_LEDGER.md`](PNG_RTRAN_TRANSLATION_LEDGER.md).
 
@@ -62,6 +63,6 @@ declared minimum.
   and have focused boundary tests, but large-file throughput is not certified.
 - Decoder sessions and transform state are instance-owned with no package-level
   mutable decode state. Concurrent stress and race testing are still pending.
-- Adam7 remains a missing capability. Gamma support is partial and limited to
-  the implemented initialized row paths; broader color-management composition
-  remains explicitly pending.
+- Adam7 remains a missing capability. Native read transforms are complete for
+  the current non-interlaced pipeline, while ICC pixel color conversion is not
+  a libpng behavior and no broader color-management engine is claimed.

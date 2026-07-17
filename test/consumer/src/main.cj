@@ -73,6 +73,42 @@ private func consumerGammaPng(): Array<Byte> {
     joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
 }
 
+private func consumerAncillaryMetadataPng(): Array<Byte> {
+    let ihdr = Array<Byte>(13, repeat: UInt8(0))
+    let width = writeUInt32Be(UInt32(2))
+    let height = writeUInt32Be(UInt32(1))
+    var index: Int64 = 0
+    while (index < 4) {
+        ihdr[index] = width[index]
+        ihdr[index + 4] = height[index]
+        index += 1
+    }
+    ihdr[8] = UInt8(8)
+    ihdr[9] = UInt8(6)
+
+    var png = joinConsumerBytes(
+        PNG_SIGNATURE,
+        makeConsumerChunk(PNG_CHUNK_IHDR, ihdr)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_cICP, [UInt8(1), UInt8(13), UInt8(0), UInt8(1)])
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_sCAL, [UInt8(1), UInt8(0x31), UInt8(0), UInt8(0x32)])
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_RGBA_ZLIB)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_eXIf, [UInt8(0x49), UInt8(0x49), UInt8(0x2a), UInt8(0)])
+    )
+    joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
+}
+
 private func consumerChromaticityPng(): Array<Byte> {
     let ihdr = Array<Byte>(13, repeat: 0)
     let width = writeUInt32Be(UInt32(2))
@@ -835,6 +871,20 @@ main(): Int64 {
     if (lateUserTransformRow.row()[0] != UInt8(99) ||
         userTransformSource[0] == UInt8(99)) {
         println("libpng4cj late user-transform execution failed")
+        return 1
+    }
+    let ancillaryMetadata = decodePngNonInterlaced(
+        consumerAncillaryMetadataPng(),
+        RetainAncillary
+    ).metadata
+    if (!ancillaryMetadata.hasCodingIndependentCodePoints ||
+        ancillaryMetadata.codingIndependentCodePoints.transferFunction != UInt8(13) ||
+        !ancillaryMetadata.hasPhysicalScale ||
+        ancillaryMetadata.physicalScale.width() != [UInt8(0x31)] ||
+        !ancillaryMetadata.hasExif ||
+        ancillaryMetadata.exif() != [UInt8(0x49), UInt8(0x49), UInt8(0x2a), UInt8(0)] ||
+        ancillaryMetadata.unknownChunkCount() != Int64(0)) {
+        println("libpng4cj ancillary metadata consumer check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
