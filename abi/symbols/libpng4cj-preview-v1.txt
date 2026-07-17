@@ -1,0 +1,5 @@
+png4cj_capabilities
+png4cj_check_signature
+png4cj_decode_rgba8
+png4cj_libpng_version
+png4cj_preview_abi_version
