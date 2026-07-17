@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | ICC color application | Pending | iCCP bytes and validated profile metadata are retained; pixel colors are not converted |
 | Gamma correction | Partial | gAMA/sRGB/cHRM metadata is retained; initialized packed/8/16-bit row correction and gamma-aware RGB-to-gray execute through frozen direct/linear tables; background/alpha-mode and ICC color application remain open |
-| Background composition | Partial | bKGD and fixed/floating application state are retained; initialization covers opaque cancellation, palette/sub-byte expansion, exact Expand16/16-to-8 depth normalization, Screen/File/Unique gamma derivation, original/linear/screen snapshots, and Compose-driven linear tables; pixel composition and palette mutation remain open |
+| Background composition | Partial | bKGD and fixed/floating application state are retained; initialization covers cancellation, expansion, exact depth normalization, Screen/File/Unique gamma snapshots, and Compose-driven tables; non-palette packed/8/16-bit Gray/GA/RGB/RGBA tRNS and alpha composition now execute with direct/linear Gamma and post-Compose Strip Alpha; palette mutation and alpha-mode behavior remain open |
 | Adam7 decoding | Pending | Adam7 IHDR values are recognized; interlaced row execution is not implemented |
 | Progressive reading | Pending | No progressive state machine or callback surface is implemented |
 | Write API | Pending | PNG encoding and write-side transforms are not implemented |

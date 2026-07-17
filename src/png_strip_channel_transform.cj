@@ -69,3 +69,15 @@ public func applyInitializedPngStripAlphaStage(
     }
     pngDoStripChannel(rowInfo, row, false)
 }
+
+public func applyInitializedPngStripAlphaAfterComposeStage(
+    initialization: PngReadTransformInitialization,
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>
+): PngReadTransformRow {
+    validatePngTransformRowLength(rowInfo, row)
+    if (!initialization.hasStage(ReadStageStripAlphaAfterCompose)) {
+        return PngReadTransformRow(rowInfo, row)
+    }
+    pngDoStripChannel(rowInfo, row, false)
+}

@@ -23,6 +23,8 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStagePaletteIndexCheck
     | ReadStageUserTransform
     | ReadStageGamma
+    | ReadStageCompose
+    | ReadStageStripAlphaAfterCompose
 
     public operator func ==(right: PngReadTransformStage): Bool {
         ordinalValue() == right.ordinalValue()
@@ -54,6 +56,8 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStagePaletteIndexCheck => 17
             case ReadStageUserTransform => 18
             case ReadStageGamma => 19
+            case ReadStageCompose => 20
+            case ReadStageStripAlphaAfterCompose => 21
         }
     }
 
@@ -79,6 +83,8 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStagePaletteIndexCheck => "PALETTE_INDEX_CHECK"
             case ReadStageUserTransform => "USER_TRANSFORM"
             case ReadStageGamma => "GAMMA"
+            case ReadStageCompose => "COMPOSE"
+            case ReadStageStripAlphaAfterCompose => "STRIP_ALPHA_AFTER_COMPOSE"
         }
     }
 }
@@ -112,6 +118,7 @@ public class PngReadTransformInitialization {
     private let ownedExpandPalette: Array<Byte>
     private let ownedExpandPaletteAlpha: Array<Byte>
     private let expandTransparencyValue: PngExpandTransparency
+    private let composeTransparencyValue: PngExpandTransparency
     private let rgbToGrayEnabledValue: Bool
     private let rgbToGrayTransformValue: PngRgbToGrayTransform
     private let quantizeEnabledValue: Bool
@@ -172,6 +179,7 @@ public class PngReadTransformInitialization {
         expandPalette: Array<Byte>,
         expandPaletteAlpha: Array<Byte>,
         expandTransparency: PngExpandTransparency,
+        composeTransparency: PngExpandTransparency,
         rgbToGrayEnabled: Bool,
         rgbToGrayTransform: PngRgbToGrayTransform,
         quantizeEnabled: Bool,
@@ -239,6 +247,7 @@ public class PngReadTransformInitialization {
         ownedExpandPalette = expandPalette.clone()
         ownedExpandPaletteAlpha = expandPaletteAlpha.clone()
         expandTransparencyValue = expandTransparency
+        composeTransparencyValue = composeTransparency
         rgbToGrayEnabledValue = rgbToGrayEnabled
         rgbToGrayTransformValue = PngRgbToGrayTransform(rgbToGrayTransform)
         quantizeEnabledValue = quantizeEnabled
@@ -485,6 +494,10 @@ public class PngReadTransformInitialization {
 
     public func expandTransparency(): PngExpandTransparency {
         expandTransparencyValue
+    }
+
+    public func composeTransparency(): PngExpandTransparency {
+        composeTransparencyValue
     }
 
     public func rgbToGrayEnabled(): Bool {
@@ -1007,7 +1020,9 @@ private func pngReadTransformStages(
     state: PngReadTransformState,
     checkForInvalidIndexEnabled: Bool,
     gammaStageEnabled: Bool,
-    stripAlphaBeforeCompose: Bool
+    stripAlphaBeforeCompose: Bool,
+    composeEnabled: Bool,
+    stripAlphaAfterCompose: Bool
 ): Array<PngReadTransformStage> {
     let stages = ArrayList<PngReadTransformStage>()
     if (state.expandEnabled()) {
@@ -1022,8 +1037,14 @@ private func pngReadTransformStages(
     if (state.grayToRgbEnabled()) {
         stages.add(ReadStageGrayToRgb)
     }
+    if (composeEnabled) {
+        stages.add(ReadStageCompose)
+    }
     if (gammaStageEnabled) {
         stages.add(ReadStageGamma)
+    }
+    if (stripAlphaAfterCompose) {
+        stages.add(ReadStageStripAlphaAfterCompose)
     }
     if (state.scale16Enabled()) {
         stages.add(ReadStageScale16To8)
@@ -1177,6 +1198,20 @@ public func initializePngReadTransformations(
     } else {
         PngExpandTransparency()
     }
+    let composeTransparency = if (!usesPaletteInitializer &&
+        metadata.hasTransparency) {
+        match (ihdr.colorType) {
+            case Grayscale => PngExpandTransparency(metadata.transparentGray)
+            case Truecolor => PngExpandTransparency(
+                metadata.transparentRed,
+                metadata.transparentGreen,
+                metadata.transparentBlue
+            )
+            case _ => PngExpandTransparency()
+        }
+    } else {
+        PngExpandTransparency()
+    }
     let rgbToGrayEnabled = state.rgbToGrayEnabled()
     let rgbToGrayTransform = if (rgbToGrayEnabled) {
         PngRgbToGrayTransform(state.rgbToGrayTransform())
@@ -1257,12 +1292,16 @@ public func initializePngReadTransformations(
     let gammaStageEnabled = (initializedGamma8BitTables.built() ||
         initializedGamma16BitTables.built()) &&
         initializedGammaValues.correctionRequired && !rgbToGrayEnabled &&
-        ihdr.colorType != Indexed
+        ihdr.colorType != Indexed && !initializedBackground.composeEnabled
+    let stripAlphaAfterCompose = state.stripAlphaEnabled() &&
+        initializedBackground.composeEnabled
     let stages = pngReadTransformStages(
         state,
         checkForInvalidIndexEnabled,
         gammaStageEnabled,
-        effectiveStripAlphaBeforeCompose
+        effectiveStripAlphaBeforeCompose,
+        initializedBackground.composeEnabled,
+        stripAlphaAfterCompose
     )
     state.markRowInitialized()
 
@@ -1295,6 +1334,7 @@ public func initializePngReadTransformations(
         expandPalette,
         expandPaletteAlpha,
         expandTransparency,
+        composeTransparency,
         rgbToGrayEnabled,
         rgbToGrayTransform,
         quantizeEnabled,

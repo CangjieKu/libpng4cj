@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Translate complete non-palette packed/8/16-bit Gray/GA/RGB/RGBA
+  `png_do_compose` execution with exact tRNS replacement, no-division alpha
+  rounding, direct/linear Gamma, network order, initialized stage suppression,
+  and post-Compose Strip Alpha.
 - Complete Compose-side background depth and gamma initialization snapshots,
   including exact Expand16/16-to-8 normalization, Screen/File/Unique gamma
   derivation, original/linear/screen colors, and Compose-driven linear tables.

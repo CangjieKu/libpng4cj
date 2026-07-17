@@ -169,6 +169,9 @@ main(): Int64 {
         !initializedBackground.composeEnabled() ||
         initializedBackground.backgroundExpandEnabled() ||
         initializedBackground.hasStage(ReadStageStripAlpha) ||
+        !initializedBackground.hasStage(ReadStageCompose) ||
+        !initializedBackground.hasStage(ReadStageStripAlphaAfterCompose) ||
+        initializedBackground.hasStage(ReadStageGamma) ||
         !initializedBackground.backgroundGammaInitialized() ||
         initializedBackground.backgroundGammaCode() != BackgroundGammaFile ||
         initializedBackground.effectiveBackgroundGammaCode() !=
@@ -182,6 +185,22 @@ main(): Int64 {
             pngGamma8BitCorrect(UInt8(192), backgroundToScreen)
         ) || !initializedBackground.gamma8BitLinearTablesBuilt()) {
         println("libpng4cj background initialization snapshot check failed")
+        return 1
+    }
+    let composedBackground = PngBackground(
+        UInt8(0), UInt16(30), UInt16(20), UInt16(40), UInt16(60)
+    )
+    let composed = pngDoCompose(
+        PngReadRowInfo(UInt32(1), UInt8(8), TruecolorAlpha),
+        [100, 110, 120, 128],
+        composedBackground,
+        PngExpandTransparency()
+    )
+    if (composed.row() != [
+        UInt8(60), UInt8(75), UInt8(90), UInt8(128)
+    ] || ReadStageCompose.ordinalValue() != Int64(20) ||
+        ReadStageStripAlphaAfterCompose.ordinalValue() != Int64(21)) {
+        println("libpng4cj background compose row check failed")
         return 1
     }
     let gamma = pngInitGammaValues(PngFileGammaSources(

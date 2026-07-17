@@ -158,6 +158,10 @@ oracle-test source. Production implementation code belongs directly under
   snapshots; applies exact Expand16 or 16-to-8 background depth normalization;
   derives Screen/File/Unique correction exponents for 8/16-bit gray or color
   backgrounds; and builds linear gamma tables even without RGB-to-gray
+- complete non-palette `png_do_compose` row execution covers packed/8/16-bit
+  Gray, GrayAlpha, RGB, and RGBA; exact tRNS replacement; no-division alpha
+  rounding; direct and linear Gamma paths; post-Compose Strip Alpha; and UInt16
+  network-order preservation
 - bounded `PngReadTransformState.setQuantize` state translation with explicit
   palette-remap/full-color modes, copy-owned palette/count limits, and a fresh
   complete 256-entry identity remap on every accepted non-full setter call
@@ -267,7 +271,7 @@ oracle-test source. Production implementation code belongs directly under
   the frozen info-function order rather than runtime row-stage order
 
 ICC color application, cHRM-derived RGB-to-gray defaults, background row
-composition and palette mutation, remaining standard metadata,
+palette composition/mutation and alpha-mode encoding, remaining standard metadata,
 quantize allocation-warning fallback,
 benign-error callback delivery for invalid palette indexes, the remaining
 read-transform dispatch stages, complete transformed-metadata projection, C ABI
@@ -278,7 +282,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `33 translated / 8 partial / 4 pending`.
+The current ledger is `34 translated / 8 partial / 3 pending`.
 
 ## Native Dependency
 

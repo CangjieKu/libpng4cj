@@ -234,6 +234,19 @@ then mapped back through from-linear; equal RGB uses the direct table. Alpha,
 network byte order, strict original-sample mismatch detection, row information,
 and copy ownership are preserved.
 
+`pngDoCompose(...)` exposes the translated non-palette background row body.
+The no-table overload performs exact tRNS replacement or alpha composition in
+the supplied screen background. The 8-bit and 16-bit table overloads also take
+the linear background and apply direct correction to opaque/color-key samples
+or to-linear/composite/from-linear correction to partial alpha. Packed
+grayscale padding, alpha bytes, row information, and 16-bit network order are
+preserved.
+
+Initialized background execution uses `ReadStageCompose` identity `20` and
+`ReadStageStripAlphaAfterCompose` identity `21`. Compose executes after the
+current gray/RGB stages, suppresses the separate Gamma stage when it owns
+alpha/tRNS correction, and strips alpha only after composition.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

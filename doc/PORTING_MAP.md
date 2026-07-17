@@ -787,6 +787,27 @@ non-palette Compose preparation immediately preceding `png_do_compose`:
 The ledger remains `33 translated / 8 partial / 4 pending`. Actual row/palette
 composition, alpha-mode state, and the remaining initializer branches stay open.
 
+## Implemented Non-Palette Background Composition
+
+LP-S004BF translates the complete row-local `png_do_compose` switch:
+
+- packed 1/2/4-bit grayscale replaces exact tRNS keys without touching final
+  padding bits; 2/4-bit surviving samples use the direct Gamma table
+- 8/16-bit Gray and RGB replace exact color keys with screen-background values
+  and directly Gamma-correct every surviving color sample when tables exist
+- 8/16-bit GrayAlpha and RGBA preserve alpha bytes, select transparent,
+  partial, and opaque branches, and use exact libpng no-division composition
+- Gamma-aware partial alpha converts file samples to linear, composes against
+  the linear background, and converts back to screen Gamma
+- UInt16 input and output remain in PNG network byte order
+- initialized execution places Compose before standalone Gamma and adds an
+  explicit post-Compose Strip Alpha stage without changing older ordinals
+
+`png_do_compose` is translated and the ledger advances to
+`34 translated / 8 partial / 3 pending`. Palette composition/mutation,
+alpha-mode encoding/optimization, and remaining initializer/dispatcher work
+stay separate.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
