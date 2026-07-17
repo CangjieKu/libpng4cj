@@ -5,6 +5,8 @@ import std.collection.ArrayList
 public let PNG_DEFAULT_MAX_WRITE_OUTPUT_BYTES: UInt64 = UInt64(512_000_000)
 public let PNG_DEFAULT_MAX_WRITE_FILTERED_BYTES: UInt64 = UInt64(512_000_000)
 public let PNG_DEFAULT_MAX_WRITE_COMPRESSED_BYTES: UInt64 = UInt64(256_000_000)
+public let PNG_DEFAULT_MAX_WRITE_METADATA_BYTES: UInt64 = UInt64(64_000_000)
+public let PNG_DEFAULT_MAX_WRITE_METADATA_COMPRESSED_BYTES: UInt64 = UInt64(64_000_000)
 public let PNG_DEFAULT_WRITE_IDAT_CHUNK_BYTES: UInt32 = UInt32(1_048_576)
 
 public enum PngWriteState <: Equatable<PngWriteState> & ToString {
@@ -86,7 +88,33 @@ public class PngWriteLimits {
     public let maxFilteredBytes: UInt64
     public let maxOutputBytes: UInt64
     public let maxCompressedBytes: UInt64
+    public let maxMetadataBytes: UInt64
+    public let maxMetadataCompressedBytes: UInt64
     public let idatChunkBytes: UInt32
+
+    public init(
+        maxFilteredBytes: UInt64,
+        maxCompressedBytes: UInt64,
+        maxMetadataBytes: UInt64,
+        maxMetadataCompressedBytes: UInt64,
+        maxOutputBytes: UInt64,
+        idatChunkBytes: UInt32
+    ) {
+        validateWriteByteLimit(maxFilteredBytes, "filtered PNG row limit")
+        validateWriteByteLimit(maxCompressedBytes, "compressed PNG byte limit")
+        validateWriteByteLimit(maxMetadataBytes, "raw PNG metadata limit")
+        validateWriteByteLimit(maxMetadataCompressedBytes, "compressed PNG metadata limit")
+        validateWriteByteLimit(maxOutputBytes, "encoded PNG output limit")
+        if (idatChunkBytes == UInt32(0) || idatChunkBytes > PNG_UINT_31_MAX) {
+            throw PngFormatException(InvalidArgument, -1, "IDAT chunk size must be in 1..PNG_UINT_31_MAX")
+        }
+        this.maxFilteredBytes = maxFilteredBytes
+        this.maxCompressedBytes = maxCompressedBytes
+        this.maxMetadataBytes = maxMetadataBytes
+        this.maxMetadataCompressedBytes = maxMetadataCompressedBytes
+        this.maxOutputBytes = maxOutputBytes
+        this.idatChunkBytes = idatChunkBytes
+    }
 
     public init(
         maxFilteredBytes: UInt64,
@@ -94,16 +122,14 @@ public class PngWriteLimits {
         maxOutputBytes: UInt64,
         idatChunkBytes: UInt32
     ) {
-        validateWriteByteLimit(maxFilteredBytes, "filtered PNG row limit")
-        validateWriteByteLimit(maxCompressedBytes, "compressed PNG byte limit")
-        validateWriteByteLimit(maxOutputBytes, "encoded PNG output limit")
-        if (idatChunkBytes == UInt32(0) || idatChunkBytes > PNG_UINT_31_MAX) {
-            throw PngFormatException(InvalidArgument, -1, "IDAT chunk size must be in 1..PNG_UINT_31_MAX")
-        }
-        this.maxFilteredBytes = maxFilteredBytes
-        this.maxCompressedBytes = maxCompressedBytes
-        this.maxOutputBytes = maxOutputBytes
-        this.idatChunkBytes = idatChunkBytes
+        this(
+            maxFilteredBytes,
+            maxCompressedBytes,
+            PNG_DEFAULT_MAX_WRITE_METADATA_BYTES,
+            PNG_DEFAULT_MAX_WRITE_METADATA_COMPRESSED_BYTES,
+            maxOutputBytes,
+            idatChunkBytes
+        )
     }
 
     public init(maxOutputBytes: UInt64, maxCompressedBytes: UInt64, idatChunkBytes: UInt32) {
@@ -119,6 +145,8 @@ public class PngWriteLimits {
         maxFilteredBytes = PNG_DEFAULT_MAX_WRITE_FILTERED_BYTES
         maxOutputBytes = PNG_DEFAULT_MAX_WRITE_OUTPUT_BYTES
         maxCompressedBytes = PNG_DEFAULT_MAX_WRITE_COMPRESSED_BYTES
+        maxMetadataBytes = PNG_DEFAULT_MAX_WRITE_METADATA_BYTES
+        maxMetadataCompressedBytes = PNG_DEFAULT_MAX_WRITE_METADATA_COMPRESSED_BYTES
         idatChunkBytes = PNG_DEFAULT_WRITE_IDAT_CHUNK_BYTES
     }
 }
@@ -160,7 +188,7 @@ private func validateWriteHeader(width: UInt32, height: UInt32, bitDepth: UInt8,
     PngIhdr(width, height, bitDepth, colorType, UInt8(0), UInt8(0), None)
 }
 
-private func makeWriteChunk(chunkType: Array<Byte>, data: Array<Byte>): Array<Byte> {
+func makeWriteChunk(chunkType: Array<Byte>, data: Array<Byte>): Array<Byte> {
     if (!isValidChunkType(chunkType) || data.size > Int64(PNG_UINT_31_MAX)) {
         throw PngFormatException(InvalidArgument, -1, "PNG write chunk is invalid or too large")
     }
@@ -211,6 +239,7 @@ private func addRepeatedWriteOutputSize(
 
 private func expectedWriteOutputSize(
     paletteBytes: UInt64,
+    metadataBytes: UInt64,
     compressedBytes: UInt64,
     idatChunkBytes: UInt32,
     limit: UInt64
@@ -224,6 +253,7 @@ private func expectedWriteOutputSize(
         total = addWriteOutputSize(total, UInt64(12), limit)
         total = addWriteOutputSize(total, paletteBytes, limit)
     }
+    total = addWriteOutputSize(total, metadataBytes, limit)
     total = addWriteOutputSize(total, compressedBytes, limit)
     total = addRepeatedWriteOutputSize(total, UInt64(12), idatCount, limit)
     addWriteOutputSize(total, UInt64(12), limit)
@@ -371,6 +401,7 @@ private func buildFilteredWriteRows(
 public class PngWriteSession {
     private let ihdr: PngIhdr
     private let palette: Array<Byte>
+    private let metadata: PngWriteMetadata
     private let strategy: PngWriteFilterStrategy
     private let compressionLevel: Int32
     private let limits: PngWriteLimits
@@ -382,6 +413,7 @@ public class PngWriteSession {
         bitDepth: UInt8,
         colorType: PngColorType,
         palette: Array<Byte>,
+        metadata: PngWriteMetadata,
         strategy: PngWriteFilterStrategy,
         compressionLevel: Int32,
         limits: PngWriteLimits
@@ -389,9 +421,26 @@ public class PngWriteSession {
         ihdr = validateWriteHeader(width, height, bitDepth, colorType)
         validateWritePalette(ihdr, palette)
         this.palette = palette.clone()
+        this.metadata = pngSnapshotWriteMetadata(metadata)
         this.strategy = strategy
         this.compressionLevel = compressionLevel
         this.limits = limits
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        bitDepth: UInt8,
+        colorType: PngColorType,
+        palette: Array<Byte>,
+        strategy: PngWriteFilterStrategy,
+        compressionLevel: Int32,
+        limits: PngWriteLimits
+    ) {
+        this(
+            width, height, bitDepth, colorType, palette, PngWriteMetadata(),
+            strategy, compressionLevel, limits
+        )
     }
 
     public func state(): PngWriteState {
@@ -407,19 +456,36 @@ public class PngWriteSession {
         }
         stateValue = WriteFinalizing
         try {
+            let metadataPlan = planPngWriteMetadata(
+                metadata, ihdr, palette, compressionLevel,
+                limits.maxMetadataBytes, limits.maxMetadataCompressedBytes
+            )
             let filtered = buildFilteredWriteRows(
                 ihdr, rows, strategy, limits.maxFilteredBytes, palette.size / Int64(3)
             )
             let compressed = compressPngZlib(filtered, compressionLevel, limits.maxCompressedBytes)
             let expectedOutput = expectedWriteOutputSize(
-                UInt64(palette.size), UInt64(compressed.size), limits.idatChunkBytes,
+                UInt64(palette.size), metadataPlan.framedBytes,
+                UInt64(compressed.size), limits.idatChunkBytes,
                 limits.maxOutputBytes
             )
             let out = ArrayList<Byte>()
             appendWriteBytes(out, PNG_SIGNATURE)
             appendWriteBytes(out, makeWriteIhdr(ihdr))
+            let beforePalette = metadataPlan.beforePalette()
+            var metadataIndex: Int64 = Int64(0)
+            while (metadataIndex < beforePalette.size) {
+                appendWriteBytes(out, beforePalette[metadataIndex])
+                metadataIndex += Int64(1)
+            }
             if (palette.size > Int64(0)) {
                 appendWriteBytes(out, makeWriteChunk(PNG_CHUNK_PLTE, palette))
+            }
+            let afterPalette = metadataPlan.afterPalette()
+            metadataIndex = Int64(0)
+            while (metadataIndex < afterPalette.size) {
+                appendWriteBytes(out, afterPalette[metadataIndex])
+                metadataIndex += Int64(1)
             }
             var offset: Int64 = Int64(0)
             while (offset < compressed.size) {
@@ -431,6 +497,12 @@ public class PngWriteSession {
                 }
                 appendWriteBytes(out, makeWriteChunk(PNG_CHUNK_IDAT, copyByteRange(compressed, offset, take)))
                 offset += take
+            }
+            let afterIdat = metadataPlan.afterIdat()
+            metadataIndex = Int64(0)
+            while (metadataIndex < afterIdat.size) {
+                appendWriteBytes(out, afterIdat[metadataIndex])
+                metadataIndex += Int64(1)
             }
             appendWriteBytes(out, makeWriteChunk(PNG_CHUNK_IEND, Array<Byte>()))
             if (UInt64(out.size) != expectedOutput) {
@@ -456,14 +528,32 @@ public func encodePngPacked(
     colorType: PngColorType,
     rows: Array<Array<Byte>>,
     palette: Array<Byte>,
+    metadata: PngWriteMetadata,
     strategy: PngWriteFilterStrategy,
     compressionLevel: Int32,
     limits: PngWriteLimits
 ): Array<Byte> {
     PngWriteSession(
-        width, height, bitDepth, colorType, palette, strategy,
+        width, height, bitDepth, colorType, palette, metadata, strategy,
         compressionLevel, limits
     ).write(rows)
+}
+
+public func encodePngPacked(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    colorType: PngColorType,
+    rows: Array<Array<Byte>>,
+    palette: Array<Byte>,
+    strategy: PngWriteFilterStrategy,
+    compressionLevel: Int32,
+    limits: PngWriteLimits
+): Array<Byte> {
+    encodePngPacked(
+        width, height, bitDepth, colorType, rows, palette, PngWriteMetadata(),
+        strategy, compressionLevel, limits
+    )
 }
 
 public func encodePngPacked(
@@ -475,6 +565,20 @@ public func encodePngPacked(
 ): Array<Byte> {
     encodePngPacked(
         width, height, bitDepth, colorType, rows, Array<Byte>(),
+        PngWriteMetadata(), WriteFilterAdaptive, Int32(6), PngWriteLimits()
+    )
+}
+
+public func encodePngPacked(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    colorType: PngColorType,
+    rows: Array<Array<Byte>>,
+    metadata: PngWriteMetadata
+): Array<Byte> {
+    encodePngPacked(
+        width, height, bitDepth, colorType, rows, Array<Byte>(), metadata,
         WriteFilterAdaptive, Int32(6), PngWriteLimits()
     )
 }
@@ -488,6 +592,20 @@ public func encodeIndexedPngPacked(
 ): Array<Byte> {
     encodePngPacked(
         width, height, bitDepth, Indexed, rows, palette,
+        PngWriteMetadata(), WriteFilterAdaptive, Int32(6), PngWriteLimits()
+    )
+}
+
+public func encodeIndexedPngPacked(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    rows: Array<Array<Byte>>,
+    palette: Array<Byte>,
+    metadata: PngWriteMetadata
+): Array<Byte> {
+    encodePngPacked(
+        width, height, bitDepth, Indexed, rows, palette, metadata,
         WriteFilterAdaptive, Int32(6), PngWriteLimits()
     )
 }

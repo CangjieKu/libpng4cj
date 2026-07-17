@@ -50,7 +50,7 @@ public class PngTextEntry {
         ownedTranslatedKeyword = Array<Byte>()
     }
 
-    init(
+    public init(
         kind: PngTextKind,
         keyword: Array<Byte>,
         text: Array<Byte>,
@@ -90,7 +90,7 @@ public class PngIccProfile {
         ownedProfile = Array<Byte>()
     }
 
-    init(name: Array<Byte>, profile: Array<Byte>) {
+    public init(name: Array<Byte>, profile: Array<Byte>) {
         ownedName = name.clone()
         ownedProfile = profile.clone()
     }
@@ -125,7 +125,7 @@ public class PngModificationTime {
         second = UInt8(0)
     }
 
-    init(year: UInt16, month: UInt8, day: UInt8, hour: UInt8, minute: UInt8, second: UInt8) {
+    public init(year: UInt16, month: UInt8, day: UInt8, hour: UInt8, minute: UInt8, second: UInt8) {
         this.year = year
         this.month = month
         this.day = day
@@ -257,12 +257,12 @@ private func copyUntilZero(bytes: Array<Byte>, start: Int64): Array<Byte> {
     copyByteRange(bytes, start, end - start)
 }
 
-private func validateIccProfile(profile: Array<Byte>, ihdr: PngIhdr, limits: PngReadLimits): Unit {
+func validateIccProfile(profile: Array<Byte>, ihdr: PngIhdr, maxProfileBytes: UInt64): Unit {
     if (profile.size < 132) {
         throw PngFormatException(InvalidIccProfile, -1, "ICC profile is shorter than 132 bytes")
     }
     let declaredLength = readUInt32Be(profile, 0)
-    if (UInt64(declaredLength) > UInt64(limits.maxChunkBytes)) {
+    if (UInt64(declaredLength) > maxProfileBytes) {
         throw PngFormatException(DecodeLimitExceeded, -1, "ICC profile exceeds configured chunk-byte limit")
     }
     if (Int64(declaredLength) != profile.size) {
@@ -331,7 +331,7 @@ private func parseIccProfile(
     }
     let compressed = copyByteRange(data, keywordEnd + 2, data.size - keywordEnd - 2)
     let profile = inflatePngZlibBounded(compressed, Int64(limits.maxChunkBytes))
-    validateIccProfile(profile, ihdr, limits)
+    validateIccProfile(profile, ihdr, UInt64(limits.maxChunkBytes))
     PngIccProfile(copyByteRange(data, 0, keywordEnd), profile)
 }
 

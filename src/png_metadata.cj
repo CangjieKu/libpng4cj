@@ -99,7 +99,7 @@ public class PngChromaticities {
         blueY = Int32(0)
     }
 
-    init(
+    public init(
         whiteX: Int32,
         whiteY: Int32,
         redX: Int32,
@@ -193,7 +193,7 @@ public class PngPhysicalDimensions {
         unit = UInt8(0)
     }
 
-    init(pixelsPerUnitX: UInt32, pixelsPerUnitY: UInt32, unit: UInt8) {
+    public init(pixelsPerUnitX: UInt32, pixelsPerUnitY: UInt32, unit: UInt8) {
         this.pixelsPerUnitX = pixelsPerUnitX
         this.pixelsPerUnitY = pixelsPerUnitY
         this.unit = unit

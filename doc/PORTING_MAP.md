@@ -1555,7 +1555,7 @@ eXIf, hIST, oFFs, pCAL, sCAL, and sPLT:
 The iCCP path continues to validate and retain ICC profile bytes. Neither
 upstream libpng nor this translation performs ICC pixel color conversion.
 
-## Implemented Write Foundation And Non-Interlaced Packed Encoder
+## Implemented Write Foundation, Packed Encoder, And Typed Metadata
 
 LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
 `png_write.cj`, the shared filter layer, and the external-zlib boundary:
@@ -1578,7 +1578,20 @@ LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
 - row count/length, zlib level, separate filtered/compressed/output limits,
   exact pre-allocation output sizing, IDAT chunk sizing, repeated writes,
   failures, and close behavior are explicit
+- `PngWriteMetadata` snapshots caller-owned typed metadata at session creation
+  and rejects duplicate singleton fields without exposing C-owned PNG state
+- tRNS, gAMA, cHRM, sRGB, sBIT, bKGD, pHYs, iCCP, tEXt/zTXt/iTXt, tIME,
+  cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and ordered sPLT use frozen
+  upstream field encodings and color/palette contracts
+- metadata follows the upstream pre-PLTE, post-PLTE/pre-IDAT, and post-IDAT
+  order; text, tIME, and eXIf expose legal before/after-IDAT placement
+- raw metadata bytes and compressed metadata output are limited separately
+  from filtered rows, compressed IDAT bytes, and final PNG output
+- `PngWriteMetadata(PngReadMetadata, PngColorType)` provides a copy-owned
+  canonical decode-write-decode bridge without retaining unknown chunks
 
-This foundation is whole-image and non-interlaced. Adam7 write, full ancillary
-metadata emission, custom/progressive sinks, write transforms, simplified API,
-and complete libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work.
+This write path is whole-image and non-interlaced. Adam7 write, unknown-chunk
+injection, custom/progressive sinks, write transforms, simplified API, and
+complete libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work. ICC
+profile bytes are validated and emitted, but ICC pixel conversion is outside
+libpng's scope.

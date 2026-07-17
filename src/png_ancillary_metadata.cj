@@ -15,7 +15,7 @@ public class PngCodingIndependentCodePoints {
         fullRangeFlag = UInt8(0)
     }
 
-    init(colorPrimaries: UInt8, transferFunction: UInt8, matrixCoefficients: UInt8, fullRangeFlag: UInt8) {
+    public init(colorPrimaries: UInt8, transferFunction: UInt8, matrixCoefficients: UInt8, fullRangeFlag: UInt8) {
         this.colorPrimaries = colorPrimaries
         this.transferFunction = transferFunction
         this.matrixCoefficients = matrixCoefficients
@@ -32,7 +32,7 @@ public class PngContentLightLevel {
         maximumFrameAverageLightLevel = UInt32(0)
     }
 
-    init(maximumContentLightLevel: UInt32, maximumFrameAverageLightLevel: UInt32) {
+    public init(maximumContentLightLevel: UInt32, maximumFrameAverageLightLevel: UInt32) {
         this.maximumContentLightLevel = maximumContentLightLevel
         this.maximumFrameAverageLightLevel = maximumFrameAverageLightLevel
     }
@@ -49,7 +49,7 @@ public class PngMasteringDisplayColorVolume {
         minimumDisplayLuminance = UInt32(0)
     }
 
-    init(chromaticities: PngChromaticities, maximumDisplayLuminance: UInt32, minimumDisplayLuminance: UInt32) {
+    public init(chromaticities: PngChromaticities, maximumDisplayLuminance: UInt32, minimumDisplayLuminance: UInt32) {
         this.chromaticities = chromaticities
         this.maximumDisplayLuminance = maximumDisplayLuminance
         this.minimumDisplayLuminance = minimumDisplayLuminance
@@ -67,7 +67,7 @@ public class PngImageOffset {
         unit = UInt8(0)
     }
 
-    init(x: Int32, y: Int32, unit: UInt8) {
+    public init(x: Int32, y: Int32, unit: UInt8) {
         this.x = x
         this.y = y
         this.unit = unit
@@ -91,7 +91,7 @@ public class PngPixelCalibration {
         ownedParameters = Array<Array<Byte>>()
     }
 
-    init(
+    public init(
         purpose: Array<Byte>,
         x0: Int32,
         x1: Int32,
@@ -132,7 +132,7 @@ public class PngPhysicalScale {
         ownedHeight = Array<Byte>()
     }
 
-    init(unit: UInt8, width: Array<Byte>, height: Array<Byte>) {
+    public init(unit: UInt8, width: Array<Byte>, height: Array<Byte>) {
         this.unit = unit
         ownedWidth = width.clone()
         ownedHeight = height.clone()
@@ -149,7 +149,7 @@ public class PngSuggestedPaletteEntry {
     public let alpha: UInt16
     public let frequency: UInt16
 
-    init(red: UInt16, green: UInt16, blue: UInt16, alpha: UInt16, frequency: UInt16) {
+    public init(red: UInt16, green: UInt16, blue: UInt16, alpha: UInt16, frequency: UInt16) {
         this.red = red
         this.green = green
         this.blue = blue
@@ -163,7 +163,7 @@ public class PngSuggestedPalette {
     private let ownedName: Array<Byte>
     private let ownedEntries: Array<PngSuggestedPaletteEntry>
 
-    init(name: Array<Byte>, sampleDepth: UInt8, entries: Array<PngSuggestedPaletteEntry>) {
+    public init(name: Array<Byte>, sampleDepth: UInt8, entries: Array<PngSuggestedPaletteEntry>) {
         ownedName = name.clone()
         this.sampleDepth = sampleDepth
         ownedEntries = entries.clone()
@@ -198,7 +198,7 @@ private func pngFindZero(bytes: Array<Byte>, start: Int64): Int64 {
     index
 }
 
-private func pngValidKeyword(bytes: Array<Byte>): Bool {
+func pngValidKeyword(bytes: Array<Byte>): Bool {
     if (bytes.size < 1 || bytes.size > 79 || bytes[0] == UInt8(0x20) ||
         bytes[bytes.size - 1] == UInt8(0x20)) {
         return false
@@ -228,7 +228,7 @@ private func pngAsciiDigit(value: UInt8): Bool {
     value >= UInt8(0x30) && value <= UInt8(0x39)
 }
 
-private func pngValidAsciiNumber(bytes: Array<Byte>): Bool {
+func pngValidAsciiNumber(bytes: Array<Byte>): Bool {
     if (bytes.size == 0) { return false }
     var index: Int64 = 0
     if (bytes[index] == UInt8(0x2b) || bytes[index] == UInt8(0x2d)) {
@@ -262,7 +262,7 @@ private func pngValidAsciiNumber(bytes: Array<Byte>): Bool {
     index == bytes.size
 }
 
-private func pngPositiveAsciiNumber(bytes: Array<Byte>): Bool {
+func pngPositiveAsciiNumber(bytes: Array<Byte>): Bool {
     if (!pngValidAsciiNumber(bytes) || bytes[0] == UInt8(0x2d)) { return false }
     var index: Int64 = 0
     while (index < bytes.size && bytes[index] != UInt8(0x45) && bytes[index] != UInt8(0x65)) {

@@ -65,11 +65,12 @@ let png = encodePngPacked(
 
 `PngWriteSession` exposes explicit Open, Finalizing, Completed, Failed, and
 Closed states. The full constructor accepts an optional indexed palette,
-`PngWriteFilterStrategy`, zlib level, and `PngWriteLimits`. Strategies include
-None, Sub, Up, Average, Paeth, and deterministic Adaptive selection. Adaptive
-selection minimizes the sum of signed-byte magnitudes and keeps the first
-filter on ties. Limits independently bound filtered row bytes, compressed IDAT
-bytes, complete encoded output bytes, and each emitted IDAT payload.
+copy-owned `PngWriteMetadata`, `PngWriteFilterStrategy`, zlib level, and
+`PngWriteLimits`. Strategies include None, Sub, Up, Average, Paeth, and
+deterministic Adaptive selection. Adaptive selection minimizes the sum of
+signed-byte magnitudes and keeps the first filter on ties. Limits independently
+bound filtered row bytes, compressed IDAT bytes, raw metadata bytes, compressed
+metadata bytes, complete encoded output bytes, and each emitted IDAT payload.
 
 All legal PNG color-type/bit-depth row shapes are accepted for non-interlaced
 output. Indexed writes require RGB palette triples and reject row indexes
@@ -79,9 +80,18 @@ caller-owned. The writer checks row count, row bytes, palette shape,
 filtered/compressed/output limits, chunk sizing, and zlib status before
 reporting Completed.
 
-Adam7 output, ancillary metadata emission, custom/progressive sinks, write-side
+`PngWriteMetadata` emits typed tRNS, gAMA, cHRM, sRGB, sBIT, bKGD, pHYs,
+iCCP, tEXt/zTXt/iTXt, tIME, cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL,
+sCAL, and ordered sPLT chunks. The writer freezes the upstream pre-PLTE,
+post-PLTE/pre-IDAT, and post-IDAT ordering. Text, tIME, and eXIf support legal
+before/after-IDAT placement. `PngWriteMetadata(readMetadata, colorType)` copies
+the standard read model into canonical pre-IDAT write placement for
+decode-write-decode workflows.
+
+Adam7 output, unknown-chunk injection, custom/progressive sinks, write-side
 pixel transforms, simplified `png_image_write_*`, and full C ABI write parity
-remain later work.
+remain later work. ICC support retains and emits profile bytes; it does not
+perform ICC pixel conversion.
 
 ## Adam7 Whole-Image Decode
 

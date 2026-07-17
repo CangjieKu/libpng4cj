@@ -974,6 +974,47 @@ main(): Int64 {
         println("libpng4cj packed write consumer check failed")
         return 1
     }
+    let writeMetadata = PngWriteMetadata()
+    writeMetadata.setGamma(UInt32(45455))
+    writeMetadata.setPhysicalDimensions(PngPhysicalDimensions(
+        UInt32(3780), UInt32(3780), UInt8(1)
+    ))
+    writeMetadata.setModificationTime(PngModificationTime(
+        UInt16(2026), UInt8(7), UInt8(17), UInt8(23), UInt8(5), UInt8(0)
+    ), WriteAfterIdat)
+    writeMetadata.addText(PngTextEntry(
+        Latin1Compressed,
+        [UInt8(0x54), UInt8(0x69), UInt8(0x74), UInt8(0x6c), UInt8(0x65)],
+        [UInt8(0x43), UInt8(0x61), UInt8(0x6e), UInt8(0x67), UInt8(0x6a), UInt8(0x69), UInt8(0x65)],
+        Array<Byte>(), Array<Byte>()
+    ), WriteBeforeIdat)
+    let metadataWritten = encodePngPacked(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha,
+        writeRows, writeMetadata
+    )
+    let metadataDecoded = decodePngNonInterlaced(metadataWritten)
+    let metadataRewritten = decodePngNonInterlaced(encodePngPacked(
+        metadataDecoded.ihdr.width,
+        metadataDecoded.ihdr.height,
+        metadataDecoded.ihdr.bitDepth,
+        metadataDecoded.ihdr.colorType,
+        metadataDecoded.rows(),
+        PngWriteMetadata(metadataDecoded.metadata, metadataDecoded.ihdr.colorType)
+    ))
+    if (!metadataDecoded.metadata.hasGamma ||
+        metadataDecoded.metadata.gamma != UInt32(45455) ||
+        !metadataDecoded.metadata.hasPhysicalDimensions ||
+        metadataDecoded.metadata.textEntryCount() != Int64(1) ||
+        metadataDecoded.metadata.textEntry(0).kind != Latin1Compressed ||
+        !metadataDecoded.metadata.hasModificationTime ||
+        metadataRewritten.metadata.gamma != UInt32(45455) ||
+        metadataRewritten.metadata.textEntry(0).text() != [
+            UInt8(0x43), UInt8(0x61), UInt8(0x6e), UInt8(0x67),
+            UInt8(0x6a), UInt8(0x69), UInt8(0x65)
+        ]) {
+        println("libpng4cj typed metadata write consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }
