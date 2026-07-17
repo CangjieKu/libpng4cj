@@ -81,6 +81,28 @@ the existing RGBA transforms remain shared. The packet is whole-image decode,
 not progressive delivery: row-combine callbacks, pass-aware user-transform
 callbacks, pause/resume, custom IO, and the C ABI remain later work.
 
+## Implemented Buffered Progressive Feed Lifecycle
+
+LP-S005B adds the first native `pngpread.c`-facing facade in
+`png_progressive.cj`:
+
+- `PngProgressiveReader.feed` copy-owns arbitrary input splits under a separate
+  configurable total-input limit
+- state is explicit as Open, Finalizing, Completed, Failed, or Closed
+- unknown-chunk and critical/ancillary CRC policies are frozen before finish
+- replaceable info, row, and end callbacks execute in that order
+- callback rows are copy-owned, and callback exceptions move the reader to
+  Failed without invoking End
+- `finish` returns the same `PngDecodedRows` as the shared whole-image decoder
+- non-interlaced callbacks report pass `0`; Adam7 callbacks report pass `-1`
+  plus `canonicalCombined = true` because each delivered row is the completed
+  seven-pass canonical result rather than one upstream pass fragment
+
+This is an executable bounded feed and callback lifecycle, not complete libpng
+progressive parity. It buffers input until `finish`; streaming zlib windows,
+early info delivery, pass-row callbacks, `png_progressive_combine_row`,
+pause/resume, custom IO, and C ABI callback trampolines remain later packets.
+
 ## Implemented First Read Transforms
 
 LP-S004A maps the first palette and expansion parts of `pngrutil.c`,

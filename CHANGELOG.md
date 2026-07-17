@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a bounded chunk-fed `PngProgressiveReader` with explicit lifecycle,
+  configurable decode policy, replaceable info/row/end callbacks, copy-owned
+  callback rows, and non-interlaced/Adam7 canonical-row context at finalize.
 - Decode Adam7 images through exact seven-pass geometry, pass-local filter
   reversal, and packed/8/16-bit scatter into canonical full-image rows; add
   generic packed, RGBA8, and RGBA16 entry points while preserving the explicit

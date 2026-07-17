@@ -26,6 +26,7 @@ import libpng4cj.*
 - bounded chunk and metadata reading with configurable critical/ancillary CRC
   actions
 - whole-image packed-row decoding for non-interlaced and Adam7 input
+- bounded chunk-fed progressive lifecycle with native info/row/end callbacks
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -69,6 +70,39 @@ The explicit `decodePngNonInterlaced`, `decodePngRgba8NonInterlaced`, and
 Adam7 input with `UnsupportedInterlace`. This packet does not add progressive
 callbacks, row-combine delivery, pause/resume, or pass-aware user-transform
 execution.
+
+## Buffered Progressive Feed
+
+`PngProgressiveReader` accepts arbitrary input splits and finalizes through the
+same packed-row decoder:
+
+```cangjie
+let reader = PngProgressiveReader()
+reader.setInfoCallback({ ihdr, metadata => /* inspect header and metadata */ })
+reader.setRowCallback({ context, row => /* consume an owned packed row */ })
+reader.setEndCallback({ ihdr, metadata => /* completed */ })
+
+reader.feed(firstChunk)
+reader.feed(secondChunk)
+let decoded = reader.finish()
+```
+
+The reader copy-owns every feed and exposes `state()` plus `receivedBytes()`.
+Constructors accept `PngReadLimits` and an optional total progressive-input
+limit; the default is `PNG_DEFAULT_MAX_PROGRESSIVE_INPUT_BYTES`. Unknown-chunk
+and CRC actions can be configured before finalization. Callback registration is
+replaceable while state is Open.
+
+Info executes before rows, End executes after the final row, and any decode or
+callback exception moves the reader to Failed. Feed after completion, repeated
+finish, and callback/configuration changes outside Open are rejected; Close
+releases buffered input and permanently selects Closed.
+
+For non-interlaced input, row context reports pass `0`. Adam7 rows are delivered
+only after all seven passes have been reconstructed, so context reports
+`passNumber = -1` and `canonicalCombined = true`. This API currently buffers
+until `finish`; it does not yet provide streaming zlib windows, early IHDR/info
+callbacks, pass-fragment timing, row-combine callbacks, or pause/resume.
 
 ## Standard Ancillary Metadata
 

@@ -39,6 +39,16 @@ private func joinConsumerBytes(
     out
 }
 
+private func consumerByteRange(source: Array<Byte>, start: Int64, length: Int64): Array<Byte> {
+    let out = Array<Byte>(length, repeat: UInt8(0))
+    var index: Int64 = 0
+    while (index < length) {
+        out[index] = source[start + index]
+        index += 1
+    }
+    out
+}
+
 private func makeConsumerChunk(
     chunkType: Array<Byte>,
     data: Array<Byte>
@@ -888,13 +898,38 @@ main(): Int64 {
         println("libpng4cj ancillary metadata consumer check failed")
         return 1
     }
-    let adam7 = decodePngRgba8(File.readFrom("testdata/ibasn0g01.png"))
+    let adam7Bytes = File.readFrom("testdata/ibasn0g01.png")
+    let adam7 = decodePngRgba8(adam7Bytes)
     let adam7FirstRow = adam7.row(0)
     if (adam7.ihdr.interlaceMethod != Adam7 || adam7.rowCount() != Int64(32) ||
         adam7FirstRow.size != Int64(128) || adam7FirstRow[0] != UInt8(255) ||
         adam7FirstRow[3] != UInt8(255) || adam7FirstRow[124] != UInt8(0) ||
         adam7FirstRow[127] != UInt8(255)) {
         println("libpng4cj Adam7 consumer check failed")
+        return 1
+    }
+    let progressive = PngProgressiveReader()
+    let progressiveFacts = Array<Int64>(2, repeat: Int64(0))
+    progressive.setInfoCallback({
+        ihdr, _ =>
+            if (ihdr.interlaceMethod == Adam7) {
+                progressiveFacts[0] += 1
+            }
+    })
+    progressive.setRowCallback({
+        context, _ =>
+            if (context.canonicalCombined && context.passNumber == Int64(-1)) {
+                progressiveFacts[1] += 1
+            }
+    })
+    progressive.feed(consumerByteRange(adam7Bytes, Int64(0), Int64(17)))
+    progressive.feed(consumerByteRange(adam7Bytes, Int64(17), adam7Bytes.size - Int64(17)))
+    let progressiveDecoded = progressive.finish()
+    if (progressive.state() != ProgressiveCompleted ||
+        progressiveFacts[0] != Int64(1) ||
+        progressiveFacts[1] != progressiveDecoded.rowCount() ||
+        progressiveDecoded.rows() != decodePng(adam7Bytes).rows()) {
+        println("libpng4cj progressive consumer check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

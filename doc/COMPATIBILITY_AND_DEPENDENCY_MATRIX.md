@@ -9,7 +9,7 @@
 | Background composition | Implemented for current read pipeline | bKGD, fixed/floating application state, palette and non-palette composition, depth normalization, Screen/File/Unique gamma snapshots, alpha modes, and post-Compose Strip Alpha execute in initialized row and whole-image paths |
 | Standard ancillary metadata | Implemented for current read pipeline | cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and multiple sPLT entries are validated and retained through raw/RGBA result surfaces; recognized eXIf remains available after IDAT |
 | Adam7 decoding | Implemented for whole-image read | Exact seven-pass geometry, pass-local filter reversal, packed/8/16-bit reconstruction, metadata retention, and RGBA8/RGBA16 transforms are available through the generic decode APIs; progressive pass callbacks remain pending |
-| Progressive reading | Pending | No progressive state machine or callback surface is implemented |
+| Progressive reading | Partial buffered feed facade | `PngProgressiveReader` accepts arbitrary bounded input splits and delivers ordered native info/row/end callbacks at finalization for non-interlaced and Adam7 input; streaming zlib windows, pass-row timing, row combine, and pause/resume remain pending |
 | Write API | Pending | PNG encoding and write-side transforms are not implemented |
 | C ABI compatibility | Pending | No `libpng16` headers, exported symbols, or callback/longjmp bridge is shipped |
 | User callbacks | Partial | Native Cangjie read user-transform callbacks execute with row/pass context and copy ownership; custom IO, warning/error, allocator, and chunk callback families remain open |
