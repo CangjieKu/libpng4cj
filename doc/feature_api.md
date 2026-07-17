@@ -27,6 +27,8 @@ import libpng4cj.*
   actions
 - whole-image packed-row decoding for non-interlaced and Adam7 input
 - bounded chunk-fed progressive lifecycle with native info/row/end callbacks
+- bounded non-interlaced packed-row encoding with exact core chunks, CRC,
+  zlib compression, fixed filters, and deterministic adaptive filtering
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -44,6 +46,42 @@ import libpng4cj.*
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).
+
+## Non-Interlaced Packed Write
+
+The first native write surface accepts source-shaped packed rows and emits a
+complete PNG with signature, IHDR, optional indexed or truecolor PLTE, one or
+more IDAT chunks, and IEND:
+
+```cangjie
+let png = encodePngPacked(
+    UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha,
+    [
+        [255, 0, 0, 255, 0, 255, 0, 255],
+        [0, 0, 255, 255, 255, 255, 255, 255]
+    ]
+)
+```
+
+`PngWriteSession` exposes explicit Open, Finalizing, Completed, Failed, and
+Closed states. The full constructor accepts an optional indexed palette,
+`PngWriteFilterStrategy`, zlib level, and `PngWriteLimits`. Strategies include
+None, Sub, Up, Average, Paeth, and deterministic Adaptive selection. Adaptive
+selection minimizes the sum of signed-byte magnitudes and keeps the first
+filter on ties. Limits independently bound filtered row bytes, compressed IDAT
+bytes, complete encoded output bytes, and each emitted IDAT payload.
+
+All legal PNG color-type/bit-depth row shapes are accepted for non-interlaced
+output. Indexed writes require RGB palette triples and reject row indexes
+outside the declared PLTE. Truecolor and TruecolorAlpha may carry an optional
+suggested PLTE, while grayscale-family output rejects PLTE. Input rows remain
+caller-owned. The writer checks row count, row bytes, palette shape,
+filtered/compressed/output limits, chunk sizing, and zlib status before
+reporting Completed.
+
+Adam7 output, ancillary metadata emission, custom/progressive sinks, write-side
+pixel transforms, simplified `png_image_write_*`, and full C ABI write parity
+remain later work.
 
 ## Adam7 Whole-Image Decode
 

@@ -35,6 +35,30 @@ foreign func uncompress2(
     sourceLength: CPointer<UInt32>
 ): Int32
 
+@When[os != "Windows"]
+foreign func compressBound(sourceLength: UIntNative): UIntNative
+
+@When[os == "Windows"]
+foreign func compressBound(sourceLength: UInt32): UInt32
+
+@When[os != "Windows"]
+foreign func compress2(
+    destination: CPointer<UInt8>,
+    destinationLength: CPointer<UIntNative>,
+    source: CPointer<UInt8>,
+    sourceLength: UIntNative,
+    level: Int32
+): Int32
+
+@When[os == "Windows"]
+foreign func compress2(
+    destination: CPointer<UInt8>,
+    destinationLength: CPointer<UInt32>,
+    source: CPointer<UInt8>,
+    sourceLength: UInt32,
+    level: Int32
+): Int32
+
 private func throwZlibStatus(status: Int32): Nothing {
     let detail = if (status == ZLIB_DATA_ERROR) {
         "zlib stream is corrupt or incomplete"
@@ -176,6 +200,122 @@ public func inflatePngZlibExact(compressed: Array<Byte>, expectedSize: Int64): A
         throw PngFormatException(InvalidArgument, -1, "expected inflate size must be positive")
     }
     inflateZlibExactNative(compressed, expectedSize)
+}
+
+private func validateCompressionLevel(level: Int32): Unit {
+    if (level < Int32(-1) || level > Int32(9)) {
+        throw PngFormatException(InvalidArgument, -1, "zlib compression level must be in -1..9")
+    }
+}
+
+@When[os != "Windows"]
+private func compressPngZlibNative(input: Array<Byte>, level: Int32, maxOutput: UInt64): Array<Byte> {
+    var bound: UInt64 = UInt64(0)
+    unsafe {
+        bound = UInt64(compressBound(UIntNative(input.size)))
+    }
+    let capacity = if (bound > maxOutput) { maxOutput } else { bound }
+    if (capacity == UInt64(0) || capacity > UInt64(Int64.Max)) {
+        throw PngFormatException(DecodeLimitExceeded, -1, "compressed PNG output exceeds configured limit")
+    }
+    let output = Array<Byte>(Int64(capacity), repeat: UInt8(0))
+    var status: Int32 = Int32(0)
+    var actual: Int64 = Int64(0)
+    unsafe {
+        let destinationLength = LibC.malloc<UIntNative>(count: 1)
+        if (destinationLength.isNull()) {
+            throw PngFormatException(ZlibFailure, -1, "failed to allocate zlib compression length state")
+        }
+        let inputRaw = acquireArrayRawData(input)
+        let outputRaw = acquireArrayRawData(output)
+        try {
+            destinationLength.write(UIntNative(capacity))
+            status = compress2(
+                outputRaw.pointer,
+                destinationLength,
+                inputRaw.pointer,
+                UIntNative(input.size),
+                level
+            )
+            actual = Int64(destinationLength.read())
+        } finally {
+            releaseArrayRawData(outputRaw)
+            releaseArrayRawData(inputRaw)
+            LibC.free(destinationLength)
+        }
+    }
+    if (status == ZLIB_BUFFER_ERROR) {
+        throw PngFormatException(DecodeLimitExceeded, -1, "compressed PNG output exceeds configured limit")
+    }
+    if (status != ZLIB_OK) {
+        throwZlibStatus(status)
+    }
+    if (actual < Int64(0) || actual > output.size) {
+        throw PngFormatException(ZlibFailure, -1, "zlib returned an invalid compressed byte count")
+    }
+    copyByteRange(output, Int64(0), actual)
+}
+
+@When[os == "Windows"]
+private func compressPngZlibNative(input: Array<Byte>, level: Int32, maxOutput: UInt64): Array<Byte> {
+    if (input.size > Int64(UInt32.Max)) {
+        throw PngFormatException(DecodeLimitExceeded, -1, "Windows zlib input exceeds 32-bit uLong")
+    }
+    var bound: UInt64 = UInt64(0)
+    unsafe {
+        bound = UInt64(compressBound(UInt32(input.size)))
+    }
+    let capacity = if (bound > maxOutput) { maxOutput } else { bound }
+    if (capacity == UInt64(0) || capacity > UInt64(UInt32.Max)) {
+        throw PngFormatException(DecodeLimitExceeded, -1, "compressed PNG output exceeds Windows zlib capacity")
+    }
+    let output = Array<Byte>(Int64(capacity), repeat: UInt8(0))
+    var status: Int32 = Int32(0)
+    var actual: Int64 = Int64(0)
+    unsafe {
+        let destinationLength = LibC.malloc<UInt32>(count: 1)
+        if (destinationLength.isNull()) {
+            throw PngFormatException(ZlibFailure, -1, "failed to allocate zlib compression length state")
+        }
+        let inputRaw = acquireArrayRawData(input)
+        let outputRaw = acquireArrayRawData(output)
+        try {
+            destinationLength.write(UInt32(capacity))
+            status = compress2(
+                outputRaw.pointer,
+                destinationLength,
+                inputRaw.pointer,
+                UInt32(input.size),
+                level
+            )
+            actual = Int64(destinationLength.read())
+        } finally {
+            releaseArrayRawData(outputRaw)
+            releaseArrayRawData(inputRaw)
+            LibC.free(destinationLength)
+        }
+    }
+    if (status == ZLIB_BUFFER_ERROR) {
+        throw PngFormatException(DecodeLimitExceeded, -1, "compressed PNG output exceeds configured limit")
+    }
+    if (status != ZLIB_OK) {
+        throwZlibStatus(status)
+    }
+    if (actual < Int64(0) || actual > output.size) {
+        throw PngFormatException(ZlibFailure, -1, "zlib returned an invalid compressed byte count")
+    }
+    copyByteRange(output, Int64(0), actual)
+}
+
+func compressPngZlib(input: Array<Byte>, level: Int32, maxOutput: UInt64): Array<Byte> {
+    validateCompressionLevel(level)
+    if (input.size == Int64(0)) {
+        throw PngFormatException(InvalidArgument, -1, "PNG compression input cannot be empty")
+    }
+    if (maxOutput == UInt64(0) || maxOutput > UInt64(Int64.Max)) {
+        throw PngFormatException(InvalidArgument, -1, "maximum compressed PNG size must be in 1..Int64.Max")
+    }
+    compressPngZlibNative(input, level, maxOutput)
 }
 
 @When[os != "Windows"]

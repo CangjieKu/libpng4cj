@@ -10,7 +10,7 @@
 | Standard ancillary metadata | Implemented for current read pipeline | cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and multiple sPLT entries are validated and retained through raw/RGBA result surfaces; recognized eXIf remains available after IDAT |
 | Adam7 decoding | Implemented for whole-image and progressive read | Exact seven-pass geometry, pass-local filter reversal, packed/8/16-bit reconstruction, metadata retention, RGBA8/RGBA16 transforms, progressive pass context, and owned canonical row combination are available |
 | Progressive reading | Implemented native incremental read path | `PngProgressiveReader` incrementally parses signature/chunk/CRC state, streams IDAT through bounded zlib windows, emits early info and rows, reports exact Adam7 pass rows, and supports callback-driven pause/resume with unconsumed-byte accounting |
-| Write API | Pending | PNG encoding and write-side transforms are not implemented |
+| Write API | Partial native foundation | `PngWriteSession` and `encodePngPacked` emit signature/IHDR/optional PLTE/split IDAT/IEND with CRC, bounded zlib compression, all legal non-interlaced packed row shapes, fixed filters, and deterministic adaptive filtering; Adam7, full metadata, custom sinks, write transforms, simplified API, and full ABI remain open |
 | C ABI compatibility | Pending | No `libpng16` headers, exported symbols, or callback/longjmp bridge is shipped |
 | User callbacks | Partial | Native Cangjie read user-transform callbacks execute with row/pass context and copy ownership; custom IO, warning/error, allocator, and chunk callback families remain open |
 

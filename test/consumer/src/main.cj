@@ -961,6 +961,19 @@ main(): Int64 {
         println("libpng4cj progressive resume consumer check failed")
         return 1
     }
+    let writeRows: Array<Array<Byte>> = [
+        [UInt8(255), UInt8(0), UInt8(0), UInt8(255), UInt8(0), UInt8(255), UInt8(0), UInt8(255)],
+        [UInt8(0), UInt8(0), UInt8(255), UInt8(255), UInt8(255), UInt8(255), UInt8(255), UInt8(255)]
+    ]
+    let written = encodePngPacked(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha, writeRows
+    )
+    let writtenDecoded = decodePngNonInterlaced(written)
+    if (writtenDecoded.ihdr.colorType != TruecolorAlpha ||
+        writtenDecoded.rows() != writeRows) {
+        println("libpng4cj packed write consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

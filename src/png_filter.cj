@@ -31,6 +31,10 @@ private func paethPredictor(left: UInt8, up: UInt8, upperLeft: UInt8): UInt8 {
     }
 }
 
+private func subtractByteModulo(left: UInt8, right: UInt8): UInt8 {
+    UInt8((UInt16(left) + UInt16(256) - UInt16(right)) & UInt16(0xff))
+}
+
 public func pngFilterBytesPerPixel(ihdr: PngIhdr): Int64 {
     let bytes = (Int64(ihdr.pixelDepth) + 7) / 8
     if (bytes > 0) { bytes } else { 1 }
@@ -75,4 +79,44 @@ public func unfilterPngRow(
         index += 1
     }
     row
+}
+
+public func filterPngRow(
+    filterType: UInt8,
+    row: Array<Byte>,
+    previous: Array<Byte>,
+    bytesPerPixel: Int64
+): Array<Byte> {
+    if (row.size != previous.size) {
+        throw PngFormatException(InvalidArgument, -1, "current and previous PNG rows differ in size")
+    }
+    if (bytesPerPixel <= 0) {
+        throw PngFormatException(InvalidArgument, -1, "PNG filter bytes-per-pixel must be positive")
+    }
+    if (filterType > PNG_FILTER_PAETH) {
+        throw PngFormatException(InvalidFilter, -1, "PNG write filter value is invalid")
+    }
+    if (filterType == PNG_FILTER_NONE) {
+        return row.clone()
+    }
+
+    let filtered = Array<Byte>(row.size, repeat: UInt8(0))
+    var index: Int64 = Int64(0)
+    while (index < row.size) {
+        let left = if (index >= bytesPerPixel) { row[index - bytesPerPixel] } else { UInt8(0) }
+        let up = previous[index]
+        let upperLeft = if (index >= bytesPerPixel) { previous[index - bytesPerPixel] } else { UInt8(0) }
+        let predictor = if (filterType == PNG_FILTER_SUB) {
+            left
+        } else if (filterType == PNG_FILTER_UP) {
+            up
+        } else if (filterType == PNG_FILTER_AVERAGE) {
+            UInt8((UInt16(left) + UInt16(up)) / UInt16(2))
+        } else {
+            paethPredictor(left, up, upperLeft)
+        }
+        filtered[index] = subtractByteModulo(row[index], predictor)
+        index += Int64(1)
+    }
+    filtered
 }

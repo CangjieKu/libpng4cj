@@ -1554,3 +1554,31 @@ eXIf, hIST, oFFs, pCAL, sCAL, and sPLT:
 
 The iCCP path continues to validate and retain ICC profile bytes. Neither
 upstream libpng nor this translation performs ICC pixel color conversion.
+
+## Implemented Write Foundation And Non-Interlaced Packed Encoder
+
+LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
+`png_write.cj`, the shared filter layer, and the external-zlib boundary:
+
+- `PngWriteSession` owns Open, Finalizing, Completed, Failed, and Closed write
+  lifecycle without exposing C-owned PNG state
+- signature, IHDR, optional indexed PLTE, split IDAT, and IEND are emitted with
+  exact big-endian lengths and CRCs
+- `compress2` and `compressBound` are declared for LP64 and Windows LLP64 and
+  remain the same external zlib dependency boundary as upstream libpng
+- every legal non-interlaced color-type/bit-depth packed row shape accepted by
+  the reader can round-trip through the native writer
+- indexed writes validate palette triples, bit-depth capacity, and every used
+  packed palette index; truecolor-family writes also accept an optional
+  suggested PLTE while grayscale-family output rejects it
+- None, Sub, Up, Average, and Paeth forward filtering use the existing PNG
+  bytes-per-pixel semantics
+- deterministic Adaptive filtering scores signed filtered-byte magnitudes and
+  retains the first candidate on ties
+- row count/length, zlib level, separate filtered/compressed/output limits,
+  exact pre-allocation output sizing, IDAT chunk sizing, repeated writes,
+  failures, and close behavior are explicit
+
+This foundation is whole-image and non-interlaced. Adam7 write, full ancillary
+metadata emission, custom/progressive sinks, write transforms, simplified API,
+and complete libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work.
