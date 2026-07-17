@@ -8,7 +8,7 @@
 | Gamma correction | Implemented for current read pipeline | gAMA/sRGB/cHRM metadata, packed/8/16-bit correction, gamma-aware RGB-to-gray, background composition, and alpha-mode paths execute through frozen direct/linear tables; ICC pixel color conversion remains outside libpng parity |
 | Background composition | Implemented for current read pipeline | bKGD, fixed/floating application state, palette and non-palette composition, depth normalization, Screen/File/Unique gamma snapshots, alpha modes, and post-Compose Strip Alpha execute in initialized row and whole-image paths |
 | Standard ancillary metadata | Implemented for current read pipeline | cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and multiple sPLT entries are validated and retained through raw/RGBA result surfaces; recognized eXIf remains available after IDAT |
-| Adam7 decoding | Pending | Adam7 IHDR values are recognized; interlaced row execution is not implemented |
+| Adam7 decoding | Implemented for whole-image read | Exact seven-pass geometry, pass-local filter reversal, packed/8/16-bit reconstruction, metadata retention, and RGBA8/RGBA16 transforms are available through the generic decode APIs; progressive pass callbacks remain pending |
 | Progressive reading | Pending | No progressive state machine or callback surface is implemented |
 | Write API | Pending | PNG encoding and write-side transforms are not implemented |
 | C ABI compatibility | Pending | No `libpng16` headers, exported symbols, or callback/longjmp bridge is shipped |
@@ -63,6 +63,8 @@ declared minimum.
   and have focused boundary tests, but large-file throughput is not certified.
 - Decoder sessions and transform state are instance-owned with no package-level
   mutable decode state. Concurrent stress and race testing are still pending.
-- Adam7 remains a missing capability. Native read transforms are complete for
-  the current non-interlaced pipeline, while ICC pixel color conversion is not
-  a libpng behavior and no broader color-management engine is claimed.
+- Adam7 whole-image decoding is covered across packed grayscale/indexed,
+  8-bit RGB/RGBA, and 16-bit Gray Alpha/RGBA PNGSuite pairs. Progressive
+  delivery, row-combine callbacks, and pause/resume remain open. ICC pixel
+  color conversion is not a libpng behavior and no broader color-management
+  engine is claimed.

@@ -25,7 +25,7 @@ import libpng4cj.*
 - PNG signature, endian, chunk-type, and CRC primitives
 - bounded chunk and metadata reading with configurable critical/ancillary CRC
   actions
-- non-interlaced packed-row decoding
+- whole-image packed-row decoding for non-interlaced and Adam7 input
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -43,6 +43,32 @@ import libpng4cj.*
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).
+
+## Adam7 Whole-Image Decode
+
+Use the generic entry points when input may be either non-interlaced or Adam7:
+
+```cangjie
+let packed = decodePng(bytes)
+let rgba8 = decodePngRgba8(bytes)
+let rgba16 = decodePngRgba16(bytes)
+```
+
+Their limits and unknown-chunk overloads mirror the existing whole-image read
+surface. `decodePngRgba8` also keeps the explicit `Png16To8Mode` overloads for
+16-bit source reduction.
+
+Adam7 input is reconstructed from the frozen seven-pass start/step geometry.
+Each non-empty pass has independent PNG filter history; packed 1/2/4-bit
+samples and 8/16-bit channel bytes are scattered into canonical full-width
+rows before the existing metadata and transform pipeline runs. Returned rows
+and metadata retain the same copy-ownership contract as non-interlaced input.
+
+The explicit `decodePngNonInterlaced`, `decodePngRgba8NonInterlaced`, and
+`decodePngRgba16NonInterlaced` families remain available and still reject
+Adam7 input with `UnsupportedInterlace`. This packet does not add progressive
+callbacks, row-combine delivery, pause/resume, or pass-aware user-transform
+execution.
 
 ## Standard Ancillary Metadata
 

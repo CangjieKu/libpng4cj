@@ -74,7 +74,7 @@ private func validatePaletteChunk(chunk: PngChunk, ihdr: PngIhdr): Unit {
     }
 }
 
-private func expectedInflatedSize(ihdr: PngIhdr, limits: PngReadLimits): Int64 {
+private func expectedNonInterlacedInflatedSize(ihdr: PngIhdr, limits: PngReadLimits): Int64 {
     let rowFrameBytes = ihdr.rowBytes + UInt64(1)
     let height = UInt64(ihdr.height)
     if (height > limits.maxInflatedBytes / rowFrameBytes) {
@@ -106,21 +106,22 @@ private func decodeInflatedRows(inflated: Array<Byte>, ihdr: PngIhdr): Array<Arr
     rows
 }
 
-public func decodePngNonInterlaced(
+private func decodePngRowsInternal(
     bytes: Array<Byte>,
     limits: PngReadLimits,
     unknownPolicy: PngUnknownChunkPolicy,
     criticalCrcAction: PngCrcAction,
-    ancillaryCrcAction: PngCrcAction
+    ancillaryCrcAction: PngCrcAction,
+    requireNonInterlaced: Bool
 ): PngDecodedRows {
     let session = PngReadSession(bytes, limits)
     session.setCrcAction(criticalCrcAction, ancillaryCrcAction)
     let ihdr = session.readIhdr()
-    if (ihdr.interlaceMethod != None) {
+    if (requireNonInterlaced && ihdr.interlaceMethod != None) {
         throw PngFormatException(
             UnsupportedInterlace,
             28,
-            "LP-S003 supports only non-interlaced PNG images"
+            "decodePngNonInterlaced requires a non-interlaced PNG image"
         )
     }
 
@@ -227,10 +228,90 @@ public func decodePngNonInterlaced(
         throw PngFormatException(TrailingData, session.position(), "PNG contains bytes after IEND")
     }
 
-    let expectedSize = expectedInflatedSize(ihdr, limits)
+    let expectedSize = if (ihdr.interlaceMethod == Adam7) {
+        pngAdam7ExpectedInflatedSize(ihdr, limits)
+    } else {
+        expectedNonInterlacedInflatedSize(ihdr, limits)
+    }
     let inflated = inflatePngZlibExact(compressed.toArray(), expectedSize)
     let metadata = metadataBuilder.build(palette, transparency)
-    PngDecodedRows(ihdr, metadata, decodeInflatedRows(inflated, ihdr))
+    let rows = if (ihdr.interlaceMethod == Adam7) {
+        decodeAdam7InflatedRows(inflated, ihdr)
+    } else {
+        decodeInflatedRows(inflated, ihdr)
+    }
+    PngDecodedRows(ihdr, metadata, rows)
+}
+
+public func decodePng(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy,
+    criticalCrcAction: PngCrcAction,
+    ancillaryCrcAction: PngCrcAction
+): PngDecodedRows {
+    decodePngRowsInternal(
+        bytes,
+        limits,
+        unknownPolicy,
+        criticalCrcAction,
+        ancillaryCrcAction,
+        false
+    )
+}
+
+public func decodePngNonInterlaced(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy,
+    criticalCrcAction: PngCrcAction,
+    ancillaryCrcAction: PngCrcAction
+): PngDecodedRows {
+    decodePngRowsInternal(
+        bytes,
+        limits,
+        unknownPolicy,
+        criticalCrcAction,
+        ancillaryCrcAction,
+        true
+    )
+}
+
+public func decodePng(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngDecodedRows {
+    decodePng(bytes, limits, unknownPolicy, CrcNoChange, CrcNoChange)
+}
+
+public func decodePng(
+    bytes: Array<Byte>,
+    criticalCrcAction: PngCrcAction,
+    ancillaryCrcAction: PngCrcAction
+): PngDecodedRows {
+    decodePng(
+        bytes,
+        PngReadLimits(),
+        Discard,
+        criticalCrcAction,
+        ancillaryCrcAction
+    )
+}
+
+public func decodePng(bytes: Array<Byte>, limits: PngReadLimits): PngDecodedRows {
+    decodePng(bytes, limits, Discard)
+}
+
+public func decodePng(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngDecodedRows {
+    decodePng(bytes, PngReadLimits(), unknownPolicy)
+}
+
+public func decodePng(bytes: Array<Byte>): PngDecodedRows {
+    decodePng(bytes, PngReadLimits(), Discard)
 }
 
 public func decodePngNonInterlaced(

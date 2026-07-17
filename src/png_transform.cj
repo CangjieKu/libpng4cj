@@ -526,6 +526,91 @@ public func transformPngRowsToRgba16(
     transformPngRowsToRgba16(decoded, PngReadLimits(), transforms)
 }
 
+public func decodePngRgba8(
+    bytes: Array<Byte>,
+    limits: PngReadLimits
+): PngRgba8Rows {
+    transformPngRowsToRgba8(decodePng(bytes, limits), limits)
+}
+
+public func decodePngRgba8(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba8Rows {
+    transformPngRowsToRgba8(decodePng(bytes, limits, unknownPolicy), limits)
+}
+
+public func decodePngRgba8(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba8Rows {
+    decodePngRgba8(bytes, PngReadLimits(), unknownPolicy)
+}
+
+public func decodePngRgba8(bytes: Array<Byte>): PngRgba8Rows {
+    decodePngRgba8(bytes, PngReadLimits())
+}
+
+public func decodePngRgba8(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    mode: Png16To8Mode
+): PngRgba8Rows {
+    transformPngRowsToRgba8(decodePng(bytes, limits), limits, mode)
+}
+
+public func decodePngRgba8(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy,
+    mode: Png16To8Mode
+): PngRgba8Rows {
+    transformPngRowsToRgba8(
+        decodePng(bytes, limits, unknownPolicy),
+        limits,
+        mode
+    )
+}
+
+public func decodePngRgba8(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy,
+    mode: Png16To8Mode
+): PngRgba8Rows {
+    decodePngRgba8(bytes, PngReadLimits(), unknownPolicy, mode)
+}
+
+public func decodePngRgba8(bytes: Array<Byte>, mode: Png16To8Mode): PngRgba8Rows {
+    decodePngRgba8(bytes, PngReadLimits(), mode)
+}
+
+public func decodePngRgba16(
+    bytes: Array<Byte>,
+    limits: PngReadLimits
+): PngRgba16Rows {
+    transformPngRowsToRgba16(decodePng(bytes, limits), limits)
+}
+
+public func decodePngRgba16(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba16Rows {
+    transformPngRowsToRgba16(decodePng(bytes, limits, unknownPolicy), limits)
+}
+
+public func decodePngRgba16(
+    bytes: Array<Byte>,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngRgba16Rows {
+    decodePngRgba16(bytes, PngReadLimits(), unknownPolicy)
+}
+
+public func decodePngRgba16(bytes: Array<Byte>): PngRgba16Rows {
+    decodePngRgba16(bytes, PngReadLimits())
+}
+
 public func decodePngRgba8NonInterlaced(
     bytes: Array<Byte>,
     limits: PngReadLimits

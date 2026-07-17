@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Decode Adam7 images through exact seven-pass geometry, pass-local filter
+  reversal, and packed/8/16-bit scatter into canonical full-image rows; add
+  generic packed, RGBA8, and RGBA16 entry points while preserving the explicit
+  non-interlaced API rejection contract.
 - Translate cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and sPLT read
   metadata with ordering, duplicate, field, numeric-string, copy-ownership,
   transformed-result, post-IDAT eXIf, and standalone consumer coverage.

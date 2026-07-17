@@ -1,5 +1,6 @@
 package libpng4cj_consumer
 
+import std.fs.*
 import libpng4cj.*
 
 private let CONSUMER_RGBA_ZLIB: Array<Byte> = [
@@ -885,6 +886,15 @@ main(): Int64 {
         ancillaryMetadata.exif() != [UInt8(0x49), UInt8(0x49), UInt8(0x2a), UInt8(0)] ||
         ancillaryMetadata.unknownChunkCount() != Int64(0)) {
         println("libpng4cj ancillary metadata consumer check failed")
+        return 1
+    }
+    let adam7 = decodePngRgba8(File.readFrom("testdata/ibasn0g01.png"))
+    let adam7FirstRow = adam7.row(0)
+    if (adam7.ihdr.interlaceMethod != Adam7 || adam7.rowCount() != Int64(32) ||
+        adam7FirstRow.size != Int64(128) || adam7FirstRow[0] != UInt8(255) ||
+        adam7FirstRow[3] != UInt8(255) || adam7FirstRow[124] != UInt8(0) ||
+        adam7FirstRow[127] != UInt8(255)) {
+        println("libpng4cj Adam7 consumer check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

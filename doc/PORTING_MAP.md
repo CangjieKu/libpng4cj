@@ -59,6 +59,28 @@ transparency/background/gamma transforms, execute Adam7, expose progressive IO,
 or claim full read parity. Compressed and inflated data default to separate
 256,000,000-byte limits.
 
+## Implemented Adam7 Whole-Image Reconstruction
+
+LP-S005A extends the high-level `pngread.c` / `pngrutil.c` row path through
+`png_adam7.cj` and the shared decoder:
+
+- `pngAdam7PassGeometry` exposes the frozen seven-pass start, step, width,
+  height, and packed row-byte geometry
+- `pngAdam7ExpectedInflatedSize` sums only non-empty pass rows and enforces the
+  configured inflated-byte limit before allocation
+- every pass reverses PNG filters with its own previous-row state
+- 1/2/4-bit samples and 8/16-bit multi-channel pixels scatter into canonical
+  copy-owned full-image packed rows
+- generic `decodePng`, `decodePngRgba8`, and `decodePngRgba16` overloads accept
+  both non-interlaced and Adam7 input
+- existing `*NonInterlaced` entry points retain their explicit Adam7 rejection
+  behavior
+
+Metadata parsing, CRC actions, IDAT collection, exact zlib consumption, and
+the existing RGBA transforms remain shared. The packet is whole-image decode,
+not progressive delivery: row-combine callbacks, pass-aware user-transform
+callbacks, pause/resume, custom IO, and the C ABI remain later work.
+
 ## Implemented First Read Transforms
 
 LP-S004A maps the first palette and expansion parts of `pngrutil.c`,
