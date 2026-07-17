@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Complete Indexed tRNS inversion during palette initialization when Background
+  Expand and Expand are active without tRNS-to-alpha expansion, using a
+  copy-owned effective alpha prefix while preserving ordinary Expand row-alpha
+  handling and source metadata.
 - Complete alpha initializer optimization parity for Indexed input: classify
   opaque, binary, and partial alpha before freezing effective Encode/Optimize
   state, preserve setter intent independently, and premultiply partial palette

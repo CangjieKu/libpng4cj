@@ -1091,6 +1091,26 @@ private func pngInitPaletteTransformations(
     PngInputAlphaClassification(hasAlpha, hasTransparency)
 }
 
+private func pngInitEffectivePaletteAlpha(
+    state: PngReadTransformState,
+    metadata: PngReadMetadata,
+    background: PngEffectiveBackgroundInitialization
+): Array<Byte> {
+    let alpha = metadata.paletteAlpha()
+    if (!background.expandEnabled || !state.expandEnabled() ||
+        !state.invertAlphaEnabled() || state.expandTransparencyEnabled()) {
+        return alpha
+    }
+
+    let inverted = alpha.clone()
+    var index: Int64 = 0
+    while (index < inverted.size) {
+        inverted[index] = UInt8(0xff) - inverted[index]
+        index += 1
+    }
+    inverted
+}
+
 private func pngInitRgbTransformations(
     ihdr: PngIhdr,
     metadata: PngReadMetadata,
@@ -1251,6 +1271,11 @@ public func initializePngReadTransformations(
         initializedGammaValues,
         composeGammaTablesRequired
     )
+    let effectivePaletteAlpha = if (usesPaletteInitializer) {
+        pngInitEffectivePaletteAlpha(state, metadata, initializedBackground)
+    } else {
+        Array<Byte>()
+    }
     let effectiveOutputHasAlpha = if (state.addAlphaEnabled()) {
         true
     } else if (state.stripAlphaEnabled()) {
@@ -1319,7 +1344,7 @@ public func initializePngReadTransformations(
     let paletteInitialization = if (usesPaletteInitializer) {
         pngInitPaletteBackgroundTransformations(
             metadata.palette(),
-            metadata.paletteAlpha(),
+            effectivePaletteAlpha,
             initializedBackground.composeEnabled,
             if (initializedBackground.configured) {
                 initializedBackground.background

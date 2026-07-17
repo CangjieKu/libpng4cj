@@ -135,6 +135,41 @@ private func expectedNoGammaPalette(
     ]
 }
 
+private func expectedNoGammaPaletteForAlpha(
+    background: PngBackground,
+    alpha: Array<Byte>
+): Array<Byte> {
+    let source = paletteBackgroundPalette()
+    let output = source.clone()
+    var entry: Int64 = 0
+    while (entry < source.size / 3) {
+        let entryAlpha = if (entry < alpha.size) {
+            alpha[entry]
+        } else {
+            UInt8(0xff)
+        }
+        var channel: Int64 = 0
+        while (channel < 3) {
+            let offset = entry * 3 + channel
+            let back = UInt8(match (channel) {
+                case 0 => background.red
+                case 1 => background.green
+                case _ => background.blue
+            })
+            output[offset] = if (entryAlpha == UInt8(0)) {
+                back
+            } else if (entryAlpha == UInt8(0xff)) {
+                source[offset]
+            } else {
+                paletteBackgroundComposite(source[offset], entryAlpha, back)
+            }
+            channel += 1
+        }
+        entry += 1
+    }
+    output
+}
+
 private func expectedGammaComposePalette(
     background: PngBackground,
     backgroundLinear: PngBackground,
@@ -547,6 +582,79 @@ public class PngPaletteBackgroundTransformTestSuite {
         @Assert(whole.row(0), expected)
         @Assert(decoded.metadata.palette(), paletteBackgroundPalette())
         @Assert(decoded.metadata.paletteAlpha(), alpha)
+    }
+
+    @TestCase
+    public func invertsEffectiveTrnsForBackgroundExpandWithoutAlphaExpansion(): Unit {
+        let sourceAlpha: Array<Byte> = [0, 64, 255]
+        let invertedAlpha: Array<Byte> = [255, 191, 0]
+        let decoded = paletteBackgroundDecoded(sourceAlpha)
+        let background = paletteBackgroundColor(40, 50, 60)
+        let state = PngReadTransformState()
+        configurePaletteBackground(
+            state,
+            background,
+            BackgroundGammaScreen,
+            PNG_FP_1,
+            true
+        )
+        @Assert(state.setExpandGrayOneTwoFourToEight(), true)
+        @Assert(state.setInvertAlpha(), true)
+
+        let initialized = initializePngReadTransformations(state, decoded)
+        let expected = expectedNoGammaPaletteForAlpha(
+            initialized.background(),
+            invertedAlpha
+        )
+        @Assert(initialized.effectiveTransparencyExpansion, false)
+        @Assert(initialized.invertAlphaEnabled(), true)
+        @Assert(initialized.paletteComposeApplied(), true)
+        @Assert(initialized.effectivePaletteAlpha(), invertedAlpha)
+        @Assert(initialized.effectivePalette(), expected)
+        @Assert(decoded.metadata.paletteAlpha(), sourceAlpha)
+
+        let wholeState = PngReadTransformState()
+        configurePaletteBackground(
+            wholeState,
+            background,
+            BackgroundGammaScreen,
+            PNG_FP_1,
+            true
+        )
+        @Assert(wholeState.setExpandGrayOneTwoFourToEight(), true)
+        @Assert(wholeState.setInvertAlpha(), true)
+        let whole = transformPngRowsInitialized(decoded, wholeState)
+        @Assert(whole.info.colorType, Truecolor)
+        @Assert(whole.info.channels, UInt8(3))
+        @Assert(whole.row(0), [
+            expected[0], expected[1], expected[2],
+            expected[3], expected[4], expected[5],
+            expected[6], expected[7], expected[8]
+        ])
+        @Assert(decoded.metadata.paletteAlpha(), sourceAlpha)
+    }
+
+    @TestCase
+    public func keepsTrnsForOrdinaryExpandAlphaRowHandling(): Unit {
+        let sourceAlpha: Array<Byte> = [0, 64, 255]
+        let decoded = paletteBackgroundDecoded(sourceAlpha)
+        let state = PngReadTransformState()
+        configurePaletteBackground(
+            state,
+            paletteBackgroundColor(40, 50, 60),
+            BackgroundGammaScreen,
+            PNG_FP_1,
+            true
+        )
+        @Assert(state.setExpand(), true)
+        @Assert(state.setInvertAlpha(), true)
+
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.effectiveTransparencyExpansion, true)
+        @Assert(initialized.effectivePaletteAlpha(), sourceAlpha)
+        @Assert(initialized.expandPaletteAlpha(), sourceAlpha)
+        @Assert(initialized.invertAlphaEnabled(), true)
+        @Assert(decoded.metadata.paletteAlpha(), sourceAlpha)
     }
 
     @TestCase

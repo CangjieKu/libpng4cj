@@ -905,6 +905,26 @@ background-expansion branches under tests and advances to translated. Palette
 and complete read initialization remain partial for their other deferred
 branches, so the ledger becomes `38 translated / 7 partial / 0 pending`.
 
+## Implemented Palette tRNS Invert Initialization
+
+LP-S004BK closes the final frozen branch in
+`png_init_palette_transformations`:
+
+- Background Expand plus Expand without Expand-tRNS inverts each retained tRNS
+  byte before palette composition
+- inversion applies only to the copy-owned effective alpha-prefix snapshot;
+  source metadata and implicit opaque tail entries remain unchanged
+- transparent, partial, and opaque values use exact `255 - alpha` behavior
+- the inverted prefix feeds the already-translated encoded/linear palette
+  composition paths and whole-image output
+- ordinary Expand-tRNS retains the original prefix for row-stage alpha handling
+- Expand/non-Expand snapshots, malformed-prefix validation, ownership, and
+  standalone consumer use remain covered
+
+All frozen branches of `png_init_palette_transformations` are now traceable, so
+the row advances to translated. The ledger becomes
+`39 translated / 6 partial / 0 pending`.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

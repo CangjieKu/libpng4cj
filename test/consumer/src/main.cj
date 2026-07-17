@@ -494,6 +494,28 @@ main(): Int64 {
         println("libpng4cj optimized palette alpha check failed")
         return 1
     }
+    let invertedPaletteState = PngReadTransformState()
+    if (!invertedPaletteState.setBackgroundFixed(
+        PngBackground(UInt8(3), UInt16(0), UInt16(0), UInt16(0), UInt16(0)),
+        BackgroundGammaScreen,
+        true,
+        PNG_FP_1
+    ) || !invertedPaletteState.setExpandGrayOneTwoFourToEight() ||
+        !invertedPaletteState.setInvertAlpha()) {
+        println("libpng4cj palette tRNS invert setup failed")
+        return 1
+    }
+    let invertedPalette = initializePngReadTransformations(
+        invertedPaletteState,
+        indexedBackgroundDecoded
+    )
+    let invertedExpectedAlpha: Array<Byte> = [255, 127, 0]
+    if (invertedPalette.effectiveTransparencyExpansion ||
+        invertedPalette.effectivePaletteAlpha() != invertedExpectedAlpha ||
+        indexedBackgroundDecoded.metadata.paletteAlpha() != [0, 128, 255]) {
+        println("libpng4cj palette tRNS invert initialization check failed")
+        return 1
+    }
     let alphaModeState = PngReadTransformState()
     if (!alphaModeState.setAlphaMode(AlphaAssociated, 2.2)) {
         println("libpng4cj alpha-mode setup failed")

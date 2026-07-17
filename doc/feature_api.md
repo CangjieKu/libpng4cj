@@ -324,6 +324,12 @@ near-linear screen-Gamma and surviving-alpha cancellation.
 For partial Indexed alpha, effective Optimize is consumed by initialization-time
 palette premultiplication and is shared by Expand and non-Expand consumers.
 
+When Background Expand and Expand are selected without tRNS-to-alpha expansion,
+`InvertAlpha` is consumed against a copy-owned effective palette-alpha prefix
+before palette composition. The source tRNS metadata is unchanged. Ordinary
+Expand-tRNS keeps the original prefix in the initialization snapshot so alpha
+inversion remains a row-stage concern.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

@@ -45,7 +45,7 @@ Status meanings:
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | setter/state/initialization connected; table integration deferred |
-| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` plus `pngInitPaletteBackgroundTransformations` | partial | no-alpha/binary cancellation, palette-index background expansion, copy-owned PLTE/tRNS preprocessing, direct/linear Gamma, optimized partial-alpha premultiplication, and Compose/Gamma cancellation translated; non-expanded tRNS invert initialization remains deferred |
+| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations`, `pngInitEffectivePaletteAlpha`, and `pngInitPaletteBackgroundTransformations` | translated | alpha/transparency classification, no-alpha/binary cancellation, palette-index background expansion, copy-owned tRNS inversion, direct/linear Gamma composition, optimized partial-alpha premultiplication, and Compose/Gamma cancellation translated |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | translated | inherent-alpha/tRNS classification, no-alpha Compose/background cancellation, effective Optimize/Encode cancellation, and sub-byte gray background expansion translated |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
@@ -513,3 +513,13 @@ source-metadata ownership, whole-image execution, and standalone consumer use
 are covered. `png_init_rgb_transformations` advances from partial to translated;
 the palette and complete read initializer rows retain other deferred branches,
 so the ledger becomes `38 translated / 7 partial / 0 pending`.
+
+LP-S004BK closes the final palette initializer branch. Background Expand plus
+Expand without tRNS-to-alpha expansion now inverts the copy-owned effective
+palette alpha prefix byte-for-byte before the existing palette composition
+path. Source metadata and the implicit opaque tail remain unchanged, while the
+ordinary Expand-tRNS path retains the original prefix for row-stage alpha
+handling. Transparent/partial/opaque values, Expand/non-Expand snapshots,
+whole-image execution, malformed-prefix behavior, and consumer use are covered.
+`png_init_palette_transformations` advances from partial to translated, so the
+ledger becomes `39 translated / 6 partial / 0 pending`.
