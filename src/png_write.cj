@@ -157,7 +157,7 @@ private func validateWriteByteLimit(value: UInt64, label: String): Unit {
     }
 }
 
-private func appendWriteBytes(target: ArrayList<Byte>, bytes: Array<Byte>): Unit {
+func appendWriteBytes(target: ArrayList<Byte>, bytes: Array<Byte>): Unit {
     var index: Int64 = Int64(0)
     while (index < bytes.size) {
         target.add(bytes[index])
@@ -177,7 +177,13 @@ private func validWriteColorDepth(colorType: PngColorType, bitDepth: UInt8): Boo
     }
 }
 
-private func validateWriteHeader(width: UInt32, height: UInt32, bitDepth: UInt8, colorType: PngColorType): PngIhdr {
+private func validateWriteHeader(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    colorType: PngColorType,
+    interlaceMethod: PngInterlaceMethod
+): PngIhdr {
     if (width == UInt32(0) || width > PNG_UINT_31_MAX ||
         height == UInt32(0) || height > PNG_UINT_31_MAX) {
         throw PngFormatException(InvalidIhdr, -1, "PNG write dimensions must be in 1..PNG_UINT_31_MAX")
@@ -185,7 +191,7 @@ private func validateWriteHeader(width: UInt32, height: UInt32, bitDepth: UInt8,
     if (!validWriteColorDepth(colorType, bitDepth)) {
         throw PngFormatException(InvalidIhdr, -1, "PNG write color type and bit depth are incompatible")
     }
-    PngIhdr(width, height, bitDepth, colorType, UInt8(0), UInt8(0), None)
+    PngIhdr(width, height, bitDepth, colorType, UInt8(0), UInt8(0), interlaceMethod)
 }
 
 func makeWriteChunk(chunkType: Array<Byte>, data: Array<Byte>): Array<Byte> {
@@ -208,7 +214,7 @@ private func makeWriteIhdr(ihdr: PngIhdr): Array<Byte> {
     data.add(ihdr.colorType.encodedValue())
     data.add(UInt8(0))
     data.add(UInt8(0))
-    data.add(UInt8(0))
+    data.add(ihdr.interlaceMethod.encodedValue())
     makeWriteChunk(PNG_CHUNK_IHDR, data.toArray())
 }
 
@@ -306,7 +312,7 @@ private func filteredByteScore(bytes: Array<Byte>): UInt64 {
     score
 }
 
-private class SelectedWriteFilter {
+class SelectedWriteFilter {
     let filterType: UInt8
     let bytes: Array<Byte>
 
@@ -316,7 +322,7 @@ private class SelectedWriteFilter {
     }
 }
 
-private func selectWriteFilter(
+func selectWriteFilter(
     strategy: PngWriteFilterStrategy,
     row: Array<Byte>,
     previous: Array<Byte>,
@@ -343,23 +349,14 @@ private func selectWriteFilter(
     SelectedWriteFilter(selectedType, selected)
 }
 
-private func buildFilteredWriteRows(
+private func validateWriteRows(
     ihdr: PngIhdr,
     rows: Array<Array<Byte>>,
-    strategy: PngWriteFilterStrategy,
-    maxCompressedInput: UInt64,
     paletteEntryCount: Int64
-): Array<Byte> {
+): Unit {
     if (rows.size != Int64(ihdr.height)) {
         throw PngFormatException(InvalidArgument, -1, "PNG write row count does not match height")
     }
-    let frameBytes = ihdr.rowBytes + UInt64(1)
-    if (UInt64(ihdr.height) > maxCompressedInput / frameBytes) {
-        throw PngFormatException(DecodeLimitExceeded, -1, "filtered PNG rows exceed configured input limit")
-    }
-    let out = ArrayList<Byte>()
-    let bytesPerPixel = pngFilterBytesPerPixel(ihdr)
-    var previous = Array<Byte>(Int64(ihdr.rowBytes), repeat: UInt8(0))
     var rowIndex: Int64 = Int64(0)
     while (rowIndex < rows.size) {
         let row = rows[rowIndex]
@@ -389,6 +386,31 @@ private func buildFilteredWriteRows(
                 pixel += UInt64(1)
             }
         }
+        rowIndex += Int64(1)
+    }
+}
+
+private func buildFilteredWriteRows(
+    ihdr: PngIhdr,
+    rows: Array<Array<Byte>>,
+    strategy: PngWriteFilterStrategy,
+    maxCompressedInput: UInt64,
+    paletteEntryCount: Int64
+): Array<Byte> {
+    validateWriteRows(ihdr, rows, paletteEntryCount)
+    if (ihdr.interlaceMethod == Adam7) {
+        return buildFilteredAdam7WriteRows(ihdr, rows, strategy, maxCompressedInput)
+    }
+    let frameBytes = ihdr.rowBytes + UInt64(1)
+    if (UInt64(ihdr.height) > maxCompressedInput / frameBytes) {
+        throw PngFormatException(DecodeLimitExceeded, -1, "filtered PNG rows exceed configured input limit")
+    }
+    let out = ArrayList<Byte>()
+    let bytesPerPixel = pngFilterBytesPerPixel(ihdr)
+    var previous = Array<Byte>(Int64(ihdr.rowBytes), repeat: UInt8(0))
+    var rowIndex: Int64 = Int64(0)
+    while (rowIndex < rows.size) {
+        let row = rows[rowIndex]
         let selected = selectWriteFilter(strategy, row, previous, bytesPerPixel)
         out.add(selected.filterType)
         appendWriteBytes(out, selected.bytes)
@@ -412,13 +434,14 @@ public class PngWriteSession {
         height: UInt32,
         bitDepth: UInt8,
         colorType: PngColorType,
+        interlaceMethod: PngInterlaceMethod,
         palette: Array<Byte>,
         metadata: PngWriteMetadata,
         strategy: PngWriteFilterStrategy,
         compressionLevel: Int32,
         limits: PngWriteLimits
     ) {
-        ihdr = validateWriteHeader(width, height, bitDepth, colorType)
+        ihdr = validateWriteHeader(width, height, bitDepth, colorType, interlaceMethod)
         validateWritePalette(ihdr, palette)
         this.palette = palette.clone()
         this.metadata = pngSnapshotWriteMetadata(metadata)
@@ -433,12 +456,46 @@ public class PngWriteSession {
         bitDepth: UInt8,
         colorType: PngColorType,
         palette: Array<Byte>,
+        metadata: PngWriteMetadata,
         strategy: PngWriteFilterStrategy,
         compressionLevel: Int32,
         limits: PngWriteLimits
     ) {
         this(
-            width, height, bitDepth, colorType, palette, PngWriteMetadata(),
+            width, height, bitDepth, colorType, None, palette, metadata,
+            strategy, compressionLevel, limits
+        )
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        bitDepth: UInt8,
+        colorType: PngColorType,
+        interlaceMethod: PngInterlaceMethod,
+        palette: Array<Byte>,
+        strategy: PngWriteFilterStrategy,
+        compressionLevel: Int32,
+        limits: PngWriteLimits
+    ) {
+        this(
+            width, height, bitDepth, colorType, interlaceMethod, palette, PngWriteMetadata(),
+            strategy, compressionLevel, limits
+        )
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        bitDepth: UInt8,
+        colorType: PngColorType,
+        palette: Array<Byte>,
+        strategy: PngWriteFilterStrategy,
+        compressionLevel: Int32,
+        limits: PngWriteLimits
+    ) {
+        this(
+            width, height, bitDepth, colorType, None, palette,
             strategy, compressionLevel, limits
         )
     }
@@ -534,7 +591,7 @@ public func encodePngPacked(
     limits: PngWriteLimits
 ): Array<Byte> {
     PngWriteSession(
-        width, height, bitDepth, colorType, palette, metadata, strategy,
+        width, height, bitDepth, colorType, None, palette, metadata, strategy,
         compressionLevel, limits
     ).write(rows)
 }
@@ -607,5 +664,93 @@ public func encodeIndexedPngPacked(
     encodePngPacked(
         width, height, bitDepth, Indexed, rows, palette, metadata,
         WriteFilterAdaptive, Int32(6), PngWriteLimits()
+    )
+}
+
+public func encodePngPackedAdam7(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    colorType: PngColorType,
+    rows: Array<Array<Byte>>,
+    palette: Array<Byte>,
+    metadata: PngWriteMetadata,
+    strategy: PngWriteFilterStrategy,
+    compressionLevel: Int32,
+    limits: PngWriteLimits
+): Array<Byte> {
+    PngWriteSession(
+        width, height, bitDepth, colorType, Adam7, palette, metadata, strategy,
+        compressionLevel, limits
+    ).write(rows)
+}
+
+public func encodePngPackedAdam7(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    colorType: PngColorType,
+    rows: Array<Array<Byte>>,
+    palette: Array<Byte>,
+    strategy: PngWriteFilterStrategy,
+    compressionLevel: Int32,
+    limits: PngWriteLimits
+): Array<Byte> {
+    encodePngPackedAdam7(
+        width, height, bitDepth, colorType, rows, palette, PngWriteMetadata(),
+        strategy, compressionLevel, limits
+    )
+}
+
+public func encodePngPackedAdam7(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    colorType: PngColorType,
+    rows: Array<Array<Byte>>
+): Array<Byte> {
+    encodePngPackedAdam7(
+        width, height, bitDepth, colorType, rows, Array<Byte>(),
+        PngWriteMetadata(), WriteFilterAdaptive, Int32(6), PngWriteLimits()
+    )
+}
+
+public func encodePngPackedAdam7(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    colorType: PngColorType,
+    rows: Array<Array<Byte>>,
+    metadata: PngWriteMetadata
+): Array<Byte> {
+    encodePngPackedAdam7(
+        width, height, bitDepth, colorType, rows, Array<Byte>(), metadata,
+        WriteFilterAdaptive, Int32(6), PngWriteLimits()
+    )
+}
+
+public func encodeIndexedPngPackedAdam7(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    rows: Array<Array<Byte>>,
+    palette: Array<Byte>,
+    metadata: PngWriteMetadata
+): Array<Byte> {
+    encodePngPackedAdam7(
+        width, height, bitDepth, Indexed, rows, palette, metadata,
+        WriteFilterAdaptive, Int32(6), PngWriteLimits()
+    )
+}
+
+public func encodeIndexedPngPackedAdam7(
+    width: UInt32,
+    height: UInt32,
+    bitDepth: UInt8,
+    rows: Array<Array<Byte>>,
+    palette: Array<Byte>
+): Array<Byte> {
+    encodeIndexedPngPackedAdam7(
+        width, height, bitDepth, rows, palette, PngWriteMetadata()
     )
 }

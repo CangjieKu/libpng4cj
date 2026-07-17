@@ -1015,6 +1015,18 @@ main(): Int64 {
         println("libpng4cj typed metadata write consumer check failed")
         return 1
     }
+    let adam7Written = encodePngPackedAdam7(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha, writeRows,
+        Array<Byte>(), writeMetadata, WriteFilterUp, Int32(6),
+        PngWriteLimits(UInt64(4096), UInt64(4096), UInt32(2))
+    )
+    let adam7WrittenDecoded = decodePng(adam7Written)
+    if (adam7WrittenDecoded.ihdr.interlaceMethod != Adam7 ||
+        adam7WrittenDecoded.rows() != writeRows ||
+        adam7WrittenDecoded.metadata.gamma != UInt32(45455)) {
+        println("libpng4cj Adam7 packed write consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

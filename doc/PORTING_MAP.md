@@ -1555,7 +1555,7 @@ eXIf, hIST, oFFs, pCAL, sCAL, and sPLT:
 The iCCP path continues to validate and retain ICC profile bytes. Neither
 upstream libpng nor this translation performs ICC pixel color conversion.
 
-## Implemented Write Foundation, Packed Encoder, And Typed Metadata
+## Implemented Write Foundation, Packed Encoder, Adam7, And Typed Metadata
 
 LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
 `png_write.cj`, the shared filter layer, and the external-zlib boundary:
@@ -1568,6 +1568,10 @@ LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
   remain the same external zlib dependency boundary as upstream libpng
 - every legal non-interlaced color-type/bit-depth packed row shape accepted by
   the reader can round-trip through the native writer
+- `png_write_adam7.cj` extracts exact seven-pass rows from canonical full-image
+  rows for packed 1/2/4-bit and 8/16-bit channel shapes
+- empty passes emit no bytes, pass-local filtered sizes are preflighted exactly,
+  and previous-row filter state resets independently for every non-empty pass
 - indexed writes validate palette triples, bit-depth capacity, and every used
   packed palette index; truecolor-family writes also accept an optional
   suggested PLTE while grayscale-family output rejects it
@@ -1590,8 +1594,8 @@ LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
 - `PngWriteMetadata(PngReadMetadata, PngColorType)` provides a copy-owned
   canonical decode-write-decode bridge without retaining unknown chunks
 
-This write path is whole-image and non-interlaced. Adam7 write, unknown-chunk
-injection, custom/progressive sinks, write transforms, simplified API, and
-complete libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work. ICC
-profile bytes are validated and emitted, but ICC pixel conversion is outside
-libpng's scope.
+This write path is whole-image and supports non-interlaced or Adam7 packed
+output. Unknown-chunk injection, custom/progressive sinks, write transforms,
+simplified API, and complete libpng16 write ABI remain later
+LP-S006/LP-S007/LP-S008 work. ICC profile bytes are validated and emitted, but
+ICC pixel conversion is outside libpng's scope.

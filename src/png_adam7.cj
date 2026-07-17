@@ -140,6 +140,53 @@ private func pngAdam7ScatterRow(
     }
 }
 
+func pngAdam7GatherRow(
+    sourceRow: Array<Byte>,
+    ihdr: PngIhdr,
+    geometry: PngAdam7PassGeometry
+): Array<Byte> {
+    if (sourceRow.size != Int64(ihdr.rowBytes)) {
+        throw PngFormatException(
+            InvalidArgument,
+            geometry.pass,
+            "Adam7 source row does not match the full image row size"
+        )
+    }
+    let passRow = Array<Byte>(Int64(geometry.rowBytes), repeat: UInt8(0))
+    if (geometry.width == UInt32(0)) {
+        return passRow
+    }
+    if (ihdr.pixelDepth < UInt16(8)) {
+        var pixel: UInt32 = UInt32(0)
+        while (pixel < geometry.width) {
+            let sourceX = geometry.startX + pixel * geometry.stepX
+            pngAdam7WritePackedSample(
+                passRow,
+                ihdr.bitDepth,
+                pixel,
+                pngAdam7PackedSample(sourceRow, ihdr.bitDepth, Int64(sourceX))
+            )
+            pixel += UInt32(1)
+        }
+        return passRow
+    }
+
+    let pixelBytes = Int64(ihdr.pixelDepth / UInt16(8))
+    var pixel: UInt32 = UInt32(0)
+    while (pixel < geometry.width) {
+        let sourceX = geometry.startX + pixel * geometry.stepX
+        let sourceOffset = Int64(sourceX) * pixelBytes
+        let targetOffset = Int64(pixel) * pixelBytes
+        var byteIndex: Int64 = Int64(0)
+        while (byteIndex < pixelBytes) {
+            passRow[targetOffset + byteIndex] = sourceRow[sourceOffset + byteIndex]
+            byteIndex += Int64(1)
+        }
+        pixel += UInt32(1)
+    }
+    passRow
+}
+
 public func pngProgressiveCombineRow(
     existingRow: Array<Byte>,
     passRow: Array<Byte>,
