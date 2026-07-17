@@ -50,7 +50,7 @@ Status meanings:
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
 | 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | translated | complete native initialization topology, including Gamma/background/alpha interdependencies, cHRM coefficients, palette/RGB preprocessing, background-aware Gray-to-RGB placement, and all row-stage snapshots, is translated; in-place C state and C ABI remain separate |
-| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, effective palette/background synchronization, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; filler and full metadata projection remain |
+| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | translated | default-config topology, exact tRNS count, effective palette/background, initialized file Gamma, filler/add-alpha, packing, quantize, user overrides, pixel depth, and row bytes are projected; native C info mutation and C ABI remain separate |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
 | 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
@@ -544,3 +544,14 @@ branch, the immutable initializer and native dispatcher trace all frozen
 interdependencies and all 23 row-stage positions. Both inventoried rows advance
 to translated, so the ledger becomes
 `41 translated / 4 partial / 0 pending`.
+
+LP-S004BN completes the frozen default-config `png_read_transform_info`
+projection. `PngReadTransformInfo` now retains the exact post-initialization
+tRNS count, effective Compose background, initialized file Gamma, synchronized
+palette, and final shape. Both early and post-Compose Strip Alpha clear alpha
+and tRNS before plain filler or added alpha is projected; plain filler changes
+only channels, while Add Alpha also changes the color type. Gray-to-RGB still
+precedes RGB-to-gray, quantize/Expand16/packing retain frozen order, and active
+user-transform depth/channels remain the final overrides. The info row advances
+from partial to translated, so the ledger becomes
+`42 translated / 3 partial / 0 pending`.

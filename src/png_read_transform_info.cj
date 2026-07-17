@@ -9,15 +9,24 @@ public class PngReadTransformInfo {
     public let pixelDepth: UInt16
     public let rowBytes: UInt64
     public let hasTransparency: Bool
+    public let transparencyCount: Int64
+    public let hasBackground: Bool
+    public let hasGamma: Bool
+    public let gamma: Int32
     public let hasPalette: Bool
     private let ownedPalette: Array<Byte>
+    private let ownedBackground: PngBackground
 
     init(
         ihdr: PngIhdr,
         bitDepth: UInt8,
         colorType: PngColorType,
         channels: UInt8,
-        hasTransparency: Bool,
+        transparencyCount: Int64,
+        hasBackground: Bool,
+        background: PngBackground,
+        hasGamma: Bool,
+        gamma: Int32,
         palette: Array<Byte>
     ) {
         width = ihdr.width
@@ -27,9 +36,25 @@ public class PngReadTransformInfo {
         this.channels = channels
         pixelDepth = UInt16(bitDepth) * UInt16(channels)
         rowBytes = (UInt64(width) * UInt64(pixelDepth) + UInt64(7)) / UInt64(8)
-        this.hasTransparency = hasTransparency
+        this.transparencyCount = transparencyCount
+        hasTransparency = transparencyCount != 0
+        this.hasBackground = hasBackground
+        ownedBackground = PngBackground(background)
+        this.hasGamma = hasGamma
+        this.gamma = gamma
         ownedPalette = palette.clone()
         hasPalette = ownedPalette.size != 0
+    }
+
+    public func background(): PngBackground {
+        if (!hasBackground) {
+            throw PngFormatException(
+                InvalidMetadata,
+                -1,
+                "projected PNG info has no background metadata"
+            )
+        }
+        PngBackground(ownedBackground)
     }
 
     public func palette(): Array<Byte> {
@@ -84,6 +109,24 @@ private func pngColorTypeWithoutColor(colorType: PngColorType): PngColorType {
     }
 }
 
+private func pngProjectedTransparencyCount(
+    initialization: PngReadTransformInitialization,
+    ihdr: PngIhdr,
+    metadata: PngReadMetadata
+): Int64 {
+    if (!metadata.hasTransparency || initialization.transparencyStripped) {
+        return Int64(0)
+    }
+    if (ihdr.colorType == Indexed) {
+        return if (initialization.usesPaletteInitializer) {
+            initialization.effectivePaletteAlpha().size
+        } else {
+            metadata.paletteAlpha().size
+        }
+    }
+    Int64(1)
+}
+
 public func projectPngReadTransformInfo(
     initialization: PngReadTransformInitialization,
     decoded: PngDecodedRows
@@ -98,12 +141,25 @@ public func projectPngReadTransformInfo(
 ): PngReadTransformInfo {
     var bitDepth = ihdr.bitDepth
     var colorType = ihdr.colorType
-    var hasTransparency = metadata.hasTransparency && !initialization.transparencyStripped
+    var transparencyCount = pngProjectedTransparencyCount(
+        initialization,
+        ihdr,
+        metadata
+    )
     var palette = if (initialization.usesPaletteInitializer) {
         initialization.effectivePalette()
     } else {
         metadata.palette()
     }
+    var hasBackground = metadata.hasBackground
+    var background = PngBackground(metadata.background)
+    if (initialization.composeEnabled()) {
+        hasBackground = true
+        background = initialization.background()
+    }
+    let hasGamma = metadata.hasGamma || initialization.gammaConfigured() ||
+        initialization.alphaModeConfigured()
+    let gamma = initialization.fileGamma()
 
     if (initialization.quantizeEnabled()) {
         palette = initialization.quantizePalette()
@@ -127,17 +183,22 @@ public func projectPngReadTransformInfo(
                     "indexed transform info projection requires a retained palette"
                 )
             }
-            colorType = if (hasTransparency) { TruecolorAlpha } else { Truecolor }
+            colorType = if (transparencyCount != 0) {
+                TruecolorAlpha
+            } else {
+                Truecolor
+            }
             bitDepth = UInt8(8)
         } else {
-            if (hasTransparency && initialization.effectiveTransparencyExpansion) {
+            if (transparencyCount != 0 &&
+                initialization.effectiveTransparencyExpansion) {
                 colorType = pngColorTypeWithAlpha(colorType)
             }
             if (bitDepth < UInt8(8)) {
                 bitDepth = UInt8(8)
             }
         }
-        hasTransparency = false
+        transparencyCount = Int64(0)
     }
 
     if (bitDepth == UInt8(16) &&
@@ -169,12 +230,20 @@ public func projectPngReadTransformInfo(
         bitDepth = UInt8(8)
     }
 
-    if (initialization.hasStage(ReadStageStripAlpha)) {
+    if (initialization.hasStage(ReadStageStripAlpha) ||
+        initialization.hasStage(ReadStageStripAlphaAfterCompose)) {
         colorType = pngColorTypeWithoutAlpha(colorType)
-        hasTransparency = false
+        transparencyCount = Int64(0)
     }
 
     var channels = colorType.channels()
+    if (initialization.hasStage(ReadStageFiller) &&
+        (colorType == Grayscale || colorType == Truecolor)) {
+        channels += UInt8(1)
+        if (initialization.addAlphaEnabled()) {
+            colorType = pngColorTypeWithAlpha(colorType)
+        }
+    }
     if (initialization.hasStage(ReadStageUserTransform)) {
         if (initialization.userTransformDepth() != UInt8(0)) {
             bitDepth = initialization.userTransformDepth()
@@ -189,7 +258,11 @@ public func projectPngReadTransformInfo(
         bitDepth,
         colorType,
         channels,
-        hasTransparency,
+        transparencyCount,
+        hasBackground,
+        background,
+        hasGamma,
+        gamma,
         palette
     )
 }

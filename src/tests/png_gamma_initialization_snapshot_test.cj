@@ -93,9 +93,10 @@ private func gammaAwareGray8Oracle(
 public class PngGammaInitializationSnapshotTestSuite {
     @TestCase
     public func usesChunkGammaWhenSetterStateIsAbsent(): Unit {
+        let decoded = gammaInitDecoded(UInt32(45455))
         let initialized = initializePngReadTransformations(
             PngReadTransformState(),
-            gammaInitDecoded(UInt32(45455))
+            decoded
         )
         @Assert(initialized.gammaConfigured(), false)
         @Assert(initialized.chunkGamma(), Int32(45455))
@@ -103,33 +104,44 @@ public class PngGammaInitializationSnapshotTestSuite {
         @Assert(initialized.screenGamma(), Int32(219998))
         @Assert(initialized.gammaCorrectionRequired(), false)
         @Assert(initialized.stageCount(), Int64(0))
+        let projected = projectPngReadTransformInfo(initialized, decoded)
+        @Assert(projected.hasGamma, true)
+        @Assert(projected.gamma, Int32(45455))
     }
 
     @TestCase
     public func prefersConfiguredGammaAndExposesCorrectionDecision(): Unit {
+        let decoded = gammaInitDecoded(UInt32(45455))
         let state = PngReadTransformState()
         @Assert(state.setGammaFixed(Int32(106000), Int32(100000)), true)
         let initialized = initializePngReadTransformations(
             state,
-            gammaInitDecoded(UInt32(45455))
+            decoded
         )
         @Assert(initialized.gammaConfigured(), true)
         @Assert(initialized.chunkGamma(), Int32(45455))
         @Assert(initialized.fileGamma(), Int32(100000))
         @Assert(initialized.screenGamma(), Int32(106000))
         @Assert(initialized.gammaCorrectionRequired(), true)
+        let projected = projectPngReadTransformInfo(initialized, decoded)
+        @Assert(projected.hasGamma, true)
+        @Assert(projected.gamma, Int32(100000))
     }
 
     @TestCase
     public func initializesMissingSourcesToIdentityGamma(): Unit {
+        let decoded = gammaInitDecoded(UInt32(0))
         let initialized = initializePngReadTransformations(
             PngReadTransformState(),
-            gammaInitDecoded(UInt32(0))
+            decoded
         )
         @Assert(initialized.chunkGamma(), Int32(0))
         @Assert(initialized.fileGamma(), PNG_FP_1)
         @Assert(initialized.screenGamma(), PNG_FP_1)
         @Assert(initialized.gammaCorrectionRequired(), false)
+        let projected = projectPngReadTransformInfo(initialized, decoded)
+        @Assert(projected.hasGamma, false)
+        @Assert(projected.gamma, PNG_FP_1)
     }
 
     @TestCase

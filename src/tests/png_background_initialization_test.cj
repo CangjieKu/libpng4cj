@@ -266,6 +266,17 @@ public class PngBackgroundInitializationTestSuite {
         @Assert(alphaInitialized.backgroundExpandEnabled(), true)
         @Assert(alphaInitialized.hasStage(ReadStageStripAlpha), false)
         @Assert(alphaInitialized.inputHasAlpha, true)
+        let alphaProjected = projectPngReadTransformInfo(
+            alphaInitialized,
+            alphaDecoded
+        )
+        @Assert(alphaProjected.hasBackground, true)
+        assertBackgroundInitColor(
+            alphaProjected.background(),
+            alphaInitialized.background()
+        )
+        @Assert(alphaProjected.colorType, Truecolor)
+        @Assert(alphaProjected.channels, UInt8(3))
 
         let transparency = makeBackgroundInitChunk(
             PNG_CHUNK_tRNS,
@@ -286,6 +297,51 @@ public class PngBackgroundInitializationTestSuite {
         @Assert(transparentInitialized.backgroundExpandEnabled(), false)
         @Assert(transparentInitialized.hasStage(ReadStageStripAlpha), false)
         @Assert(transparentInitialized.inputHasTransparency, true)
+        let transparentProjected = projectPngReadTransformInfo(
+            transparentInitialized,
+            transparentDecoded
+        )
+        @Assert(transparentProjected.hasBackground, true)
+        assertBackgroundInitColor(
+            transparentProjected.background(),
+            transparentInitialized.background()
+        )
+        @Assert(transparentProjected.transparencyCount, Int64(0))
+    }
+
+    @TestCase
+    public func preservesSourceBackgroundWhenComposeIsNotEffective(): Unit {
+        let sourceBackground = PngBackground(
+            UInt8(0), UInt16(0), UInt16(10), UInt16(20), UInt16(30)
+        )
+        let backgroundBytes: Array<Byte> = [0, 10, 0, 20, 0, 30]
+        let decoded = backgroundInitDecoded(
+            UInt8(8),
+            UInt8(2),
+            [makeBackgroundInitChunk(PNG_CHUNK_bKGD, backgroundBytes)],
+            BACKGROUND_INIT_RGB_ZLIB
+        )
+        let projected = projectPngReadTransformInfo(
+            initializePngReadTransformations(PngReadTransformState(), decoded),
+            decoded
+        )
+        @Assert(projected.hasBackground, true)
+        assertBackgroundInitColor(projected.background(), sourceBackground)
+
+        let plain = backgroundInitDecoded(
+            UInt8(8), UInt8(2), [], BACKGROUND_INIT_RGB_ZLIB
+        )
+        let plainProjected = projectPngReadTransformInfo(
+            initializePngReadTransformations(PngReadTransformState(), plain),
+            plain
+        )
+        @Assert(plainProjected.hasBackground, false)
+        try {
+            plainProjected.background()
+            @Fail("projection without bKGD or Compose should reject background access")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_METADATA")
+        }
     }
 
     @TestCase

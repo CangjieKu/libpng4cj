@@ -397,6 +397,16 @@ depth/channels, and the final row length must match the recomputed row bytes.
 depth/channels only when a user-transform callback is active. The current
 whole-image non-interlaced path reports zero-based row numbers and pass `0`.
 
+The completed read-info projection also exposes `transparencyCount`,
+`hasBackground`, `background()`, `hasGamma`, and `gamma`. The transparency
+count preserves palette tRNS prefix length or the single Gray/RGB color key
+until Expand or Strip Alpha consumes it. Effective Compose background replaces
+retained bKGD only while Compose remains active; otherwise source bKGD is
+preserved. `gamma` is the initialized fixed-point file Gamma, including the
+identity fallback, while `hasGamma` records retained or explicitly configured
+Gamma provenance. Plain filler changes only projected channels; Add Alpha also
+changes the projected color type.
+
 The current surface is Cangjie-native. C ABI callback trampolines, raw
 `user_transform_ptr` storage, null callback semantics, late callback mutation,
 write user transforms, and progressive/Adam7 pass execution remain open.

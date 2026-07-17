@@ -485,11 +485,20 @@ main(): Int64 {
         PngReadRowInfo(UInt32(1), UInt8(8), GrayscaleAlpha),
         [UInt8(100), UInt8(0)]
     )
+    let grayDispatchInfo = projectPngReadTransformInfo(
+        grayDispatchInit,
+        grayDispatchDecoded
+    )
     if (!grayDispatchInit.backgroundIsGray() ||
         !grayDispatchInit.grayToRgbAfterExpand16() ||
         grayDispatchInit.background().gray != UInt16(40) ||
         grayDispatchRow.info.colorType != Truecolor ||
-        grayDispatchRow.row() != [UInt8(40), UInt8(40), UInt8(40)]) {
+        grayDispatchRow.row() != [UInt8(40), UInt8(40), UInt8(40)] ||
+        !grayDispatchInfo.hasBackground ||
+        grayDispatchInfo.background().gray != UInt16(40) ||
+        grayDispatchInfo.colorType != Truecolor ||
+        grayDispatchInfo.channels != UInt8(3) ||
+        grayDispatchInfo.transparencyCount != Int64(0)) {
         println("libpng4cj background-aware Gray-to-RGB check failed")
         return 1
     }
@@ -678,6 +687,15 @@ main(): Int64 {
         alphaModeInitialized.optimizeAlphaEnabled() ||
         alphaModeInitialized.backgroundGammaCode() != BackgroundGammaFile) {
         println("libpng4cj alpha-mode initialization check failed")
+        return 1
+    }
+    let alphaModeInfo = projectPngReadTransformInfo(
+        alphaModeInitialized,
+        gammaRgbDecoded
+    )
+    if (!alphaModeInfo.hasGamma || alphaModeInfo.gamma != Int32(45455) ||
+        !alphaModeInfo.hasBackground) {
+        println("libpng4cj transformed info metadata check failed")
         return 1
     }
     let encodeAlphaState = PngReadTransformState()
