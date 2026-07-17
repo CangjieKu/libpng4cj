@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add lifecycle-frozen default write transforms before filtering for packing,
+  pack swap, filler stripping, 16-bit byte swap, significant-bit expansion,
+  alpha swap/inversion, BGR, and monochrome inversion across non-interlaced and
+  Adam7 output, with exact source/output geometry and transformed-byte limits.
 - Add a bounded chunk-fed `PngProgressiveReader` with explicit lifecycle,
   configurable decode policy, replaceable info/row/end callbacks, copy-owned
   callback rows, and non-interlaced/Adam7 canonical-row context at finalize.

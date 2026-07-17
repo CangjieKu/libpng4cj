@@ -974,6 +974,25 @@ main(): Int64 {
         println("libpng4cj packed write consumer check failed")
         return 1
     }
+    let packedWriteState = PngWriteTransformState(UInt8(2), Indexed)
+    if (!packedWriteState.setPacking()) {
+        println("libpng4cj write transform setup failed")
+        return 1
+    }
+    let transformedWritten = encodePngPacked(
+        UInt32(4), UInt32(1), UInt8(2), Indexed,
+        [[UInt8(0), UInt8(1), UInt8(2), UInt8(3)]],
+        [
+            UInt8(0), UInt8(0), UInt8(0), UInt8(85), UInt8(85), UInt8(85),
+            UInt8(170), UInt8(170), UInt8(170), UInt8(255), UInt8(255), UInt8(255)
+        ],
+        PngWriteMetadata(), packedWriteState,
+        WriteFilterNone, Int32(6), PngWriteLimits()
+    )
+    if (decodePngNonInterlaced(transformedWritten).rows() != [[UInt8(0x1b)]]) {
+        println("libpng4cj initialized write transform consumer check failed")
+        return 1
+    }
     let writeMetadata = PngWriteMetadata()
     writeMetadata.setGamma(UInt32(45455))
     writeMetadata.setPhysicalDimensions(PngPhysicalDimensions(

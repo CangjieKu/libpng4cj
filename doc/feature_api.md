@@ -29,6 +29,8 @@ import libpng4cj.*
 - bounded chunk-fed progressive lifecycle with native info/row/end callbacks
 - bounded non-interlaced and Adam7 packed-row encoding with exact core chunks,
   CRC, zlib compression, fixed filters, and deterministic adaptive filtering
+- lifecycle-frozen write transforms for packing, pack swap, filler stripping,
+  byte swap, significant-bit shift, alpha order/inversion, BGR, and invert mono
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -65,11 +67,11 @@ let png = encodePngPacked(
 
 `PngWriteSession` exposes explicit Open, Finalizing, Completed, Failed, and
 Closed states. The full constructor accepts `None` or `Adam7`, an optional
-indexed palette, copy-owned `PngWriteMetadata`, `PngWriteFilterStrategy`, zlib
-level, and `PngWriteLimits`. Strategies include None, Sub, Up, Average, Paeth, and
+indexed palette, copy-owned `PngWriteMetadata`, `PngWriteTransformState`,
+`PngWriteFilterStrategy`, zlib level, and `PngWriteLimits`. Strategies include None, Sub, Up, Average, Paeth, and
 deterministic Adaptive selection. Adaptive selection minimizes the sum of
 signed-byte magnitudes and keeps the first filter on ties. Limits independently
-bound filtered row bytes, compressed IDAT bytes, raw metadata bytes, compressed
+bound transformed row bytes, filtered row bytes, compressed IDAT bytes, raw metadata bytes, compressed
 metadata bytes, complete encoded output bytes, and each emitted IDAT payload.
 
 All legal PNG color-type/bit-depth row shapes are accepted for non-interlaced
@@ -84,6 +86,15 @@ caller-owned. The writer checks row count, row bytes, palette shape,
 filtered/compressed/output limits, chunk sizing, and zlib status before
 reporting Completed.
 
+`PngWriteTransformState` is configured for the target bit depth and color type,
+then frozen when a session is created. Its initialized execution order follows
+the default `pngwtran.c` pipeline: strip filler, pack swap, pack, 16-bit byte
+swap, significant-bit shift, alpha swap, alpha inversion, BGR, then monochrome
+inversion. Packing changes the accepted source row from packed 1/2/4-bit samples
+to one byte per sample; filler stripping accepts one extra channel before or
+after G/RGB. Both non-interlaced and Adam7 writers transform canonical full rows
+before filtering, while retaining caller ownership and exact IHDR output shape.
+
 `PngWriteMetadata` emits typed tRNS, gAMA, cHRM, sRGB, sBIT, bKGD, pHYs,
 iCCP, tEXt/zTXt/iTXt, tIME, cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL,
 sCAL, and ordered sPLT chunks. The writer freezes the upstream pre-PLTE,
@@ -92,7 +103,7 @@ before/after-IDAT placement. `PngWriteMetadata(readMetadata, colorType)` copies
 the standard read model into canonical pre-IDAT write placement for
 decode-write-decode workflows.
 
-Unknown-chunk injection, custom/progressive sinks, write-side pixel transforms,
+Unknown-chunk injection, custom/progressive sinks, user write callbacks,
 simplified `png_image_write_*`, and full C ABI write parity remain later work.
 ICC support retains and emits profile bytes; it does not perform ICC pixel
 conversion.

@@ -1594,8 +1594,24 @@ LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
 - `PngWriteMetadata(PngReadMetadata, PngColorType)` provides a copy-owned
   canonical decode-write-decode bridge without retaining unknown chunks
 
-This write path is whole-image and supports non-interlaced or Adam7 packed
-output. Unknown-chunk injection, custom/progressive sinks, write transforms,
-simplified API, and complete libpng16 write ABI remain later
-LP-S006/LP-S007/LP-S008 work. ICC profile bytes are validated and emitted, but
-ICC pixel conversion is outside libpng's scope.
+LP-S006D adds the default write-transform route before filtering:
+
+- `PngWriteTransformState` freezes target shape, selected transforms, copied
+  significant-bit values, and the canonical `pngwtran.c` execution order when
+  the write session is created
+- filler stripping, PackSwap, Pack, 16-bit byte swap, significant-bit expansion,
+  write-side alpha swap/inversion, BGR, and invert-mono execute in that fixed
+  order independently from setter order
+- source geometry projects one-byte samples for Pack and one extra G/RGB
+  channel for filler stripping, while every transformed row must exactly match
+  IHDR bit depth, channels, and row bytes before filtering
+- non-interlaced and Adam7 filtering consume the same initialized transform
+  snapshot; Adam7 still gathers pass rows only after full-row transformation
+- transformed bytes have a separate limit from filtered, compressed, metadata,
+  and final output bytes, and caller rows remain copy-owned
+
+This write path is whole-image and supports non-interlaced or Adam7 output.
+Unknown-chunk injection, custom/progressive sinks, user write callbacks,
+simplified API, and complete libpng16 write ABI remain later LP-S006/LP-S007/
+LP-S008 work. ICC profile bytes are validated and emitted, but ICC pixel
+conversion is outside libpng's scope.
