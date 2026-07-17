@@ -25,8 +25,8 @@ Status meanings:
 | ---: | --- | --- | --- | --- |
 | 41 | `png_set_crc_action` | chunk CRC policy | partial | configurable critical/ancillary actions |
 | 115 | `png_rtran_ok` | `PngReadTransformState.pngRtranOk` | translated | application error callback emission deferred |
-| 142 | `png_set_background_fixed` | retained bKGD only | pending | background transform state |
-| 172 | `png_set_background` | none | pending | floating-point facade |
+| 142 | `png_set_background_fixed` | `PngReadTransformState.setBackgroundFixed` | translated | warning callback emission and C ABI deferred |
+| 172 | `png_set_background` | `PngReadTransformState.setBackground` | translated | C ABI floating setter wrapper deferred |
 | 188 | `png_set_scale_16` | `PngReadTransformState.setScale16` | translated | direct C ABI setter deferred |
 | 202 | `png_set_strip_16` | `PngReadTransformState.setStrip16` | translated | direct C ABI setter deferred |
 | 215 | `png_set_strip_alpha` | `PngReadTransformState.setStripAlpha` | translated | direct C ABI setter deferred |
@@ -422,3 +422,12 @@ preserves alpha plus PNG network order. Direct-row, strict-policy, whole-image,
 ownership, malformed-row, and consumer proof are covered. The inventoried row
 was already translated, so the ledger remains
 `31 translated / 8 partial / 6 pending`.
+
+LP-S004BC translates `png_set_background_fixed` and its floating facade into
+`PngReadTransformState`. The state retains a copy-owned `PngBackground`, frozen
+gamma code/value, background expansion, Compose plus Strip Alpha selection,
+Encode Alpha/Optimize Alpha cancellation, unknown-gamma diagnosis, lifecycle
+gating, repeated replacement, and prior-state stability. Initialization and
+`png_do_compose` remain separate. Two inventoried setters advance from pending
+to translated, so the ledger advances to
+`33 translated / 8 partial / 4 pending`.

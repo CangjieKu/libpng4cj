@@ -151,7 +151,7 @@ public class PngBackground {
     public let green: UInt16
     public let blue: UInt16
 
-    init() {
+    public init() {
         index = UInt8(0)
         gray = UInt16(0)
         red = UInt16(0)
@@ -159,12 +159,26 @@ public class PngBackground {
         blue = UInt16(0)
     }
 
-    init(index: UInt8, gray: UInt16, red: UInt16, green: UInt16, blue: UInt16) {
+    public init(
+        index: UInt8,
+        gray: UInt16,
+        red: UInt16,
+        green: UInt16,
+        blue: UInt16
+    ) {
         this.index = index
         this.gray = gray
         this.red = red
         this.green = green
         this.blue = blue
+    }
+
+    public init(other: PngBackground) {
+        index = other.index
+        gray = other.gray
+        red = other.red
+        green = other.green
+        blue = other.blue
     }
 }
 

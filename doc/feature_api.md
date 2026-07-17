@@ -35,6 +35,8 @@ import libpng4cj.*
   significant-bit unshift, packed-sample unpack, invalid palette-index
   diagnosis, BGR, 1/2/4-bit PackSwap, filler/add alpha placement, alpha
   swapping, 16-bit byte swapping, and native Cangjie read user transforms
+- fixed/floating background setter state with immutable color, gamma-code,
+  expansion, Compose/Strip Alpha, and alpha-encoding override facts
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).
@@ -55,6 +57,26 @@ The converted signed fixed-point weights delegate into
 retain historical defaults; nonnegative red/green pairs whose sum exceeds
 `100000` are ignored by the fixed setter while RGB-to-gray remains selected,
 matching the upstream setter behavior.
+
+## Background Setter State
+
+`PngBackground(index, gray, red, green, blue)` is the immutable
+`png_color_16`-shaped value used by retained bKGD metadata and application
+background configuration. The default and copy constructors are public.
+
+`PngReadTransformState.setBackgroundFixed(background, gammaCode, needExpand,
+backgroundGamma)` translates frozen `png_set_background_fixed`. Screen, File,
+and Unique gamma codes are accepted; Unknown returns false, records
+`backgroundGammaUnknownWarning()`, and leaves the previous accepted
+configuration unchanged. An accepted call selects Compose and Strip Alpha,
+clears Encode Alpha and Optimize Alpha, retains the copied color and fixed gamma,
+and replaces background expansion from the current argument.
+
+`setBackground(...)` accepts `Float64` gamma and applies
+`floor(100000 * value + 0.5)` before delegating to the fixed setter. Nonfinite
+and signed-32-bit overflow values fail before mutation. Both Bool and C-style
+nonzero `Int64` expansion arguments are available. Initialization snapshots and
+pixel composition are not implied by this configuration surface.
 
 ## Gamma Threshold Helpers
 

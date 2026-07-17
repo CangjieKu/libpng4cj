@@ -27,6 +27,40 @@ public enum PngQuantizeMode <: Equatable<PngQuantizeMode> & ToString {
     }
 }
 
+public enum PngBackgroundGammaCode <:
+    Equatable<PngBackgroundGammaCode> & ToString {
+    | BackgroundGammaUnknown
+    | BackgroundGammaScreen
+    | BackgroundGammaFile
+    | BackgroundGammaUnique
+
+    public operator func ==(right: PngBackgroundGammaCode): Bool {
+        ordinalValue() == right.ordinalValue()
+    }
+
+    public operator func !=(right: PngBackgroundGammaCode): Bool {
+        !(this == right)
+    }
+
+    public func ordinalValue(): Int64 {
+        match (this) {
+            case BackgroundGammaUnknown => 0
+            case BackgroundGammaScreen => 1
+            case BackgroundGammaFile => 2
+            case BackgroundGammaUnique => 3
+        }
+    }
+
+    public func toString(): String {
+        match (this) {
+            case BackgroundGammaUnknown => "UNKNOWN"
+            case BackgroundGammaScreen => "SCREEN"
+            case BackgroundGammaFile => "FILE"
+            case BackgroundGammaUnique => "UNIQUE"
+        }
+    }
+}
+
 public enum PngReadTransformApplicationError <:
     Equatable<PngReadTransformApplicationError> & ToString {
     | NoTransformApplicationError
@@ -71,6 +105,16 @@ public class PngReadTransformState {
     private var scale16Value: Bool = false
     private var strip16Value: Bool = false
     private var stripAlphaValue: Bool = false
+    private var composeValue: Bool = false
+    private var backgroundExpandValue: Bool = false
+    private var encodeAlphaValue: Bool = false
+    private var optimizeAlphaValue: Bool = false
+    private var backgroundConfiguredValue: Bool = false
+    private var backgroundValue: PngBackground = PngBackground()
+    private var backgroundGammaCodeValue: PngBackgroundGammaCode =
+        BackgroundGammaUnknown
+    private var backgroundGammaValue: Int32 = Int32(0)
+    private var backgroundGammaUnknownWarningValue: Bool = false
     private var expandValue: Bool = false
     private var expandTransparencyValue: Bool = false
     private var expand16Value: Bool = false
@@ -183,6 +227,76 @@ public class PngReadTransformState {
         }
         stripAlphaValue = true
         true
+    }
+
+    public func setBackgroundFixed(
+        background: PngBackground,
+        gammaCode: PngBackgroundGammaCode,
+        needExpand: Bool,
+        backgroundGamma: Int32
+    ): Bool {
+        if (!pngRtranOk(false)) {
+            return false
+        }
+        if (gammaCode == BackgroundGammaUnknown) {
+            backgroundGammaUnknownWarningValue = true
+            return false
+        }
+
+        composeValue = true
+        stripAlphaValue = true
+        encodeAlphaValue = false
+        optimizeAlphaValue = false
+        backgroundValue = PngBackground(background)
+        backgroundGammaValue = backgroundGamma
+        backgroundGammaCodeValue = gammaCode
+        backgroundExpandValue = needExpand
+        backgroundConfiguredValue = true
+        backgroundGammaUnknownWarningValue = false
+        true
+    }
+
+    public func setBackgroundFixed(
+        background: PngBackground,
+        gammaCode: PngBackgroundGammaCode,
+        needExpand: Int64,
+        backgroundGamma: Int32
+    ): Bool {
+        setBackgroundFixed(
+            background,
+            gammaCode,
+            needExpand != Int64(0),
+            backgroundGamma
+        )
+    }
+
+    public func setBackground(
+        background: PngBackground,
+        gammaCode: PngBackgroundGammaCode,
+        needExpand: Bool,
+        backgroundGamma: Float64
+    ): Bool {
+        let fixed = pngFixedFromFloat64(backgroundGamma, "background gamma")
+        setBackgroundFixed(
+            background,
+            gammaCode,
+            needExpand,
+            Int32(fixed)
+        )
+    }
+
+    public func setBackground(
+        background: PngBackground,
+        gammaCode: PngBackgroundGammaCode,
+        needExpand: Int64,
+        backgroundGamma: Float64
+    ): Bool {
+        setBackground(
+            background,
+            gammaCode,
+            needExpand != Int64(0),
+            backgroundGamma
+        )
     }
 
     public func setExpand(): Bool {
@@ -532,6 +646,63 @@ public class PngReadTransformState {
 
     public func stripAlphaEnabled(): Bool {
         stripAlphaValue
+    }
+
+    public func composeEnabled(): Bool {
+        composeValue
+    }
+
+    public func backgroundExpandEnabled(): Bool {
+        backgroundExpandValue
+    }
+
+    public func encodeAlphaEnabled(): Bool {
+        encodeAlphaValue
+    }
+
+    public func optimizeAlphaEnabled(): Bool {
+        optimizeAlphaValue
+    }
+
+    public func backgroundConfigured(): Bool {
+        backgroundConfiguredValue
+    }
+
+    public func background(): PngBackground {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform state has no background configuration"
+            )
+        }
+        PngBackground(backgroundValue)
+    }
+
+    public func backgroundGammaCode(): PngBackgroundGammaCode {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform state has no background gamma code"
+            )
+        }
+        backgroundGammaCodeValue
+    }
+
+    public func backgroundGamma(): Int32 {
+        if (!backgroundConfiguredValue) {
+            throw PngFormatException(
+                UnsupportedTransform,
+                -1,
+                "read transform state has no background gamma"
+            )
+        }
+        backgroundGammaValue
+    }
+
+    public func backgroundGammaUnknownWarning(): Bool {
+        backgroundGammaUnknownWarningValue
     }
 
     public func expandEnabled(): Bool {

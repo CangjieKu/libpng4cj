@@ -717,6 +717,27 @@ LP-S004BB completes the frozen gamma-table branches of
 The `png_do_rgb_to_gray` row remains translated and the ledger remains
 `31 translated / 8 partial / 6 pending`.
 
+## Implemented Background Setter State
+
+LP-S004BC translates frozen `png_set_background_fixed` and
+`png_set_background` before background initialization or row composition:
+
+- `PngBackground` is a public immutable `png_color_16`-shaped value with
+  copy construction
+- `PngBackgroundGammaCode` preserves Unknown/Screen/File/Unique identities
+- accepted fixed calls select Compose and Strip Alpha, clear Encode Alpha and
+  Optimize Alpha, retain background gamma and expansion state, and replace the
+  previous accepted background atomically
+- Unknown gamma records a nonfatal diagnostic without replacing prior state
+- floating gamma uses the frozen `floor(100000 * value + 0.5)` conversion and
+  rejects nonfinite or signed-32-bit overflow before mutation
+- lifecycle rejection, repeated calls, getters, consumer use, and state
+  stability are covered directly
+
+The two setter rows advance to translated and the ledger becomes
+`33 translated / 8 partial / 4 pending`. Initialization snapshots,
+`png_do_compose`, and alpha-mode setters remain separate.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

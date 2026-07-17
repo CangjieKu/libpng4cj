@@ -146,6 +146,10 @@ oracle-test source. Production implementation code belongs directly under
 - Cangjie-owned `PngReadTransformState` translating `png_rtran_ok` lifecycle
   gates plus the simple scale/strip/expand/gray setter bits; state projections
   reuse the existing 16-to-8, row-shape, and RGB-to-gray row implementations
+- fixed/floating background configuration retains a copy-owned `PngBackground`,
+  frozen screen/file/unique gamma code and fixed value, background expansion,
+  Compose plus Strip Alpha selection, alpha-encoding cancellation, unknown-gamma
+  diagnosis, repeated-call replacement, and lifecycle-safe prior-state retention
 - bounded `PngReadTransformState.setQuantize` state translation with explicit
   palette-remap/full-color modes, copy-owned palette/count limits, and a fresh
   complete 256-entry identity remap on every accepted non-full setter call
@@ -265,7 +269,7 @@ The translation-first route is tracked in
 `doc/PNG_RTRAN_TRANSLATION_LEDGER.md`. Its generated frozen inventory currently
 asserts all 45 top-level functions in libpng `1.6.58` `pngrtran.c`; convenience
 behavior is marked separately from complete setter/state/metadata translation.
-The current ledger is `31 translated / 8 partial / 6 pending`.
+The current ledger is `33 translated / 8 partial / 4 pending`.
 
 ## Native Dependency
 

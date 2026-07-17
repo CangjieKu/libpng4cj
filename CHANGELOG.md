@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Translate fixed and floating background setter state with frozen gamma-code,
+  Compose/Strip Alpha, expansion, alpha-encoding cancellation, lifecycle, and
+  prior-state preservation behavior.
 - Complete frozen gamma-aware 8/16-bit RGB/RGBA-to-Gray/GA row execution
   through initialized to-linear/from-linear tables, including direct correction
   for equal RGB, original-sample nongray detection, alpha, and network order.

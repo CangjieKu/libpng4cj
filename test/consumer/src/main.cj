@@ -95,6 +95,53 @@ main(): Int64 {
         println("libpng4cj signature check failed")
         return 1
     }
+    let backgroundState = PngReadTransformState()
+    let background = PngBackground(
+        UInt8(0),
+        UInt16(0x1111),
+        UInt16(0x2222),
+        UInt16(0x3333),
+        UInt16(0x4444)
+    )
+    if (!backgroundState.setBackgroundFixed(
+        background,
+        BackgroundGammaFile,
+        true,
+        Int32(45455)
+    ) || !backgroundState.backgroundConfigured() ||
+        !backgroundState.composeEnabled() ||
+        !backgroundState.stripAlphaEnabled() ||
+        !backgroundState.backgroundExpandEnabled() ||
+        backgroundState.encodeAlphaEnabled() ||
+        backgroundState.optimizeAlphaEnabled() ||
+        backgroundState.backgroundGammaCode() != BackgroundGammaFile ||
+        backgroundState.backgroundGamma() != Int32(45455) ||
+        backgroundState.background().blue != UInt16(0x4444)) {
+        println("libpng4cj fixed background setter check failed")
+        return 1
+    }
+    if (backgroundState.setBackgroundFixed(
+        PngBackground(),
+        BackgroundGammaUnknown,
+        false,
+        Int32(100000)
+    ) || !backgroundState.backgroundGammaUnknownWarning() ||
+        backgroundState.backgroundGammaCode() != BackgroundGammaFile ||
+        backgroundState.background().blue != UInt16(0x4444)) {
+        println("libpng4cj background rejection stability check failed")
+        return 1
+    }
+    if (!backgroundState.setBackground(
+        background,
+        BackgroundGammaUnique,
+        false,
+        1.0
+    ) || backgroundState.backgroundGamma() != Int32(100000) ||
+        backgroundState.backgroundExpandEnabled() ||
+        backgroundState.backgroundGammaUnknownWarning()) {
+        println("libpng4cj floating background setter check failed")
+        return 1
+    }
     let gamma = pngInitGammaValues(PngFileGammaSources(
         Int32(45455),
         Int32(0),
