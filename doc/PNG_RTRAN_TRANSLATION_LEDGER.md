@@ -32,7 +32,7 @@ Status meanings:
 | 215 | `png_set_strip_alpha` | `PngReadTransformState.setStripAlpha` | translated | direct C ABI setter deferred |
 | 361 | `png_set_alpha_mode_fixed` | `PngReadTransformState.setAlphaModeFixed` | translated | four modes, default/screen Gamma, black Compose background, Encode/Optimize flags, conflict and initialization snapshots translated; C ABI integer mode/error callback deferred |
 | 461 | `png_set_alpha_mode` | `PngReadTransformState.setAlphaMode` | translated | floating conversion delegates to fixed state; C ABI wrapper deferred |
-| 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | partial | normal lifecycle, both reduction branches, remap, and full lookup translated; allocation-warning fallback, dispatcher, and C ABI deferred |
+| 489 | `png_set_quantize` | `PngReadTransformState.setQuantize` | translated | lifecycle, histogram and closest-pair reduction, remap/full lookup, deterministic allocation-warning retry, dispatcher, and info projection translated; C ABI deferred |
 | 892 | `png_set_gamma_fixed` | `PngReadTransformState.setGammaFixed` | translated | callback delivery, C ABI, and tables deferred; initialization snapshot connected |
 | 934 | `png_set_gamma` | `PngReadTransformState.setGamma` | translated | callback delivery and C ABI wrapper deferred |
 | 948 | `png_set_expand` | `PngReadTransformState.setExpand` | translated | transformed IHDR projection deferred |
@@ -581,3 +581,18 @@ whole-image, ownership, row/pass, row-byte, transformed-limit, malformed-row,
 and standalone consumer paths are covered. Raw user pointers and the C ABI
 trampoline remain separate. The setter row advances from partial to translated,
 so the ledger becomes `44 translated / 1 partial / 0 pending`.
+
+LP-S004BQ closes the final inventoried partial at `png_set_quantize`. The
+closest-pair path now accepts a quantize-specific deterministic allocation
+fault plan. A failure after any number of collected pair nodes discards the
+entire temporary bucket set before palette or remap mutation, increases the
+frozen distance window, and retries from unchanged working state. Successful
+recovery exposes warning/retry facts and produces the same retained
+palette/remap/full lookup as the corresponding uninterrupted path for the
+covered oracle. Exhausted bounded retries raise `ALLOCATION_FAILURE` before
+the prepared state is published, preserving the prior setter snapshot.
+Existing initialized dispatch, transformed-info projection, whole-image use,
+caller ownership, replacement, malformed-row priority, and standalone consumer
+paths remain connected. The diagnostic seam does not claim recovery from real
+managed-runtime OOM. The setter row advances from partial to translated, so the
+generated inventory reaches `45 translated / 0 partial / 0 pending`.

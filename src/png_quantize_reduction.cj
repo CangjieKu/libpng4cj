@@ -5,17 +5,23 @@ class PngPreparedQuantizeState {
     let paletteCount: Int64
     let index: Array<Byte>
     let paletteLookup: Array<Byte>
+    let allocationWarningCount: Int64
+    let allocationRetryCount: Int64
 
     init(
         palette: Array<Byte>,
         paletteCount: Int64,
         index: Array<Byte>,
-        paletteLookup: Array<Byte>
+        paletteLookup: Array<Byte>,
+        allocationWarningCount: Int64,
+        allocationRetryCount: Int64
     ) {
         this.palette = palette
         this.paletteCount = paletteCount
         this.index = index
         this.paletteLookup = paletteLookup
+        this.allocationWarningCount = allocationWarningCount
+        this.allocationRetryCount = allocationRetryCount
     }
 }
 
@@ -201,7 +207,8 @@ func pngPrepareQuantizeState(
     numPalette: Int64,
     maximumColors: Int64,
     histogram: Array<UInt16>,
-    fullQuantize: Bool
+    fullQuantize: Bool,
+    allocationFaultPlan: PngQuantizeAllocationFaultPlan
 ): PngPreparedQuantizeState {
     let ownedPalette = palette.clone()
     let quantizeIndex = if (fullQuantize) {
@@ -210,6 +217,7 @@ func pngPrepareQuantizeState(
         pngQuantizeIdentityIndex()
     }
 
+    var allocationFacts = PngQuantizeAllocationFacts(Int64(0), Int64(0))
     let paletteCount = if (numPalette > maximumColors) {
         if (histogram.size > 0) {
             let sorted = pngQuantizeHistogramSort(
@@ -234,12 +242,13 @@ func pngPrepareQuantizeState(
                 )
             }
         } else {
-            pngReduceQuantizePaletteWithoutHistogram(
+            allocationFacts = pngReduceQuantizePaletteWithoutHistogram(
                 ownedPalette,
                 quantizeIndex,
                 numPalette,
                 maximumColors,
-                fullQuantize
+                fullQuantize,
+                allocationFaultPlan
             )
         }
         maximumColors
@@ -257,6 +266,8 @@ func pngPrepareQuantizeState(
         retainedPalette,
         paletteCount,
         quantizeIndex,
-        paletteLookup
+        paletteLookup,
+        allocationFacts.warningCount,
+        allocationFacts.retryCount
     )
 }

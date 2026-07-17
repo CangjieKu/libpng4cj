@@ -96,4 +96,137 @@ public class PngQuantizeClosestReductionTestSuite {
         @Assert(state.quantizePalette(), expected)
         @Assert(state.quantizeMode().toString(), "PALETTE_REMAP")
     }
+
+    @TestCase
+    public func retriesAfterDiscardingPartiallyBuiltDistanceBuckets(): Unit {
+        let baseline = PngReadTransformState()
+        @Assert(
+            baseline.setQuantize(closestReductionPalette(), 4, 2, false),
+            true
+        )
+
+        let recovered = PngReadTransformState()
+        let fault = PngQuantizeAllocationFaultPlan(2, 1, 1)
+        @Assert(
+            recovered.setQuantize(
+                closestReductionPalette(), 4, 2, false, fault
+            ),
+            true
+        )
+        @Assert(recovered.quantizePalette(), baseline.quantizePalette())
+        @Assert(recovered.quantizeIndex(), baseline.quantizeIndex())
+        @Assert(recovered.quantizeAllocationWarningCount(), Int64(1))
+        @Assert(recovered.quantizeAllocationRetryCount(), Int64(1))
+    }
+
+    @TestCase
+    public func rebuildsFullLookupAfterRecoverableAllocationWarning(): Unit {
+        let baseline = PngReadTransformState()
+        @Assert(
+            baseline.setQuantize(closestReductionPalette(), 4, 2, true),
+            true
+        )
+
+        let recovered = PngReadTransformState()
+        @Assert(
+            recovered.setQuantize(
+                closestReductionPalette(),
+                4,
+                2,
+                true,
+                PngQuantizeAllocationFaultPlan(1, 1, 2)
+            ),
+            true
+        )
+        @Assert(recovered.quantizePalette(), baseline.quantizePalette())
+        @Assert(
+            recovered.quantizePaletteLookup(),
+            baseline.quantizePaletteLookup()
+        )
+        @Assert(recovered.quantizeAllocationWarningCount(), Int64(1))
+        @Assert(recovered.quantizeAllocationRetryCount(), Int64(1))
+    }
+
+    @TestCase
+    public func saturatesDistanceBucketScanAfterRepeatedWarnings(): Unit {
+        let baseline = PngReadTransformState()
+        @Assert(
+            baseline.setQuantize(closestReductionPalette(), 4, 2, false),
+            true
+        )
+
+        let recovered = PngReadTransformState()
+        @Assert(
+            recovered.setQuantize(
+                closestReductionPalette(),
+                4,
+                2,
+                false,
+                PngQuantizeAllocationFaultPlan(0, 8, 8)
+            ),
+            true
+        )
+        @Assert(recovered.quantizePalette(), baseline.quantizePalette())
+        @Assert(recovered.quantizeIndex(), baseline.quantizeIndex())
+        @Assert(recovered.quantizeAllocationWarningCount(), Int64(8))
+        @Assert(recovered.quantizeAllocationRetryCount(), Int64(8))
+    }
+
+    @TestCase
+    public func exhaustedRetriesKeepThePreviousQuantizeSnapshot(): Unit {
+        let state = PngReadTransformState()
+        @Assert(state.setQuantize(closestReductionPalette(), 4, 2, false), true)
+        let previousPalette = state.quantizePalette()
+        let previousIndex = state.quantizeIndex()
+
+        try {
+            state.setQuantize(
+                closestReductionPalette(),
+                4,
+                1,
+                false,
+                PngQuantizeAllocationFaultPlan(0, 2, 1)
+            )
+            @Fail("quantize should reject an exhausted allocation retry plan")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "ALLOCATION_FAILURE")
+            @Assert(error.offset, Int64(2))
+        }
+        @Assert(state.quantizePalette(), previousPalette)
+        @Assert(state.quantizeIndex(), previousIndex)
+        @Assert(state.quantizeAllocationWarningCount(), Int64(0))
+        @Assert(state.quantizeAllocationRetryCount(), Int64(0))
+    }
+
+    @TestCase
+    public func successfulReplacementResetsAllocationWarningFacts(): Unit {
+        let state = PngReadTransformState()
+        @Assert(
+            state.setQuantize(
+                closestReductionPalette(),
+                4,
+                2,
+                false,
+                PngQuantizeAllocationFaultPlan(0, 1, 1)
+            ),
+            true
+        )
+        @Assert(state.quantizeAllocationWarningCount(), Int64(1))
+        @Assert(state.quantizeAllocationRetryCount(), Int64(1))
+
+        @Assert(state.setQuantize(closestReductionPalette(), 4, 2, false), true)
+        @Assert(state.quantizeAllocationWarningCount(), Int64(0))
+        @Assert(state.quantizeAllocationRetryCount(), Int64(0))
+    }
+
+    @TestCase
+    public func rejectsInvalidAllocationFaultPlanArguments(): Unit {
+        try {
+            PngQuantizeAllocationFaultPlan(-1, 1, 1)
+            @Fail("quantize allocation fault offset should be nonnegative")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_ARGUMENT")
+            @Assert(error.offset, Int64(-1))
+        }
+    }
 }

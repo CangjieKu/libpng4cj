@@ -165,6 +165,8 @@ public class PngReadTransformState {
     private var quantizeMaximumColorsValue: Int64 = 0
     private var quantizeIndexValue: Array<Byte> = Array<Byte>()
     private var quantizePaletteLookupValue: Array<Byte> = Array<Byte>()
+    private var quantizeAllocationWarningCountValue: Int64 = 0
+    private var quantizeAllocationRetryCountValue: Int64 = 0
     private var invertMonoValue: Bool = false
     private var invertAlphaValue: Bool = false
     private var shiftValue: Bool = false
@@ -518,12 +520,30 @@ public class PngReadTransformState {
         maximumColors: Int64,
         fullQuantize: Bool
     ): Bool {
-        setQuantize(
+        setQuantizeWithAllocationPlan(
             palette,
             numPalette,
             maximumColors,
             Array<UInt16>(),
-            fullQuantize
+            fullQuantize,
+            pngNoQuantizeAllocationFaultPlan()
+        )
+    }
+
+    public func setQuantize(
+        palette: Array<Byte>,
+        numPalette: Int64,
+        maximumColors: Int64,
+        fullQuantize: Bool,
+        allocationFaultPlan: PngQuantizeAllocationFaultPlan
+    ): Bool {
+        setQuantizeWithAllocationPlan(
+            palette,
+            numPalette,
+            maximumColors,
+            Array<UInt16>(),
+            fullQuantize,
+            allocationFaultPlan
         )
     }
 
@@ -533,6 +553,24 @@ public class PngReadTransformState {
         maximumColors: Int64,
         histogram: Array<UInt16>,
         fullQuantize: Bool
+    ): Bool {
+        setQuantizeWithAllocationPlan(
+            palette,
+            numPalette,
+            maximumColors,
+            histogram,
+            fullQuantize,
+            pngNoQuantizeAllocationFaultPlan()
+        )
+    }
+
+    private func setQuantizeWithAllocationPlan(
+        palette: Array<Byte>,
+        numPalette: Int64,
+        maximumColors: Int64,
+        histogram: Array<UInt16>,
+        fullQuantize: Bool,
+        allocationFaultPlan: PngQuantizeAllocationFaultPlan
     ): Bool {
         if (!pngRtranOk(false)) {
             return false
@@ -570,7 +608,8 @@ public class PngReadTransformState {
             numPalette,
             maximumColors,
             histogram,
-            fullQuantize
+            fullQuantize,
+            allocationFaultPlan
         )
 
         quantizeValue = true
@@ -580,6 +619,8 @@ public class PngReadTransformState {
         quantizeMaximumColorsValue = maximumColors
         quantizeIndexValue = prepared.index
         quantizePaletteLookupValue = prepared.paletteLookup
+        quantizeAllocationWarningCountValue = prepared.allocationWarningCount
+        quantizeAllocationRetryCountValue = prepared.allocationRetryCount
         true
     }
 
@@ -878,6 +919,14 @@ public class PngReadTransformState {
 
     public func quantizePaletteLookup(): Array<Byte> {
         quantizePaletteLookupValue.clone()
+    }
+
+    public func quantizeAllocationWarningCount(): Int64 {
+        quantizeAllocationWarningCountValue
+    }
+
+    public func quantizeAllocationRetryCount(): Int64 {
+        quantizeAllocationRetryCountValue
     }
 
     public func invertAlphaEnabled(): Bool {

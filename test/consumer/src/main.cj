@@ -742,6 +742,50 @@ main(): Int64 {
         println("libpng4cj encode-alpha row check failed")
         return 1
     }
+    let quantizePalette: Array<Byte> = [
+        0, 0, 0,
+        0xff, 0, 0,
+        0, 0xff, 0,
+        0, 0, 0xff
+    ]
+    let quantizeDecoded = decodePngNonInterlaced(consumerGammaPng())
+    let baselineQuantizeState = PngReadTransformState()
+    if (!baselineQuantizeState.setQuantize(
+        quantizePalette, 4, 2, true
+    )) {
+        println("libpng4cj baseline quantize setup failed")
+        return 1
+    }
+    let recoveredQuantizeState = PngReadTransformState()
+    if (!recoveredQuantizeState.setQuantize(
+        quantizePalette,
+        4,
+        2,
+        true,
+        PngQuantizeAllocationFaultPlan(1, 1, 2)
+    )) {
+        println("libpng4cj recovered quantize setup failed")
+        return 1
+    }
+    let baselineQuantized = transformPngRowsInitialized(
+        quantizeDecoded,
+        baselineQuantizeState
+    )
+    let recoveredQuantized = transformPngRowsInitialized(
+        quantizeDecoded,
+        recoveredQuantizeState
+    )
+    if (recoveredQuantizeState.quantizeAllocationWarningCount() != Int64(1) ||
+        recoveredQuantizeState.quantizeAllocationRetryCount() != Int64(1) ||
+        recoveredQuantizeState.quantizePalette() !=
+            baselineQuantizeState.quantizePalette() ||
+        recoveredQuantized.row(0) != baselineQuantized.row(0) ||
+        recoveredQuantized.info.colorType != Indexed ||
+        recoveredQuantized.info.channels != UInt8(1) ||
+        recoveredQuantized.info.rowBytes != UInt64(2)) {
+        println("libpng4cj quantize allocation retry check failed")
+        return 1
+    }
     let userTransformDecoded = decodePngNonInterlaced(consumerGammaPng())
     let userTransformState = PngReadTransformState()
     if (!userTransformState.setUserTransformInfo(UInt8(8), UInt8(4)) ||

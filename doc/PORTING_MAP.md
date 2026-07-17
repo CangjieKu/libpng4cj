@@ -1397,9 +1397,28 @@ histogram:
   full mode builds its lookup from the final reduced palette
 - caller palette ownership and failed setter lifecycle state remain unchanged
 
-The managed path assumes successful allocation. Native `png_malloc_warn` null
-fallback, complete row dispatch, transformed-info projection, and C ABI remain
-open.
+LP-S004BQ closes the native allocation-warning retry boundary with a bounded,
+quantize-specific managed diagnostic:
+
+- `PngQuantizeAllocationFaultPlan` deterministically fails pair-node admission
+  after a configured number of successful admissions
+- an interrupted bucket-build attempt is discarded before any palette,
+  identity-map, remap, or lookup mutation
+- recovery increases the frozen distance window by `96` and retries from the
+  unchanged working snapshot
+- recovered non-full remap and full lookup results retain the existing exact
+  odd/even elimination and reverse-bucket ordering
+- successful setters expose allocation warning/retry counts; a later ordinary
+  setter replacement resets both facts
+- exhausted bounded retries raise `ALLOCATION_FAILURE` before prepared state
+  publication, preserving the last accepted quantize snapshot
+- initialized row dispatch, transformed-info projection, whole-image use, and
+  standalone consumer use consume the recovered state unchanged
+
+This diagnostic does not claim recovery from actual managed-runtime OOM.
+Generic allocators, user allocation callbacks, and the C ABI remain separate.
+With this branch the generated `pngrtran.c` inventory reaches
+`45 translated / 0 partial / 0 pending`.
 
 ## Implemented Significant-Bit Unshift
 

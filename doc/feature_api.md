@@ -375,6 +375,42 @@ Initialized execution places `PALETTE_INDEX_CHECK` after `UNPACK` and before
 row bytes are not rewritten. Benign-error callback delivery and the separate
 palette-expansion zero-fill compatibility path remain open.
 
+## Quantize Allocation Retry Diagnostic
+
+The ordinary `PngReadTransformState.setQuantize` overloads retain histogram
+reduction, no-histogram closest-pair reduction, 256-entry Indexed remapping,
+and full-color 5-bit RGB lookup generation.
+
+The quantize-specific diagnostic overload accepts a final
+`PngQuantizeAllocationFaultPlan`:
+
+```cangjie
+state.setQuantize(
+    palette,
+    numPalette,
+    maximumColors,
+    fullQuantize,
+    PngQuantizeAllocationFaultPlan(
+        successfulPairAllocationsBeforeFailure,
+        failureCount,
+        maximumRetries
+    )
+)
+```
+
+When a planned pair-node admission fails, the partially built distance buckets
+are discarded before palette or remap mutation. The closest-pair pass expands
+its distance window and retries from unchanged working state. A recovered
+setter exposes `quantizeAllocationWarningCount()` and
+`quantizeAllocationRetryCount()`; a later ordinary successful setter resets
+both values.
+
+If the bounded retry limit is exhausted, `PngFormatException` reports
+`ALLOCATION_FAILURE` and the previous accepted quantize state remains intact.
+This is deterministic translation and fault-injection evidence for the
+upstream `png_malloc_warn` branch. It is not a generic allocator surface or a
+claim that the managed runtime can recover from actual process OOM.
+
 ## Native Read User Transform
 
 `PngReadTransformState.setReadUserTransform` accepts a native Cangjie function
