@@ -176,8 +176,15 @@ required and neither palette initialization nor RGB-to-gray owns gamma work.
 unchanged while executing after Gray-to-RGB and before 16-to-8 reduction.
 The 16-bit overload corrects network-order Gray/GA/RGB/RGBA color components
 through the initialized segmented table and preserves alpha. Reduction-specialized
-tables therefore execute before Scale16/Strip16. Gamma-aware RGB-to-gray remains
-separate work.
+tables therefore execute before Scale16/Strip16.
+
+When `ReadStageRgbToGray` owns gamma work,
+`applyInitializedPngRgbToGrayStage(...)` consumes the initialized 8-bit or
+segmented 16-bit to-linear/from-linear pair. Unequal original RGB samples are
+linearized, combined with the configured fixed coefficients and frozen rounding,
+then mapped back through from-linear; equal RGB uses the direct table. Alpha,
+network byte order, strict original-sample mismatch detection, row information,
+and copy ownership are preserved.
 
 ## Invalid Palette Index Diagnosis
 

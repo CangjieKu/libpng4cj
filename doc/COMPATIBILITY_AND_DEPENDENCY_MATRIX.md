@@ -5,16 +5,16 @@
 | Capability | Status | Current truth |
 | --- | --- | --- |
 | ICC color application | Pending | iCCP bytes and validated profile metadata are retained; pixel colors are not converted |
-| Gamma correction | Pending | gAMA/sRGB/cHRM metadata is retained; gamma tables and pixel correction are not implemented |
+| Gamma correction | Partial | gAMA/sRGB/cHRM metadata is retained; initialized packed/8/16-bit row correction and gamma-aware RGB-to-gray execute through frozen direct/linear tables; background/alpha-mode and ICC color application remain open |
 | Background composition | Pending | bKGD is retained; alpha/background composition is not implemented |
 | Adam7 decoding | Pending | Adam7 IHDR values are recognized; interlaced row execution is not implemented |
 | Progressive reading | Pending | No progressive state machine or callback surface is implemented |
 | Write API | Pending | PNG encoding and write-side transforms are not implemented |
 | C ABI compatibility | Pending | No `libpng16` headers, exported symbols, or callback/longjmp bridge is shipped |
-| User callbacks | Pending | Custom IO, warning/error, allocator, row-transform, and chunk callbacks are not implemented |
+| User callbacks | Partial | Native Cangjie read user-transform callbacks execute with row/pass context and copy ownership; custom IO, warning/error, allocator, and chunk callback families remain open |
 
-The read-transform ledger currently records `24/45` translated, `7/45`
-partial, and `14/45` pending top-level `pngrtran.c` functions. The complete
+The read-transform ledger currently records `31/45` translated, `8/45`
+partial, and `6/45` pending top-level `pngrtran.c` functions. The complete
 source-backed status is maintained in
 [`PNG_RTRAN_TRANSLATION_LEDGER.md`](PNG_RTRAN_TRANSLATION_LEDGER.md).
 
@@ -62,5 +62,6 @@ declared minimum.
   and have focused boundary tests, but large-file throughput is not certified.
 - Decoder sessions and transform state are instance-owned with no package-level
   mutable decode state. Concurrent stress and race testing are still pending.
-- Adam7 and gamma are missing capabilities, not untested claims; they remain
-  explicitly pending until their implementation packets land.
+- Adam7 remains a missing capability. Gamma support is partial and limited to
+  the implemented initialized row paths; broader color-management composition
+  remains explicitly pending.

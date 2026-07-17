@@ -157,6 +157,40 @@ private func pngRgbToGray16Value(
     UInt16(weighted >> 15)
 }
 
+private func pngRgbToGrayGamma8Value(
+    red: Byte,
+    green: Byte,
+    blue: Byte,
+    transform: PngRgbToGrayTransform,
+    toLinear: PngGamma8BitTable,
+    fromLinear: PngGamma8BitTable
+): Byte {
+    let linearRed = toLinear.value(red)
+    let linearGreen = toLinear.value(green)
+    let linearBlue = toLinear.value(blue)
+    let weighted = UInt32(transform.redCoefficient) * UInt32(linearRed) +
+        UInt32(transform.greenCoefficient) * UInt32(linearGreen) +
+        UInt32(transform.blueCoefficient) * UInt32(linearBlue) + UInt32(16384)
+    fromLinear.value(UInt8(weighted >> 15))
+}
+
+private func pngRgbToGrayGamma16Value(
+    red: UInt16,
+    green: UInt16,
+    blue: UInt16,
+    transform: PngRgbToGrayTransform,
+    toLinear: PngGamma16BitTable,
+    fromLinear: PngGamma16BitTable
+): UInt16 {
+    let linearRed = toLinear.value(red)
+    let linearGreen = toLinear.value(green)
+    let linearBlue = toLinear.value(blue)
+    let weighted = UInt64(transform.redCoefficient) * UInt64(linearRed) +
+        UInt64(transform.greenCoefficient) * UInt64(linearGreen) +
+        UInt64(transform.blueCoefficient) * UInt64(linearBlue) + UInt64(16384)
+    fromLinear.value(UInt16(weighted >> 15))
+}
+
 private func pngReadNetworkUInt16(row: Array<Byte>, offset: Int64): UInt16 {
     (UInt16(row[offset]) << 8) | UInt16(row[offset + 1])
 }
@@ -256,6 +290,104 @@ private func pngDoRgbToGrayRow16(
     )
 }
 
+private func pngDoRgbToGrayGammaRow8(
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>,
+    transform: PngRgbToGrayTransform,
+    tables: PngGamma8BitTables
+): PngRgbToGrayRowResult {
+    let withAlpha = rowInfo.channels == UInt8(4)
+    let sourceChannels = Int64(rowInfo.channels)
+    let outputChannels = if (withAlpha) { Int64(2) } else { Int64(1) }
+    let output = Array<Byte>(
+        Int64(rowInfo.width) * outputChannels,
+        repeat: 0
+    )
+    let direct = tables.direct()
+    let toLinear = tables.toLinear()
+    let fromLinear = tables.fromLinear()
+    var hadNonGrayPixels = false
+    var pixel: Int64 = 0
+    while (pixel < Int64(rowInfo.width)) {
+        let sourceOffset = pixel * sourceChannels
+        let red = row[sourceOffset]
+        let green = row[sourceOffset + 1]
+        let blue = row[sourceOffset + 2]
+        let equal = red == green && red == blue
+        if (!equal) {
+            hadNonGrayPixels = true
+            pngRgbToGrayMismatch(transform, pixel)
+        }
+        let outputOffset = pixel * outputChannels
+        output[outputOffset] = if (equal) {
+            direct.value(red)
+        } else {
+            pngRgbToGrayGamma8Value(
+                red, green, blue, transform, toLinear, fromLinear
+            )
+        }
+        if (withAlpha) {
+            output[outputOffset + 1] = row[sourceOffset + 3]
+        }
+        pixel += 1
+    }
+    PngRgbToGrayRowResult(
+        pngRgbToGrayOutputInfo(rowInfo),
+        output,
+        hadNonGrayPixels
+    )
+}
+
+private func pngDoRgbToGrayGammaRow16(
+    rowInfo: PngReadRowInfo,
+    row: Array<Byte>,
+    transform: PngRgbToGrayTransform,
+    tables: PngGamma16BitTables
+): PngRgbToGrayRowResult {
+    let withAlpha = rowInfo.channels == UInt8(4)
+    let sourceChannels = Int64(rowInfo.channels)
+    let outputChannels = if (withAlpha) { Int64(2) } else { Int64(1) }
+    let output = Array<Byte>(
+        Int64(rowInfo.width) * outputChannels * 2,
+        repeat: 0
+    )
+    let direct = tables.direct()
+    let toLinear = tables.toLinear()
+    let fromLinear = tables.fromLinear()
+    var hadNonGrayPixels = false
+    var pixel: Int64 = 0
+    while (pixel < Int64(rowInfo.width)) {
+        let sourceOffset = pixel * sourceChannels * 2
+        let red = pngReadNetworkUInt16(row, sourceOffset)
+        let green = pngReadNetworkUInt16(row, sourceOffset + 2)
+        let blue = pngReadNetworkUInt16(row, sourceOffset + 4)
+        let equal = red == green && red == blue
+        if (!equal) {
+            hadNonGrayPixels = true
+            pngRgbToGrayMismatch(transform, pixel)
+        }
+        let gray = if (equal) {
+            direct.value(red)
+        } else {
+            pngRgbToGrayGamma16Value(
+                red, green, blue, transform, toLinear, fromLinear
+            )
+        }
+        let outputOffset = pixel * outputChannels * 2
+        pngWriteNetworkUInt16(output, outputOffset, gray)
+        if (withAlpha) {
+            output[outputOffset + 2] = row[sourceOffset + 6]
+            output[outputOffset + 3] = row[sourceOffset + 7]
+        }
+        pixel += 1
+    }
+    PngRgbToGrayRowResult(
+        pngRgbToGrayOutputInfo(rowInfo),
+        output,
+        hadNonGrayPixels
+    )
+}
+
 public func pngDoRgbToGray(
     rowInfo: PngReadRowInfo,
     row: Array<Byte>,
@@ -280,7 +412,29 @@ public func applyInitializedPngRgbToGrayStage(
     if (!initialization.hasStage(ReadStageRgbToGray)) {
         return PngRgbToGrayRowResult(rowInfo, row, false)
     }
-    pngDoRgbToGray(rowInfo, row, initialization.rgbToGrayTransform())
+    if (!pngRgbToGraySupported(rowInfo)) {
+        return PngRgbToGrayRowResult(rowInfo, row, false)
+    }
+    let transform = initialization.rgbToGrayTransform()
+    if (rowInfo.bitDepth == UInt8(8) &&
+        initialization.gamma8BitLinearTablesBuilt()) {
+        return pngDoRgbToGrayGammaRow8(
+            rowInfo,
+            row,
+            transform,
+            initialization.gamma8BitTables()
+        )
+    }
+    if (rowInfo.bitDepth == UInt8(16) &&
+        initialization.gamma16BitLinearTablesBuilt()) {
+        return pngDoRgbToGrayGammaRow16(
+            rowInfo,
+            row,
+            transform,
+            initialization.gamma16BitTables()
+        )
+    }
+    pngDoRgbToGray(rowInfo, row, transform)
 }
 
 private func applyInitializedPngReadStagesWithPaletteMaximum(

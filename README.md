@@ -191,6 +191,10 @@ oracle-test source. Production implementation code belongs directly under
 - source-shaped `pngDoRgbToGray` converts 8/16-bit RGB/RGBA byte rows into
   Gray/GA with fixed coefficients, PNG network-order preservation, exact row
   information, copy ownership, and aggregate nongray status
+- initialized RGB-to-gray consumes retained 8-bit or segmented 16-bit
+  to-linear/from-linear tables, compares original RGB samples for nongray
+  detection, applies rounded fixed coefficients in linear space, corrects equal
+  RGB through the direct table, and preserves alpha plus PNG network order
 - `applyInitializedPngReadStages` composes Expand, Strip Alpha, RGB-to-gray,
   Gray-to-RGB, Scale/Strip16, Quantize, and Expand16 through one initialized
   row entry in frozen order
@@ -250,12 +254,11 @@ oracle-test source. Production implementation code belongs directly under
   row bytes, remaining tRNS state, and a copy-owned synchronized palette using
   the frozen info-function order rather than runtime row-stage order
 
-ICC color application, cHRM-derived RGB-to-gray defaults, gamma-aware
-RGB-to-gray and 16-bit gamma row correction, background composition, remaining
-standard metadata, quantize allocation-warning fallback, benign-error callback
-delivery for invalid palette indexes, the remaining read-transform dispatch
-stages, complete transformed-metadata projection, C ABI callback trampolines,
-raw user-transform pointers, Adam7
+ICC color application, cHRM-derived RGB-to-gray defaults, background
+composition, remaining standard metadata, quantize allocation-warning fallback,
+benign-error callback delivery for invalid palette indexes, the remaining
+read-transform dispatch stages, complete transformed-metadata projection, C ABI
+callback trampolines, raw user-transform pointers, Adam7
 execution, progressive reading, and all write/C ABI surfaces remain open work.
 
 The translation-first route is tracked in

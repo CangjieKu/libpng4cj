@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Complete frozen gamma-aware 8/16-bit RGB/RGBA-to-Gray/GA row execution
+  through initialized to-linear/from-linear tables, including direct correction
+  for equal RGB, original-sample nongray detection, alpha, and network order.
 - Complete frozen 16-bit Gray/GA/RGB/RGBA `png_do_gamma` execution with
   initialized direct/reduction dispatch, network-order and alpha preservation.
 - Attach immutable initialized 16-bit direct and optional linear Gamma tables,

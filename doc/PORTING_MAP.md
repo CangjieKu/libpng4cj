@@ -698,6 +698,25 @@ LP-S004BA completes the frozen 16-bit branches of `png_do_gamma`:
 The `png_do_gamma` ledger row is now translated and the ledger advances to
 `31 translated / 8 partial / 6 pending`. Gamma-aware RGB-to-gray remains open.
 
+## Implemented Gamma-Aware RGB-To-Gray Row Arithmetic
+
+LP-S004BB completes the frozen gamma-table branches of
+`pngrtran.c::png_do_rgb_to_gray`:
+
+- initialized 8/16-bit RGB and RGBA rows use retained file-to-linear and
+  linear-to-screen tables
+- nongray detection compares original RGB values before table lookup
+- unequal samples use the frozen fixed coefficients with `+16384` rounding in
+  linear space, then map through the from-linear table
+- equal samples use the direct file-to-screen table when the gamma-aware branch
+  is active
+- alpha bytes and PNG network-order UInt16 encoding remain unchanged
+- direct initialized rows, strict-policy mismatch, copy ownership, whole-image
+  execution, malformed rows, and standalone consumer use are covered
+
+The `png_do_rgb_to_gray` row remains translated and the ledger remains
+`31 translated / 8 partial / 6 pending`.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

@@ -59,7 +59,7 @@ Status meanings:
 | 2711 | `png_do_read_invert_alpha` | `pngDoReadInvertAlpha` | translated | selected adapter is narrow; setter state and complete dispatcher remain partial |
 | 2813 | `png_do_read_filler` | `pngDoReadFiller` | translated | selected adapter is narrow; setter state and transformed-info color-type projection remain partial |
 | 3000 | `png_do_gray_to_rgb` | `pngDoGrayToRgb` | translated | initialized stage adapter is narrow; complete dispatcher remains partial |
-| 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray` plus fixed 8/16-bit cores | translated | gamma-table branches deferred |
+| 3139 | `png_do_rgb_to_gray` | `pngDoRgbToGray` plus fixed and initialized gamma-aware 8/16-bit cores | translated | complete frozen row arithmetic covered; warning/error callback delivery remains outside this row helper |
 | 3340 | `png_do_compose` | none | pending | background/alpha/gamma composition |
 | 4084 | `png_do_gamma` | `pngDoGamma` | translated | packed 2/4-bit, 8-bit, and 16-bit Gray/GA/RGB/RGBA branches plus initialized direct/reduction dispatch translated |
 | 4285 | `png_do_encode_alpha` | none | pending | alpha-mode gamma encoding |
@@ -412,4 +412,13 @@ the initialized segmented direct or 16-to-8-specialized table. Network order,
 alpha preservation, Gamma-before-reduction order, whole-image behavior, and
 consumer use are covered. The inventoried row advances from partial to
 translated, so the ledger advances to
+`31 translated / 8 partial / 6 pending`.
+
+LP-S004BB completes the frozen gamma-table branches of `png_do_rgb_to_gray` for
+8/16-bit RGB and RGBA rows. Initialized execution compares original samples,
+uses to-linear tables for unequal RGB, applies the rounded fixed coefficients,
+maps through from-linear tables, uses direct correction for equal RGB, and
+preserves alpha plus PNG network order. Direct-row, strict-policy, whole-image,
+ownership, malformed-row, and consumer proof are covered. The inventoried row
+was already translated, so the ledger remains
 `31 translated / 8 partial / 6 pending`.

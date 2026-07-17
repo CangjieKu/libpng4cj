@@ -169,6 +169,43 @@ main(): Int64 {
         println("libpng4cj initialized gamma row check failed")
         return 1
     }
+    let gammaRgbDecoded = decodePngNonInterlaced(consumerGammaPng())
+    let gammaRgbState = PngReadTransformState()
+    gammaRgbState.markIhdrRead(gammaRgbDecoded.ihdr)
+    if (!gammaRgbState.setRgbToGrayFixed(
+        Convert, UInt32(21268), UInt32(71514)
+    ) || !gammaRgbState.setGammaFixed(Int32(106000), Int32(100000))) {
+        println("libpng4cj gamma-aware RGB-to-gray setup failed")
+        return 1
+    }
+    let initializedGammaRgb = initializePngReadTransformations(
+        gammaRgbState,
+        gammaRgbDecoded
+    )
+    let gammaRgbTables = initializedGammaRgb.gamma8BitTables()
+    let gammaRgbTransform = initializedGammaRgb.rgbToGrayTransform()
+    let gammaRgbToLinear = gammaRgbTables.toLinear()
+    let gammaRgbWeighted =
+        UInt32(gammaRgbTransform.redCoefficient) *
+            UInt32(gammaRgbToLinear.value(UInt8(64))) +
+        UInt32(gammaRgbTransform.greenCoefficient) *
+            UInt32(gammaRgbToLinear.value(UInt8(128))) +
+        UInt32(gammaRgbTransform.blueCoefficient) *
+            UInt32(gammaRgbToLinear.value(UInt8(192))) + UInt32(16384)
+    let gammaRgbExpected = gammaRgbTables.fromLinear().value(
+        UInt8(gammaRgbWeighted >> 15)
+    )
+    let gammaRgbRow = applyInitializedPngRgbToGrayStage(
+        initializedGammaRgb,
+        PngReadRowInfo(UInt32(1), UInt8(8), TruecolorAlpha),
+        [64, 128, 192, 77]
+    )
+    if (gammaRgbRow.row() != [gammaRgbExpected, UInt8(77)] ||
+        !gammaRgbRow.hadNonGrayPixels ||
+        gammaRgbRow.info.colorType != GrayscaleAlpha) {
+        println("libpng4cj gamma-aware 8-bit RGB-to-gray check failed")
+        return 1
+    }
     let gamma16Table = pngBuildGamma16BitTable(UInt8(8), Int32(220000))
     if (gamma16Table.segmentCount() != Int64(1) ||
         gamma16Table.value(UInt16(0x8080)) !=
@@ -207,6 +244,49 @@ main(): Int64 {
     ]
     if (gamma16Row.row() != gamma16RowExpected) {
         println("libpng4cj initialized 16-bit gamma row check failed")
+        return 1
+    }
+    let gamma16RgbDecoded = decodePngNonInterlaced(consumerGamma16Png())
+    let gamma16RgbState = PngReadTransformState()
+    gamma16RgbState.markIhdrRead(gamma16RgbDecoded.ihdr)
+    if (!gamma16RgbState.setRgbToGrayFixed(
+        Convert, UInt32(21268), UInt32(71514)
+    ) || !gamma16RgbState.setGammaFixed(Int32(106000), Int32(100000))) {
+        println("libpng4cj gamma-aware 16-bit RGB-to-gray setup failed")
+        return 1
+    }
+    let initializedGamma16Rgb = initializePngReadTransformations(
+        gamma16RgbState,
+        gamma16RgbDecoded
+    )
+    let gamma16RgbTables = initializedGamma16Rgb.gamma16BitTables()
+    let gamma16RgbTransform = initializedGamma16Rgb.rgbToGrayTransform()
+    let gamma16ToLinear = gamma16RgbTables.toLinear()
+    let gamma16Weighted =
+        UInt64(gamma16RgbTransform.redCoefficient) *
+            UInt64(gamma16ToLinear.value(UInt16(0x1234))) +
+        UInt64(gamma16RgbTransform.greenCoefficient) *
+            UInt64(gamma16ToLinear.value(UInt16(0x5678))) +
+        UInt64(gamma16RgbTransform.blueCoefficient) *
+            UInt64(gamma16ToLinear.value(UInt16(0x9abc))) + UInt64(16384)
+    let gamma16RgbExpected = gamma16RgbTables.fromLinear().value(
+        UInt16(gamma16Weighted >> 15)
+    )
+    let gamma16RgbRow = applyInitializedPngRgbToGrayStage(
+        initializedGamma16Rgb,
+        PngReadRowInfo(UInt32(1), UInt8(16), TruecolorAlpha),
+        [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0]
+    )
+    let gamma16RgbRowExpected: Array<Byte> = [
+        UInt8(gamma16RgbExpected >> UInt16(8)),
+        UInt8(gamma16RgbExpected & UInt16(0xff)),
+        0xde,
+        0xf0
+    ]
+    if (gamma16RgbRow.row() != gamma16RgbRowExpected ||
+        !gamma16RgbRow.hadNonGrayPixels ||
+        gamma16RgbRow.info.colorType != GrayscaleAlpha) {
+        println("libpng4cj gamma-aware 16-bit RGB-to-gray check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

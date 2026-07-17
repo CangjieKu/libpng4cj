@@ -6,6 +6,11 @@ private let GAMMA16_GRAY_ZLIB: Array<Byte> = [
     0x78, 0x9c, 0x63, 0x10, 0x32, 0x01, 0x00, 0x00, 0x5b, 0x00, 0x47
 ]
 
+private let GAMMA16_RGBA_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x60, 0x64, 0x62, 0x66, 0x61,
+    0x65, 0x63, 0xe7, 0x00, 0x00, 0x00, 0x81, 0x00, 0x25
+]
+
 private func joinGamma16InitBytes(
     left: Array<Byte>,
     right: Array<Byte>
@@ -72,6 +77,58 @@ private func gamma16InitializedDecoded(
         makeGamma16InitChunk(PNG_CHUNK_IEND, [])
     )
     decodePngNonInterlaced(png)
+}
+
+private func gamma16RgbaInitializedDecoded(): PngDecodedRows {
+    let data = Array<Byte>(13, repeat: 0)
+    data[3] = UInt8(1)
+    data[7] = UInt8(1)
+    data[8] = UInt8(16)
+    data[9] = UInt8(6)
+    var png = joinGamma16InitBytes(
+        PNG_SIGNATURE,
+        makeGamma16InitChunk(PNG_CHUNK_IHDR, data)
+    )
+    png = joinGamma16InitBytes(
+        png,
+        makeGamma16InitChunk(
+            PNG_CHUNK_gAMA,
+            writeUInt32Be(UInt32(45455))
+        )
+    )
+    png = joinGamma16InitBytes(
+        png,
+        makeGamma16InitChunk(PNG_CHUNK_sBIT, [8, 8, 8, 8])
+    )
+    png = joinGamma16InitBytes(
+        png,
+        makeGamma16InitChunk(PNG_CHUNK_IDAT, GAMMA16_RGBA_ZLIB)
+    )
+    png = joinGamma16InitBytes(
+        png,
+        makeGamma16InitChunk(PNG_CHUNK_IEND, [])
+    )
+    decodePngNonInterlaced(png)
+}
+
+private func gammaAwareGray16Oracle(
+    red: UInt16,
+    green: UInt16,
+    blue: UInt16,
+    transform: PngRgbToGrayTransform,
+    tables: PngGamma16BitTables
+): UInt16 {
+    if (red == green && red == blue) {
+        return tables.direct().value(red)
+    }
+    let toLinear = tables.toLinear()
+    let linearRed = toLinear.value(red)
+    let linearGreen = toLinear.value(green)
+    let linearBlue = toLinear.value(blue)
+    let weighted = UInt64(transform.redCoefficient) * UInt64(linearRed) +
+        UInt64(transform.greenCoefficient) * UInt64(linearGreen) +
+        UInt64(transform.blueCoefficient) * UInt64(linearBlue) + UInt64(16384)
+    tables.fromLinear().value(UInt16(weighted >> 15))
 }
 
 private func gamma16CompressedSample(index: UInt32, shift: UInt8): UInt16 {
@@ -307,5 +364,95 @@ public class PngGamma16BitInitializationTestSuite {
             ) == UInt16(0),
             false
         )
+    }
+
+    @TestCase
+    public func executesGammaAwareSixteenBitRgbToGrayRowsAndImage(): Unit {
+        let decoded = gamma16RgbaInitializedDecoded()
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(state.setGammaFixed(Int32(106000), Int32(100000)), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.gamma16BitShift(), UInt8(8))
+        let transform = initialized.rgbToGrayTransform()
+        let tables = initialized.gamma16BitTables()
+        let source: Array<Byte> = [
+            0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0,
+            0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01, 0x02
+        ]
+        let unequal = gammaAwareGray16Oracle(
+            UInt16(0x1234),
+            UInt16(0x5678),
+            UInt16(0x9abc),
+            transform,
+            tables
+        )
+        let equal = tables.direct().value(UInt16(0x8080))
+        let expected: Array<Byte> = [
+            UInt8(unequal >> UInt16(8)),
+            UInt8(unequal & UInt16(0xff)),
+            0xde,
+            0xf0,
+            UInt8(equal >> UInt16(8)),
+            UInt8(equal & UInt16(0xff)),
+            0x01,
+            0x02
+        ]
+        let transformed = applyInitializedPngRgbToGrayStage(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(16), TruecolorAlpha),
+            source
+        )
+        @Assert(transformed.row(), expected)
+        @Assert(transformed.info.colorType.toString(), "GRAYSCALE_ALPHA")
+        @Assert(transformed.info.rowBytes, UInt64(8))
+        @Assert(transformed.hadNonGrayPixels, true)
+
+        source[0] = UInt8(0)
+        @Assert(transformed.row(), expected)
+        let mutable = transformed.row()
+        mutable[0] = UInt8(0)
+        @Assert(transformed.row(), expected)
+
+        let decodedSource = decoded.row(0)
+        let decodedRed = UInt16(
+            (UInt16(decodedSource[0]) << UInt16(8)) | UInt16(decodedSource[1])
+        )
+        let decodedGreen = UInt16(
+            (UInt16(decodedSource[2]) << UInt16(8)) | UInt16(decodedSource[3])
+        )
+        let decodedBlue = UInt16(
+            (UInt16(decodedSource[4]) << UInt16(8)) | UInt16(decodedSource[5])
+        )
+        let wholeGray = gammaAwareGray16Oracle(
+            decodedRed, decodedGreen, decodedBlue, transform, tables
+        )
+        let wholeExpected: Array<Byte> = [
+            UInt8(wholeGray >> UInt16(8)),
+            UInt8(wholeGray & UInt16(0xff)),
+            decodedSource[6],
+            decodedSource[7]
+        ]
+        let wholeState = PngReadTransformState()
+        wholeState.markIhdrRead(decoded.ihdr)
+        @Assert(
+            wholeState.setRgbToGrayFixed(
+                Convert, UInt32(21268), UInt32(71514)
+            ),
+            true
+        )
+        @Assert(
+            wholeState.setGammaFixed(Int32(106000), Int32(100000)),
+            true
+        )
+        let whole = transformPngRowsInitialized(decoded, wholeState)
+        @Assert(whole.row(0), wholeExpected)
+        @Assert(whole.info.bitDepth, UInt8(16))
+        @Assert(whole.info.colorType.toString(), "GRAYSCALE_ALPHA")
+        @Assert(whole.hadNonGrayPixels, true)
     }
 }

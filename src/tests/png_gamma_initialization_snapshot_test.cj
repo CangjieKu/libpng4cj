@@ -69,6 +69,26 @@ private func gammaInitDecoded(gamma: UInt32): PngDecodedRows {
     decodePngNonInterlaced(png)
 }
 
+private func gammaAwareGray8Oracle(
+    red: UInt8,
+    green: UInt8,
+    blue: UInt8,
+    transform: PngRgbToGrayTransform,
+    tables: PngGamma8BitTables
+): UInt8 {
+    if (red == green && red == blue) {
+        return tables.direct().value(red)
+    }
+    let toLinear = tables.toLinear()
+    let linearRed = toLinear.value(red)
+    let linearGreen = toLinear.value(green)
+    let linearBlue = toLinear.value(blue)
+    let weighted = UInt32(transform.redCoefficient) * UInt32(linearRed) +
+        UInt32(transform.greenCoefficient) * UInt32(linearGreen) +
+        UInt32(transform.blueCoefficient) * UInt32(linearBlue) + UInt32(16384)
+    tables.fromLinear().value(UInt8(weighted >> 15))
+}
+
 @Test
 public class PngGammaInitializationSnapshotTestSuite {
     @TestCase
@@ -212,6 +232,124 @@ public class PngGammaInitializationSnapshotTestSuite {
                 UInt8(0),
             false
         )
+    }
+
+    @TestCase
+    public func executesGammaAwareEightBitRgbToGrayRows(): Unit {
+        let decoded = gammaInitDecoded(UInt32(45455))
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(state.setGammaFixed(Int32(106000), Int32(100000)), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        let transform = initialized.rgbToGrayTransform()
+        let tables = initialized.gamma8BitTables()
+        let source: Array<Byte> = [64, 128, 192, 77, 80, 80, 80, 99]
+        let transformed = applyInitializedPngRgbToGrayStage(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), TruecolorAlpha),
+            source
+        )
+        let expected: Array<Byte> = [
+            gammaAwareGray8Oracle(
+                UInt8(64), UInt8(128), UInt8(192), transform, tables
+            ),
+            UInt8(77),
+            tables.direct().value(UInt8(80)),
+            UInt8(99)
+        ]
+        @Assert(transformed.row(), expected)
+        @Assert(transformed.info.colorType.toString(), "GRAYSCALE_ALPHA")
+        @Assert(transformed.hadNonGrayPixels, true)
+
+        source[0] = UInt8(0)
+        @Assert(transformed.row(), expected)
+        let mutable = transformed.row()
+        mutable[0] = UInt8(0)
+        @Assert(transformed.row(), expected)
+    }
+
+    @TestCase
+    public func detectsOriginalEightBitRgbBeforeLinearization(): Unit {
+        let decoded = gammaInitDecoded(UInt32(45455))
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(RequireGray, UInt32(21268), UInt32(71514)),
+            true
+        )
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(
+            initialized.gamma8BitTables().toLinear().value(UInt8(1)),
+            initialized.gamma8BitTables().toLinear().value(UInt8(2))
+        )
+        try {
+            applyInitializedPngRgbToGrayStage(
+                initialized,
+                PngReadRowInfo(UInt32(1), UInt8(8), Truecolor),
+                [1, 2, 1]
+            )
+            @Fail("gamma-aware RGB-to-gray must compare original samples")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "RGB_TO_GRAY_MISMATCH")
+            @Assert(error.offset, Int64(0))
+        }
+        try {
+            applyInitializedPngRgbToGrayStage(
+                initialized,
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+                [1, 2, 3, 4, 5]
+            )
+            @Fail("gamma-aware RGB-to-gray should reject malformed rows")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_ARGUMENT")
+        }
+    }
+
+    @TestCase
+    public func transformsWholeImageWithGammaAwareRgbToGray(): Unit {
+        let decoded = gammaInitDecoded(UInt32(45455))
+        let state = PngReadTransformState()
+        state.markIhdrRead(decoded.ihdr)
+        @Assert(
+            state.setRgbToGrayFixed(Convert, UInt32(21268), UInt32(71514)),
+            true
+        )
+        @Assert(state.setGammaFixed(Int32(106000), Int32(100000)), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        let source = decoded.row(0)
+        let transform = initialized.rgbToGrayTransform()
+        let tables = initialized.gamma8BitTables()
+        let expected: Array<Byte> = [
+            gammaAwareGray8Oracle(
+                source[0], source[1], source[2], transform, tables
+            ),
+            source[3],
+            gammaAwareGray8Oracle(
+                source[4], source[5], source[6], transform, tables
+            ),
+            source[7]
+        ]
+        let wholeState = PngReadTransformState()
+        wholeState.markIhdrRead(decoded.ihdr)
+        @Assert(
+            wholeState.setRgbToGrayFixed(
+                Convert, UInt32(21268), UInt32(71514)
+            ),
+            true
+        )
+        @Assert(
+            wholeState.setGammaFixed(Int32(106000), Int32(100000)),
+            true
+        )
+        let transformed = transformPngRowsInitialized(decoded, wholeState)
+        @Assert(transformed.rowCount(), Int64(1))
+        @Assert(transformed.row(0), expected)
+        @Assert(transformed.info.colorType.toString(), "GRAYSCALE_ALPHA")
+        @Assert(transformed.hadNonGrayPixels, true)
     }
 
     @TestCase
