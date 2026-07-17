@@ -154,14 +154,8 @@ public class PngReadTransformInitialization {
     private let byteSwapEnabledValue: Bool
     private let checkForInvalidIndexEnabledValue: Bool
     private let paletteEntryCountValue: Int64
-    private let readUserTransformEnabledValue: Bool
-    private let userTransformDepthValue: UInt8
-    private let userTransformChannelsValue: UInt8
-    private let readUserTransformValue: (
-        PngReadUserTransformContext,
-        PngReadRowInfo,
-        Array<Byte>
-    ) -> PngReadUserTransformResult
+    private let readUserTransformRegistrationValue:
+        PngReadUserTransformRegistration
     private let ownedStages: Array<PngReadTransformStage>
 
     init(
@@ -226,14 +220,7 @@ public class PngReadTransformInitialization {
         byteSwapEnabled: Bool,
         checkForInvalidIndexEnabled: Bool,
         paletteEntryCount: Int64,
-        readUserTransformEnabled: Bool,
-        userTransformDepth: UInt8,
-        userTransformChannels: UInt8,
-        readUserTransform: (
-            PngReadUserTransformContext,
-            PngReadRowInfo,
-            Array<Byte>
-        ) -> PngReadUserTransformResult,
+        readUserTransformRegistration: PngReadUserTransformRegistration,
         stages: Array<PngReadTransformStage>
     ) {
         this.usesPaletteInitializer = usesPaletteInitializer
@@ -311,33 +298,50 @@ public class PngReadTransformInitialization {
         byteSwapEnabledValue = byteSwapEnabled
         checkForInvalidIndexEnabledValue = checkForInvalidIndexEnabled
         paletteEntryCountValue = paletteEntryCount
-        readUserTransformEnabledValue = readUserTransformEnabled
-        userTransformDepthValue = userTransformDepth
-        userTransformChannelsValue = userTransformChannels
-        readUserTransformValue = readUserTransform
+        readUserTransformRegistrationValue = readUserTransformRegistration
         ownedStages = stages.clone()
     }
 
     public func stageCount(): Int64 {
-        ownedStages.size
+        ownedStages.size + if (readUserTransformEnabled()) { Int64(1) } else { Int64(0) }
     }
 
     public func stage(index: Int64): PngReadTransformStage {
-        if (index < 0 || index >= ownedStages.size) {
+        if (index < 0) {
             throw PngFormatException(
                 InvalidArgument,
                 index,
                 "read transform stage index is out of bounds"
             )
         }
-        ownedStages[index]
+        if (index >= 0 && index < ownedStages.size) {
+            return ownedStages[index]
+        }
+        if (index == ownedStages.size && readUserTransformEnabled()) {
+            return ReadStageUserTransform
+        }
+        throw PngFormatException(
+            InvalidArgument,
+            index,
+            "read transform stage index is out of bounds"
+        )
     }
 
     public func stages(): Array<PngReadTransformStage> {
-        ownedStages.clone()
+        let output = ArrayList<PngReadTransformStage>()
+        for (stage in ownedStages) {
+            output.add(stage)
+        }
+        if (readUserTransformEnabled()) {
+            output.add(ReadStageUserTransform)
+        }
+        output.toArray()
     }
 
     public func hasStage(expected: PngReadTransformStage): Bool {
+        if (expected == ReadStageUserTransform) {
+            return readUserTransformEnabled()
+        }
         var index: Int64 = 0
         while (index < ownedStages.size) {
             if (ownedStages[index] == expected) {
@@ -711,15 +715,15 @@ public class PngReadTransformInitialization {
     }
 
     public func readUserTransformEnabled(): Bool {
-        readUserTransformEnabledValue
+        readUserTransformRegistrationValue.enabled()
     }
 
     public func userTransformDepth(): UInt8 {
-        userTransformDepthValue
+        readUserTransformRegistrationValue.depth()
     }
 
     public func userTransformChannels(): UInt8 {
-        userTransformChannelsValue
+        readUserTransformRegistrationValue.channels()
     }
 
     public func readUserTransform(): (
@@ -727,14 +731,14 @@ public class PngReadTransformInitialization {
         PngReadRowInfo,
         Array<Byte>
     ) -> PngReadUserTransformResult {
-        if (!readUserTransformEnabledValue) {
+        if (!readUserTransformRegistrationValue.enabled()) {
             throw PngFormatException(
                 UnsupportedTransform,
                 -1,
                 "read transform initialization has no user transform callback"
             )
         }
-        readUserTransformValue
+        readUserTransformRegistrationValue.callback()
     }
 }
 
@@ -1272,9 +1276,6 @@ private func pngReadTransformStages(
     if (state.byteSwapEnabled()) {
         stages.add(ReadStageByteSwap)
     }
-    if (state.readUserTransformEnabled()) {
-        stages.add(ReadStageUserTransform)
-    }
     stages.toArray()
 }
 
@@ -1513,14 +1514,6 @@ public func initializePngReadTransformations(
     } else {
         Int64(0)
     }
-    let readUserTransformEnabled = state.readUserTransformEnabled()
-    let userTransformDepth = state.userTransformDepth()
-    let userTransformChannels = state.userTransformChannels()
-    let readUserTransform = if (readUserTransformEnabled) {
-        state.readUserTransform()
-    } else {
-        pngIdentityReadUserTransform
-    }
     let gammaStageEnabled = (initializedGamma8BitTables.built() ||
         initializedGamma16BitTables.built()) &&
         initializedGammaValues.correctionRequired && !rgbToGrayEnabled &&
@@ -1601,10 +1594,7 @@ public func initializePngReadTransformations(
         byteSwapEnabled,
         checkForInvalidIndexEnabled,
         paletteEntryCount,
-        readUserTransformEnabled,
-        userTransformDepth,
-        userTransformChannels,
-        readUserTransform,
+        state.readUserTransformRegistration(),
         stages
     )
 }

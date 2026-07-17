@@ -142,7 +142,7 @@ private func userGray16Decoded(): PngDecodedRows {
 @Test
 public class PngUserTransformTestSuite {
     @TestCase
-    public func snapshotsCallbackAndProjectsConfiguredInfo(): Unit {
+    public func configuresCallbackAndProjectsConfiguredInfo(): Unit {
         let decoded = userRgbDecoded()
         let callback: (
             PngReadUserTransformContext,
@@ -169,11 +169,148 @@ public class PngUserTransformTestSuite {
         @Assert(projected.rowBytes, UInt64(8))
 
         @Assert(state.setUserTransformInfo(UInt8(8), UInt8(1)), false)
-        @Assert(state.setReadUserTransform(callback), false)
+        @Assert(state.setReadUserTransform(callback), true)
         @Assert(
             state.lastApplicationError().toString(),
             "INVALID_AFTER_ROW_INITIALIZATION"
         )
+    }
+
+    @TestCase
+    public func enablesIdentityRegistrationWithoutCallback(): Unit {
+        let decoded = userRgbDecoded()
+        let state = PngReadTransformState()
+        @Assert(state.setReadUserTransform(), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.stageCount(), Int64(1))
+        @Assert(initialized.stage(0), ReadStageUserTransform)
+
+        let row: Array<Byte> = [1, 2, 3, 4, 5, 6]
+        let transformed = applyInitializedPngReadStages(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            row
+        )
+        @Assert(transformed.row(), row)
+        @Assert(transformed.info.channels, UInt8(3))
+
+        let projectedState = PngReadTransformState()
+        @Assert(projectedState.setUserTransformInfo(UInt8(16), UInt8(1)), true)
+        @Assert(projectedState.setReadUserTransform(), true)
+        let projected = projectPngReadTransformInfo(
+            initializePngReadTransformations(projectedState, decoded),
+            decoded
+        )
+        @Assert(projected.bitDepth, UInt8(16))
+        @Assert(projected.channels, UInt8(1))
+        @Assert(projected.rowBytes, UInt64(4))
+    }
+
+    @TestCase
+    public func enablesAndReplacesCallbackAfterInitialization(): Unit {
+        let decoded = userRgbDecoded()
+        let state = PngReadTransformState()
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.stageCount(), Int64(0))
+
+        let first: (
+            PngReadUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngReadUserTransformResult = {
+            _, info, row =>
+                row[0] = UInt8(11)
+                PngReadUserTransformResult(info, row)
+        }
+        @Assert(state.setReadUserTransform(first), true)
+        @Assert(initialized.stageCount(), Int64(1))
+        @Assert(initialized.stage(0), ReadStageUserTransform)
+        @Assert(initialized.hasStage(ReadStageUserTransform), true)
+        @Assert(initialized.stages(), [ReadStageUserTransform])
+        let source: Array<Byte> = [1, 2, 3, 4, 5, 6]
+        let firstResult = applyInitializedPngReadStages(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            source
+        )
+        let firstExpected: Array<Byte> = [11, 2, 3, 4, 5, 6]
+        @Assert(firstResult.row(), firstExpected)
+
+        let second: (
+            PngReadUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngReadUserTransformResult = {
+            _, info, row =>
+                row[0] = UInt8(22)
+                PngReadUserTransformResult(info, row)
+        }
+        @Assert(state.setReadUserTransform(second), true)
+        let secondResult = applyInitializedPngReadStages(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            source
+        )
+        let secondExpected: Array<Byte> = [22, 2, 3, 4, 5, 6]
+        @Assert(secondResult.row(), secondExpected)
+        let sourceExpected: Array<Byte> = [1, 2, 3, 4, 5, 6]
+        @Assert(source, sourceExpected)
+
+        @Assert(state.setReadUserTransform(), true)
+        let identityResult = applyInitializedPngReadStages(
+            initialized,
+            PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+            source
+        )
+        @Assert(identityResult.row(), sourceExpected)
+    }
+
+    @TestCase
+    public func projectsConfiguredInfoWhenEnabledAfterInitialization(): Unit {
+        let decoded = userRgbDecoded()
+        let state = PngReadTransformState()
+        @Assert(state.setUserTransformInfo(UInt8(16), UInt8(1)), true)
+        let initialized = initializePngReadTransformations(state, decoded)
+        @Assert(initialized.hasStage(ReadStageUserTransform), false)
+
+        @Assert(state.setReadUserTransform(), true)
+        let projected = projectPngReadTransformInfo(initialized, decoded)
+        @Assert(projected.bitDepth, UInt8(16))
+        @Assert(projected.channels, UInt8(1))
+        @Assert(projected.rowBytes, UInt64(4))
+    }
+
+    @TestCase
+    public func replacesCallbackBetweenWholeImageRows(): Unit {
+        let decoded = userRgbDecoded()
+        let state = PngReadTransformState()
+        let replacement: (
+            PngReadUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngReadUserTransformResult = {
+            _, info, row =>
+                row[0] = UInt8(44)
+                PngReadUserTransformResult(info, row)
+        }
+        let first: (
+            PngReadUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngReadUserTransformResult = {
+            context, info, row =>
+                row[0] = UInt8(33)
+                if (context.rowNumber == UInt32(0)) {
+                    state.setReadUserTransform(replacement)
+                }
+                PngReadUserTransformResult(info, row)
+        }
+        @Assert(state.setReadUserTransform(first), true)
+        let transformed = transformPngRowsInitialized(decoded, state)
+        let row0: Array<Byte> = [33, 2, 3, 4, 5, 6]
+        let row1: Array<Byte> = [44, 8, 9, 10, 11, 12]
+        @Assert(transformed.row(0), row0)
+        @Assert(transformed.row(1), row1)
     }
 
     @TestCase
@@ -266,6 +403,35 @@ public class PngUserTransformTestSuite {
             @Assert(error.kind.toString(), "INVALID_ARGUMENT")
             @Assert(error.offset, Int64(1))
         }
+    }
+
+    @TestCase
+    public func rejectsMalformedInputBeforeInvokingCallback(): Unit {
+        let decoded = userRgbDecoded()
+        let recorder = UserTransformRecorder()
+        let callback: (
+            PngReadUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngReadUserTransformResult = {
+            context, info, row =>
+                recorder.record(context, row)
+                PngReadUserTransformResult(info, row)
+        }
+        let state = PngReadTransformState()
+        @Assert(state.setReadUserTransform(callback), true)
+        try {
+            applyInitializedPngReadStages(
+                initializePngReadTransformations(state, decoded),
+                PngReadRowInfo(UInt32(2), UInt8(8), Truecolor),
+                [UInt8(1)]
+            )
+            @Fail("malformed input should fail before user callback execution")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "INVALID_ARGUMENT")
+            @Assert(error.offset, Int64(1))
+        }
+        @Assert(recorder.calls, Int64(0))
     }
 
     @TestCase

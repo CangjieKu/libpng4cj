@@ -43,7 +43,7 @@ Status meanings:
 | 1031 | `png_set_gray_to_rgb` | `PngReadTransformState.setGrayToRgb` | translated | direct C ABI setter and transformed-info projection deferred |
 | 1046 | `png_set_rgb_to_gray_fixed` | `PngReadTransformState.setRgbToGrayFixed` | translated | warning callback emission deferred |
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
-| 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
+| 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | translated | unconditional enablement, explicit no-callback identity execution, live late callback replacement, final row hook, and info projection translated; C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | setter/state/initialization connected; table integration deferred |
 | 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations`, `pngInitEffectivePaletteAlpha`, and `pngInitPaletteBackgroundTransformations` | translated | alpha/transparency classification, no-alpha/binary cancellation, palette-index background expansion, copy-owned tRNS inversion, direct/linear Gamma composition, optimized partial-alpha premultiplication, and Compose/Gamma cancellation translated |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | translated | inherent-alpha/tRNS classification, no-alpha Compose/background cancellation, effective Optimize/Encode cancellation, and sub-byte gray background expansion translated |
@@ -567,3 +567,17 @@ warning, quiet-use, and discard facts without claiming native warning
 callbacks. Framing, type, size, and IHDR-order failures still precede CRC
 policy. The setter row advances from partial to translated, so the ledger
 becomes `43 translated / 2 partial / 0 pending`.
+
+LP-S004BP closes native `png_set_read_user_transform_fn` registration parity.
+Both typed callback registration and the no-argument no-callback form
+unconditionally enable `USER_TRANSFORM`; the latter executes as identity while
+still applying configured depth/channel projection. Initialization retains a
+live registration object, so enabling or replacing the callback after row
+initialization affects subsequent rows without rebuilding unrelated transform
+state. The dynamically projected stage remains final after Byte Swap, callback
+replacement during one row takes effect on the next row, and
+`setUserTransformInfo` retains its frozen post-row-init rejection. Direct,
+whole-image, ownership, row/pass, row-byte, transformed-limit, malformed-row,
+and standalone consumer paths are covered. Raw user pointers and the C ABI
+trampoline remain separate. The setter row advances from partial to translated,
+so the ledger becomes `44 translated / 1 partial / 0 pending`.

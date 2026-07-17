@@ -742,6 +742,57 @@ main(): Int64 {
         println("libpng4cj encode-alpha row check failed")
         return 1
     }
+    let userTransformDecoded = decodePngNonInterlaced(consumerGammaPng())
+    let userTransformState = PngReadTransformState()
+    if (!userTransformState.setUserTransformInfo(UInt8(8), UInt8(4)) ||
+        !userTransformState.setReadUserTransform()) {
+        println("libpng4cj identity user-transform setup failed")
+        return 1
+    }
+    let userTransformInitialized = initializePngReadTransformations(
+        userTransformState,
+        userTransformDecoded
+    )
+    let userTransformSource = userTransformDecoded.row(0)
+    let identityUserTransform = applyInitializedPngReadStages(
+        userTransformInitialized,
+        PngReadRowInfo(userTransformDecoded.ihdr),
+        userTransformSource
+    )
+    let projectedUserTransform = projectPngReadTransformInfo(
+        userTransformInitialized,
+        userTransformDecoded
+    )
+    if (!userTransformInitialized.hasStage(ReadStageUserTransform) ||
+        identityUserTransform.row() != userTransformSource ||
+        projectedUserTransform.bitDepth != UInt8(8) ||
+        projectedUserTransform.channels != UInt8(4)) {
+        println("libpng4cj identity user-transform check failed")
+        return 1
+    }
+    let lateUserTransform: (
+        PngReadUserTransformContext,
+        PngReadRowInfo,
+        Array<Byte>
+    ) -> PngReadUserTransformResult = {
+        _, info, row =>
+            row[0] = UInt8(99)
+            PngReadUserTransformResult(info, row)
+    }
+    if (!userTransformState.setReadUserTransform(lateUserTransform)) {
+        println("libpng4cj late user-transform replacement failed")
+        return 1
+    }
+    let lateUserTransformRow = applyInitializedPngReadStages(
+        userTransformInitialized,
+        PngReadRowInfo(userTransformDecoded.ihdr),
+        userTransformSource
+    )
+    if (lateUserTransformRow.row()[0] != UInt8(99) ||
+        userTransformSource[0] == UInt8(99)) {
+        println("libpng4cj late user-transform execution failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

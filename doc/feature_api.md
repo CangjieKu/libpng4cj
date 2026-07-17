@@ -388,6 +388,10 @@ with this shape:
 ) -> PngReadUserTransformResult
 ```
 
+The no-argument `setReadUserTransform()` form explicitly enables the same
+stage with identity execution. This mirrors a registered null read callback:
+the stage remains active and configured depth/channel overrides still apply.
+
 The callback receives a copy-owned row and immutable row/pass context. It
 returns copy-owned row information and bytes. Initialized execution runs the
 callback after `BYTE_SWAP`; configured nonzero values from
@@ -395,8 +399,11 @@ callback after `BYTE_SWAP`; configured nonzero values from
 depth/channels, and the final row length must match the recomputed row bytes.
 
 `projectPngReadTransformInfo` applies the same configured nonzero
-depth/channels only when a user-transform callback is active. The current
-whole-image non-interlaced path reports zero-based row numbers and pass `0`.
+depth/channels only when user-transform registration is active. Callback
+enablement and replacement remain live after initialization, including
+replacement with identity execution; unrelated initialized transform state is
+not rebuilt. The current whole-image non-interlaced path reports zero-based row
+numbers and pass `0`.
 
 The completed read-info projection also exposes `transparencyCount`,
 `hasBackground`, `background()`, `hasGamma`, and `gamma`. The transparency
@@ -409,8 +416,8 @@ Gamma provenance. Plain filler changes only projected channels; Add Alpha also
 changes the projected color type.
 
 The current surface is Cangjie-native. C ABI callback trampolines, raw
-`user_transform_ptr` storage, null callback semantics, late callback mutation,
-write user transforms, and progressive/Adam7 pass execution remain open.
+`user_transform_ptr` storage, write user transforms, and progressive/Adam7 pass
+execution remain open.
 
 ## Read CRC Actions
 

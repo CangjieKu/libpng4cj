@@ -32,6 +32,58 @@ func pngIdentityReadUserTransform(
     PngReadUserTransformResult(info, row)
 }
 
+class PngReadUserTransformRegistration {
+    private var enabledValue: Bool = false
+    private var depthValue: UInt8 = UInt8(0)
+    private var channelsValue: UInt8 = UInt8(0)
+    private var callbackValue: (
+        PngReadUserTransformContext,
+        PngReadRowInfo,
+        Array<Byte>
+    ) -> PngReadUserTransformResult = pngIdentityReadUserTransform
+
+    func enableIdentity(): Unit {
+        enabledValue = true
+        callbackValue = pngIdentityReadUserTransform
+    }
+
+    func setCallback(
+        callback: (
+            PngReadUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngReadUserTransformResult
+    ): Unit {
+        enabledValue = true
+        callbackValue = callback
+    }
+
+    func setInfo(depth: UInt8, channels: UInt8): Unit {
+        depthValue = depth
+        channelsValue = channels
+    }
+
+    func enabled(): Bool {
+        enabledValue
+    }
+
+    func depth(): UInt8 {
+        depthValue
+    }
+
+    func channels(): UInt8 {
+        channelsValue
+    }
+
+    func callback(): (
+        PngReadUserTransformContext,
+        PngReadRowInfo,
+        Array<Byte>
+    ) -> PngReadUserTransformResult {
+        callbackValue
+    }
+}
+
 public func applyInitializedPngReadUserTransformStage(
     initialization: PngReadTransformInitialization,
     rowInfo: PngReadRowInfo,
@@ -39,7 +91,7 @@ public func applyInitializedPngReadUserTransformStage(
     context: PngReadUserTransformContext
 ): PngReadTransformRow {
     validatePngTransformRowLength(rowInfo, row)
-    if (!initialization.hasStage(ReadStageUserTransform)) {
+    if (!initialization.readUserTransformEnabled()) {
         return PngReadTransformRow(rowInfo, row)
     }
 

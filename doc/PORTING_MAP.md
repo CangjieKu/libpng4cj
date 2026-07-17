@@ -423,33 +423,37 @@ indexes, write-side index diagnosis, gamma/background, Adam7, progressive IO,
 C ABI, and release packaging remain separate work. The native read user
 transform is connected by LP-S004AN.
 
-## Implemented Native Read User Transform Stage
+## Implemented Native Read User Transform Registration And Stage
 
-LP-S004AN translates the native Cangjie portion of
+LP-S004AN establishes the native Cangjie portion of
 `png_set_read_user_transform_fn`, `png_set_user_transform_info`, the
-user-transform branch of `png_read_transform_info`, and the final read row hook:
+user-transform branch of `png_read_transform_info`, and the final read row hook.
+LP-S004BP completes the native registration behavior:
 
-- `setReadUserTransform` stores a typed Cangjie function value and enables one
-  lifecycle-gated user-transform stage
+- typed `setReadUserTransform(callback)` and no-argument
+  `setReadUserTransform()` both unconditionally enable the user-transform stage
+- the no-argument form represents an explicitly registered null callback as
+  identity execution rather than an absent transform
 - `setUserTransformInfo` stores optional byte-sized output depth/channels;
   zero preserves callback-returned row information and nonzero values override
   it after callback execution
-- initialization snapshots callback/configuration and appends ordinal `18`
-  without renumbering prior stages
+- initialization freezes all unrelated transform state but retains a live user
+  registration, allowing callback enablement or replacement after initialization
+- dynamic stage inspection appends ordinal `18` without renumbering prior stages
 - `projectPngReadTransformInfo` projects configured nonzero depth/channels only
-  while the user-transform stage is active
+  while registration is enabled, including explicit no-callback registration
 - combined execution places User Transform after Byte Swap, supplies immutable
   zero-based row/pass context, and gives the callback a copy-owned row
 - callback output is copy-owned; configured shape overrides are applied before
   exact final row-byte validation and transformed-byte limiting
+- replacement during one whole-image row is observed by the following row;
+  replacing a callback with the no-argument form restores identity execution
 - direct execution can supply an explicit context, while the current
   non-interlaced whole-image path uses pass `0`
 
-The top-level `pngrtran.c` setter remains partial because null callback
-semantics, late callback mutation, the C ABI callback trampoline, and raw
+The native setter row is translated. The C ABI callback trampoline and raw
 `user_transform_ptr` are not present. Write callbacks, Adam7/progressive pass
-execution, gamma/background, C ABI export, and release packaging remain
-separate work.
+execution, C ABI export, and release packaging remain separate work.
 
 ## Implemented Floating RGB To Gray Facade
 

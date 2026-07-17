@@ -177,14 +177,8 @@ public class PngReadTransformState {
     private var swapAlphaValue: Bool = false
     private var byteSwapValue: Bool = false
     private var checkForInvalidIndexValue: Bool = true
-    private var readUserTransformEnabledValue: Bool = false
-    private var userTransformDepthValue: UInt8 = UInt8(0)
-    private var userTransformChannelsValue: UInt8 = UInt8(0)
-    private var readUserTransformValue: (
-        PngReadUserTransformContext,
-        PngReadRowInfo,
-        Array<Byte>
-    ) -> PngReadUserTransformResult = pngIdentityReadUserTransform
+    private let readUserTransformRegistrationValue =
+        PngReadUserTransformRegistration()
     private var gammaConfiguredValue: Bool = false
     private var fileGammaValue: Int32 = Int32(0)
     private var screenGammaValue: Int32 = Int32(0)
@@ -708,8 +702,7 @@ public class PngReadTransformState {
         if (!pngRtranOk(false)) {
             return false
         }
-        userTransformDepthValue = depth
-        userTransformChannelsValue = channels
+        readUserTransformRegistrationValue.setInfo(depth, channels)
         true
     }
 
@@ -724,6 +717,11 @@ public class PngReadTransformState {
         setUserTransformInfo(UInt8(depth), UInt8(channels))
     }
 
+    public func setReadUserTransform(): Bool {
+        readUserTransformRegistrationValue.enableIdentity()
+        true
+    }
+
     public func setReadUserTransform(
         callback: (
             PngReadUserTransformContext,
@@ -731,11 +729,7 @@ public class PngReadTransformState {
             Array<Byte>
         ) -> PngReadUserTransformResult
     ): Bool {
-        if (!pngRtranOk(false)) {
-            return false
-        }
-        readUserTransformValue = callback
-        readUserTransformEnabledValue = true
+        readUserTransformRegistrationValue.setCallback(callback)
         true
     }
 
@@ -956,15 +950,15 @@ public class PngReadTransformState {
     }
 
     public func readUserTransformEnabled(): Bool {
-        readUserTransformEnabledValue
+        readUserTransformRegistrationValue.enabled()
     }
 
     public func userTransformDepth(): UInt8 {
-        userTransformDepthValue
+        readUserTransformRegistrationValue.depth()
     }
 
     public func userTransformChannels(): UInt8 {
-        userTransformChannelsValue
+        readUserTransformRegistrationValue.channels()
     }
 
     public func readUserTransform(): (
@@ -972,14 +966,18 @@ public class PngReadTransformState {
         PngReadRowInfo,
         Array<Byte>
     ) -> PngReadUserTransformResult {
-        if (!readUserTransformEnabledValue) {
+        if (!readUserTransformRegistrationValue.enabled()) {
             throw PngFormatException(
                 UnsupportedTransform,
                 -1,
                 "read transform state has no user transform callback"
             )
         }
-        readUserTransformValue
+        readUserTransformRegistrationValue.callback()
+    }
+
+    func readUserTransformRegistration(): PngReadUserTransformRegistration {
+        readUserTransformRegistrationValue
     }
 
     public func gammaConfigured(): Bool {
