@@ -25,6 +25,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
     | ReadStageGamma
     | ReadStageCompose
     | ReadStageStripAlphaAfterCompose
+    | ReadStageEncodeAlpha
 
     public operator func ==(right: PngReadTransformStage): Bool {
         ordinalValue() == right.ordinalValue()
@@ -58,6 +59,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageGamma => 19
             case ReadStageCompose => 20
             case ReadStageStripAlphaAfterCompose => 21
+            case ReadStageEncodeAlpha => 22
         }
     }
 
@@ -85,6 +87,7 @@ public enum PngReadTransformStage <: Equatable<PngReadTransformStage> & ToString
             case ReadStageGamma => "GAMMA"
             case ReadStageCompose => "COMPOSE"
             case ReadStageStripAlphaAfterCompose => "STRIP_ALPHA_AFTER_COMPOSE"
+            case ReadStageEncodeAlpha => "ENCODE_ALPHA"
         }
     }
 }
@@ -1104,7 +1107,8 @@ private func pngReadTransformStages(
     gammaStageEnabled: Bool,
     stripAlphaBeforeCompose: Bool,
     composeEnabled: Bool,
-    stripAlphaAfterCompose: Bool
+    stripAlphaAfterCompose: Bool,
+    encodeAlphaEnabled: Bool
 ): Array<PngReadTransformStage> {
     let stages = ArrayList<PngReadTransformStage>()
     if (state.expandEnabled()) {
@@ -1127,6 +1131,9 @@ private func pngReadTransformStages(
     }
     if (stripAlphaAfterCompose) {
         stages.add(ReadStageStripAlphaAfterCompose)
+    }
+    if (encodeAlphaEnabled) {
+        stages.add(ReadStageEncodeAlpha)
     }
     if (state.scale16Enabled()) {
         stages.add(ReadStageScale16To8)
@@ -1407,13 +1414,21 @@ public func initializePngReadTransformations(
         ihdr.colorType != Indexed && !rowComposeEnabled
     let stripAlphaAfterCompose = state.stripAlphaEnabled() &&
         rowComposeEnabled
+    let alphaGammaEffective = pngGammaSignificant(
+        initializedGammaValues.screenGamma
+    )
+    let encodeAlphaEnabled = state.encodeAlphaEnabled() &&
+        classification.hasAlpha && effectiveOutputHasAlpha && alphaGammaEffective
+    let optimizeAlphaEnabled = state.optimizeAlphaEnabled() &&
+        classification.hasAlpha && alphaGammaEffective
     let stages = pngReadTransformStages(
         state,
         checkForInvalidIndexEnabled,
         gammaStageEnabled,
         effectiveStripAlphaBeforeCompose,
         rowComposeEnabled,
-        stripAlphaAfterCompose
+        stripAlphaAfterCompose,
+        encodeAlphaEnabled
     )
     state.markRowInitialized()
 
@@ -1441,8 +1456,8 @@ public func initializePngReadTransformations(
         gammaConfigured,
         state.alphaModeConfigured(),
         if (state.alphaModeConfigured()) { state.alphaMode() } else { AlphaPng },
-        state.encodeAlphaEnabled(),
-        state.optimizeAlphaEnabled(),
+        encodeAlphaEnabled,
+        optimizeAlphaEnabled,
         state.defaultGamma(),
         chunkGamma,
         initializedGammaValues,

@@ -860,6 +860,27 @@ The pending `png_do_encode_alpha` body and optimized palette arithmetic remain
 separate packets. The ledger advances to
 `36 translated / 8 partial / 1 pending`.
 
+## Implemented Encode-Alpha Row Body
+
+LP-S004BI translates `png_do_encode_alpha` and its initialized dispatch:
+
+- 8-bit GA/RGBA rows encode only the final alpha byte through the from-linear
+  table
+- 16-bit GA/RGBA rows preserve big-endian component storage while replacing
+  only the final alpha sample
+- grayscale/color bytes, row topology, and row size remain unchanged
+- malformed rows fail before stage selection and unsupported rows return owned
+  copies
+- initialization cancels ineffective Encode/Optimize state for near-linear
+  screen Gamma or alpha that does not survive
+- effective Encode Alpha executes after Compose/Gamma/post-Compose Strip Alpha
+  and before Scale/Strip 16-to-8
+- whole-image execution retains the existing transformed-byte limit
+
+This moves the last pending `pngrtran.c` function to translated. The ledger is
+now `37 translated / 8 partial / 0 pending`; partial rows still track remaining
+initializer, info-projection, callback/C ABI, and dispatcher fidelity.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of

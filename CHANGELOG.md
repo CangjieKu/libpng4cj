@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Translate `png_do_encode_alpha` for 8/16-bit GA/RGBA rows, including
+  alpha-only from-linear lookup, network order, effective initialization
+  cancellation, and stage placement after Compose/post-Compose Strip Alpha and
+  before 16-to-8 reduction.
 - Translate fixed and floating read alpha-mode setters for PNG, Associated,
   Optimized, and Broken modes, including first-write default Gamma, screen
   Gamma, black-background Compose state, Encode/Optimize flags, conflict and

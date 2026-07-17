@@ -463,10 +463,15 @@ private func applyInitializedPngReadStagesWithPaletteMaximum(
     let strippedAfterCompose = applyInitializedPngStripAlphaAfterComposeStage(
         initialization, gammaCorrected.info, gammaCorrected.row()
     )
-    let reduced = applyInitializedPng16To8Stages(
+    let encodedAlpha = applyInitializedPngEncodeAlphaStage(
         initialization,
         strippedAfterCompose.info,
         strippedAfterCompose.row()
+    )
+    let reduced = applyInitializedPng16To8Stages(
+        initialization,
+        encodedAlpha.info,
+        encodedAlpha.row()
     )
     let quantized = applyInitializedPngQuantizeStage(
         initialization, reduced.info, reduced.row()

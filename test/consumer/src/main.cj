@@ -480,6 +480,28 @@ main(): Int64 {
         println("libpng4cj alpha-mode initialization check failed")
         return 1
     }
+    let encodeAlphaState = PngReadTransformState()
+    if (!encodeAlphaState.setAlphaModeFixed(AlphaBroken, Int32(220000))) {
+        println("libpng4cj encode-alpha setup failed")
+        return 1
+    }
+    let encodeAlphaInitialized = initializePngReadTransformations(
+        encodeAlphaState,
+        gammaRgbDecoded
+    )
+    let encodeAlphaRow = applyInitializedPngReadStages(
+        encodeAlphaInitialized,
+        PngReadRowInfo(UInt32(1), UInt8(8), TruecolorAlpha),
+        [64, 128, 192, 77]
+    )
+    let encodedAlpha = encodeAlphaInitialized.gamma8BitTables().fromLinear().value(
+        UInt8(77)
+    )
+    if (!encodeAlphaInitialized.hasStage(ReadStageEncodeAlpha) ||
+        encodeAlphaRow.row()[3] != encodedAlpha) {
+        println("libpng4cj encode-alpha row check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

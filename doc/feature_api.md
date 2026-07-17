@@ -294,8 +294,18 @@ late calls leave prior state intact and expose diagnostic facts.
 
 `PngReadTransformInitialization` freezes the same alpha-mode/default-Gamma
 facts and resolves them into `fileGamma()` and `screenGamma()`. This surface is
-configuration and initialization state only: Encode Alpha row execution and
-optimized palette premultiplication remain separate translated bodies.
+configuration and initialization state; row execution is provided by the
+separate helpers below.
+
+`pngDoEncodeAlpha(rowInfo, row, table)` provides 8-bit and 16-bit overloads for
+GA/RGBA rows. It applies only the supplied from-linear Gamma table to the final
+alpha component and returns a copy-owned `PngReadTransformRow`.
+
+When Broken alpha mode remains effective after initialization,
+`ReadStageEncodeAlpha` is placed after Compose, Gamma, and post-Compose Strip
+Alpha, then before Scale/Strip 16-to-8. `encodeAlphaEnabled()` and
+`optimizeAlphaEnabled()` on the initialization expose effective state after
+near-linear screen-Gamma and surviving-alpha cancellation.
 
 ## Invalid Palette Index Diagnosis
 
