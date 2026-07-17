@@ -281,11 +281,12 @@ public class PngBackgroundInitializationTestSuite {
             binaryState,
             backgroundInitIndexed([0x00, 0xff])
         )
-        @Assert(binary.composeEnabled(), true)
+        @Assert(binary.composeEnabled(), false)
+        @Assert(binary.paletteComposeApplied(), true)
         @Assert(binary.backgroundExpandEnabled(), true)
         @Assert(binary.inputHasTransparency, true)
         @Assert(binary.inputHasAlpha, false)
-        @Assert(binary.hasStage(ReadStageStripAlpha), false)
+        @Assert(binary.hasStage(ReadStageStripAlpha), true)
 
         let partialState = PngReadTransformState()
         configureBackgroundInit(partialState, PngBackground(), false)
@@ -293,9 +294,11 @@ public class PngBackgroundInitializationTestSuite {
             partialState,
             backgroundInitIndexed([0x80])
         )
-        @Assert(partial.composeEnabled(), true)
+        @Assert(partial.composeEnabled(), false)
+        @Assert(partial.paletteComposeApplied(), true)
         @Assert(partial.inputHasTransparency, true)
         @Assert(partial.inputHasAlpha, true)
+        @Assert(partial.hasStage(ReadStageStripAlpha), true)
 
         let opaqueState = PngReadTransformState()
         configureBackgroundInit(opaqueState, PngBackground(), true)
@@ -339,7 +342,8 @@ public class PngBackgroundInitializationTestSuite {
             UInt8(2), UInt16(99), UInt16(7), UInt16(8), UInt16(9)
         )
         assertBackgroundInitColor(initialized.background(), expected)
-        @Assert(initialized.composeEnabled(), true)
+        @Assert(initialized.composeEnabled(), false)
+        @Assert(initialized.paletteComposeApplied(), true)
         @Assert(initialized.backgroundExpandEnabled(), true)
 
         let mutablePalette = decoded.metadata.palette()
@@ -682,7 +686,7 @@ public class PngBackgroundInitializationTestSuite {
     }
 
     @TestCase
-    public func preparesPaletteGammaTablesWithoutPaletteMutation(): Unit {
+    public func preparesAndConsumesPaletteGammaTablesWithoutMetadataMutation(): Unit {
         let decoded = backgroundInitIndexed([0x00, 0xff])
         let state = PngReadTransformState()
         @Assert(state.setGammaFixed(Int32(220000), Int32(45455)), true)
@@ -695,11 +699,13 @@ public class PngBackgroundInitializationTestSuite {
         )
         @Assert(state.setExpand(), true)
         let initialized = initializePngReadTransformations(state, decoded)
-        @Assert(initialized.composeEnabled(), true)
-        @Assert(initialized.backgroundGammaInitialized(), false)
+        @Assert(initialized.composeEnabled(), false)
+        @Assert(initialized.paletteComposeApplied(), true)
+        @Assert(initialized.paletteGammaApplied(), true)
+        @Assert(initialized.backgroundGammaInitialized(), true)
         @Assert(
             initialized.effectiveBackgroundGammaCode(),
-            BackgroundGammaFile
+            BackgroundGammaScreen
         )
         @Assert(initialized.gamma8BitLinearTablesBuilt(), true)
         assertBackgroundInitColor(
@@ -708,6 +714,8 @@ public class PngBackgroundInitializationTestSuite {
                 UInt8(2), UInt16(0), UInt16(7), UInt16(8), UInt16(9)
             )
         )
+        @Assert(initialized.effectivePalette(), initialized.expandPalette())
+        @Assert(initialized.effectivePalette() != backgroundInitPalette(), true)
         @Assert(decoded.metadata.palette(), backgroundInitPalette())
     }
 }

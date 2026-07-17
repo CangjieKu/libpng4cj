@@ -247,6 +247,34 @@ Initialized background execution uses `ReadStageCompose` identity `20` and
 current gray/RGB stages, suppresses the separate Gamma stage when it owns
 alpha/tRNS correction, and strips alpha only after composition.
 
+For Indexed input, `pngInitPaletteBackgroundTransformations(...)` consumes
+background composition and palette Gamma during one-shot initialization.
+`PngPaletteTransformInitialization` exposes copy-owned effective PLTE/tRNS
+snapshots plus `preprocessed`, `composeApplied`, and `gammaApplied` facts.
+
+`PngReadTransformInitialization.effectivePalette()` and
+`effectivePaletteAlpha()` expose the frozen payload used by both Expand and
+transform-info projection. `palettePreprocessed()`, `paletteComposeApplied()`,
+and `paletteGammaApplied()` distinguish configuration intent from work already
+consumed before row execution. Source `PngReadMetadata` remains unchanged.
+
+Transparent entries receive the effective screen background. Partial entries
+use exact encoded-byte composition when no linear tables exist, or
+to-linear/composite/from-linear correction when Gamma is required. Opaque and
+implicit-tail entries use direct correction only when required. Screen, File,
+and Unique background modes are resolved at 8-bit palette depth regardless of
+the Indexed sample bit depth.
+
+The Gamma-only optimization is suppressed when Indexed input will Expand into
+gamma-aware RGB-to-gray. In that topology the original PLTE reaches the
+RGB-to-gray stage so color samples are linearized exactly once.
+
+After palette preprocessing, row Compose and row Gamma are absent. Expand uses
+the effective palette and retained alpha prefix, then the background setter's
+Strip Alpha removes the temporary alpha channel. Non-Expand info projection
+retains Indexed rows while exposing the effective palette and no remaining
+transparency.
+
 ## Invalid Palette Index Diagnosis
 
 `PngReadTransformState` enables invalid palette-index checking by default.

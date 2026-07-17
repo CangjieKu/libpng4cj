@@ -45,12 +45,12 @@ Status meanings:
 | 1118 | `png_set_rgb_to_gray` | `PngReadTransformState.setRgbToGray` | translated | C ABI floating setter wrapper deferred |
 | 1132 | `png_set_read_user_transform_fn` | `PngReadTransformState.setReadUserTransform` | partial | native callback, info projection, and final row hook translated; null/late mutation and C ABI trampoline deferred |
 | 1151 | `png_gamma_threshold` | `pngGammaThreshold` | translated | setter/state/initialization connected; table integration deferred |
-| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` | partial | no-alpha background cancellation and palette-index background expansion translated; encode/optimize-alpha and remaining palette mutation branches deferred |
+| 1176 | `png_init_palette_transformations` | `pngInitPaletteTransformations` plus `pngInitPaletteBackgroundTransformations` | partial | no-alpha cancellation, palette-index background expansion, copy-owned PLTE/tRNS preprocessing, direct/linear Gamma, and Compose/Gamma cancellation translated; encode/optimize-alpha branches deferred |
 | 1265 | `png_init_rgb_transformations` | `pngInitRgbTransformations` | partial | no-alpha background cancellation and sub-byte gray background expansion translated; encode/optimize-alpha and remaining branches deferred |
 | 1351 | `png_resolve_file_gamma` | `pngResolveFileGamma` | translated | configured/chunk sources feed initialization; in-place C state and C ABI deferred |
 | 1387 | `png_init_gamma_values` | `pngInitGammaValues` | translated | immutable read initialization consumes it; in-place C state and C ABI deferred |
-| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, Expand16/16-to-8 normalization, non-palette Screen/File/Unique gamma snapshots, Compose-driven gamma tables/stages, quantize, packing, packswap, and native user-transform are snapshotted; palette composition/mutation, coefficient defaulting, remaining alpha-mode branches, and complete dispatcher state remain |
-| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; gamma/background, filler, and full metadata projection remain |
+| 1424 | `png_init_read_transformations` | `initializePngReadTransformations` | partial | effective background cancellation/expansion, Expand16/16-to-8 normalization, Screen/File/Unique gamma snapshots, non-palette Compose stages, Indexed PLTE/tRNS preprocessing, quantize, packing, packswap, and native user-transform are snapshotted; coefficient defaulting, remaining alpha-mode branches, and complete dispatcher state remain |
+| 2069 | `png_read_transform_info` | `projectPngReadTransformInfo` | partial | non-gamma topology, effective palette/background synchronization, quantize palette sync, packing depth, and configured user-transform depth/channels are projected; filler and full metadata projection remain |
 | 2292 | `png_do_unpack` | `pngDoUnpack` | translated | initialized packing dispatch and following palette-index diagnosis are connected; C ABI and complete dispatcher remain partial |
 | 2390 | `png_do_unshift` | `pngDoUnshift` | translated | selected adapter is narrow; palette init mutation and complete dispatcher remain partial |
 | 2529 | `png_do_scale_16_to_8` | `pngDoScale16To8` | translated | initialized adapter is narrow; complete dispatcher remains partial |
@@ -67,7 +67,7 @@ Status meanings:
 | 4523 | `png_do_expand` | `pngDoExpand` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4753 | `png_do_expand_16` | `pngDoExpand16` | translated | bounded initialized adapter exists; complete dispatcher remains partial |
 | 4783 | `png_do_quantize` | `pngDoQuantize` | translated | initialized adapter and projected palette synchronization are bounded; complete dispatcher remains partial |
-| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated expansion, pre/post-Compose Strip Alpha, RGB/gray, non-palette Compose, Gamma, reduction, quantize, and late stages through User Transform have bounded composition; alpha encoding, C ABI callbacks, palette mutation, and pending bodies remain |
+| 4880 | `png_do_read_transformations` | `applyInitializedPngReadStages` | partial | translated expansion, pre/post-Compose Strip Alpha, RGB/gray, non-palette Compose, Gamma, reduction, quantize, and late stages through User Transform have bounded composition; Indexed palette Compose/Gamma is consumed during initialization; alpha encoding, C ABI callbacks, and pending bodies remain |
 
 ## Translation Rule
 
@@ -462,4 +462,19 @@ separate Gamma decision and post-Compose Strip Alpha, suppressing duplicate
 Gamma when Compose owns alpha/tRNS work. Palette mutation remains in the
 still-partial initializer rows, so `png_do_compose` advances from pending to
 translated and the ledger becomes
+`34 translated / 8 partial / 3 pending`.
+
+LP-S004BG translates the frozen Indexed PLTE/tRNS preprocessing branches across
+`png_init_palette_transformations` and `png_init_read_transformations`.
+Initialization snapshots a copy-owned effective palette and alpha prefix,
+composes transparent and partial-alpha entries in encoded or linear space,
+directly corrects opaque and Gamma-only entries, derives 8-bit
+Screen/File/Unique backgrounds, and cancels row Compose/Gamma after palette
+work is consumed. Gamma-only preprocessing is withheld for expanded
+RGB-to-gray so that stage owns linearization once. Expand uses the effective
+palette before Strip Alpha, while
+non-Expand transform-info projection exposes the same synchronized PLTE without
+mutating source metadata. The palette/read/info/dispatcher rows remain partial
+until alpha-mode Encode/Optimize behavior and the remaining projection/dispatch
+branches land, so the ledger remains
 `34 translated / 8 partial / 3 pending`.

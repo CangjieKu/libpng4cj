@@ -11,6 +11,10 @@ private let CONSUMER_GRAY16_ZLIB: Array<Byte> = [
     0x78, 0x9c, 0x63, 0x10, 0x32, 0x01, 0x00, 0x00, 0x5b, 0x00, 0x47
 ]
 
+private let CONSUMER_INDEXED_ZLIB: Array<Byte> = [
+    0x78, 0x9c, 0x63, 0x90, 0x06, 0x00, 0x00, 0x1d, 0x00, 0x1c
+]
+
 private func joinConsumerBytes(
     left: Array<Byte>,
     right: Array<Byte>
@@ -86,6 +90,37 @@ private func consumerGamma16Png(): Array<Byte> {
     png = joinConsumerBytes(
         png,
         makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_GRAY16_ZLIB)
+    )
+    joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
+}
+
+private func consumerIndexedBackgroundPng(): Array<Byte> {
+    let ihdr = Array<Byte>(13, repeat: 0)
+    ihdr[3] = UInt8(3)
+    ihdr[7] = UInt8(1)
+    ihdr[8] = UInt8(2)
+    ihdr[9] = UInt8(3)
+    let palette: Array<Byte> = [
+        10, 20, 30,
+        100, 110, 120,
+        200, 210, 220,
+        40, 50, 60
+    ]
+    var png = joinConsumerBytes(
+        PNG_SIGNATURE,
+        makeConsumerChunk(PNG_CHUNK_IHDR, ihdr)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_PLTE, palette)
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_tRNS, [0, 128, 255])
+    )
+    png = joinConsumerBytes(
+        png,
+        makeConsumerChunk(PNG_CHUNK_IDAT, CONSUMER_INDEXED_ZLIB)
     )
     joinConsumerBytes(png, makeConsumerChunk(PNG_CHUNK_IEND, []))
 }
@@ -395,6 +430,34 @@ main(): Int64 {
         !gamma16RgbRow.hadNonGrayPixels ||
         gamma16RgbRow.info.colorType != GrayscaleAlpha) {
         println("libpng4cj gamma-aware 16-bit RGB-to-gray check failed")
+        return 1
+    }
+    let indexedBackgroundDecoded = decodePngNonInterlaced(
+        consumerIndexedBackgroundPng()
+    )
+    let indexedBackgroundState = PngReadTransformState()
+    if (!indexedBackgroundState.setBackgroundFixed(
+        PngBackground(UInt8(3), UInt16(0), UInt16(0), UInt16(0), UInt16(0)),
+        BackgroundGammaScreen,
+        true,
+        PNG_FP_1
+    ) || !indexedBackgroundState.setExpand()) {
+        println("libpng4cj indexed background setup failed")
+        return 1
+    }
+    let indexedBackground = transformPngRowsInitialized(
+        indexedBackgroundDecoded,
+        indexedBackgroundState
+    )
+    let indexedExpected: Array<Byte> = [
+        40, 50, 60,
+        70, 80, 90,
+        200, 210, 220
+    ]
+    if (indexedBackground.info.colorType != Truecolor ||
+        indexedBackground.info.channels != UInt8(3) ||
+        indexedBackground.row(0) != indexedExpected) {
+        println("libpng4cj indexed palette background check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

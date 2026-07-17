@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Preprocess Indexed PLTE/tRNS during read initialization for background
+  composition and palette Gamma correction, including transparent, partial,
+  opaque, and implicit-tail entries, File/Screen/Unique backgrounds,
+  Expand/non-Expand consumers, and row Compose/Gamma cancellation.
 - Translate complete non-palette packed/8/16-bit Gray/GA/RGB/RGBA
   `png_do_compose` execution with exact tRNS replacement, no-division alpha
   rounding, direct/linear Gamma, network order, initialized stage suppression,

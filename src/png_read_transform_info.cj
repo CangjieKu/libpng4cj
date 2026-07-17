@@ -99,7 +99,11 @@ public func projectPngReadTransformInfo(
     var bitDepth = ihdr.bitDepth
     var colorType = ihdr.colorType
     var hasTransparency = metadata.hasTransparency && !initialization.transparencyStripped
-    var palette = metadata.palette()
+    var palette = if (initialization.usesPaletteInitializer) {
+        initialization.effectivePalette()
+    } else {
+        metadata.palette()
+    }
 
     if (initialization.quantizeEnabled()) {
         palette = initialization.quantizePalette()

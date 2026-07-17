@@ -115,6 +115,11 @@ public class PngReadTransformInitialization {
     private let initializedGammaValuesValue: PngGammaValues
     private let initializedGamma8BitTablesValue: PngGamma8BitTables
     private let initializedGamma16BitTablesValue: PngGamma16BitTables
+    private let ownedEffectivePalette: Array<Byte>
+    private let ownedEffectivePaletteAlpha: Array<Byte>
+    private let palettePreprocessedValue: Bool
+    private let paletteComposeAppliedValue: Bool
+    private let paletteGammaAppliedValue: Bool
     private let ownedExpandPalette: Array<Byte>
     private let ownedExpandPaletteAlpha: Array<Byte>
     private let expandTransparencyValue: PngExpandTransparency
@@ -176,6 +181,11 @@ public class PngReadTransformInitialization {
         initializedGammaValues: PngGammaValues,
         initializedGamma8BitTables: PngGamma8BitTables,
         initializedGamma16BitTables: PngGamma16BitTables,
+        effectivePalette: Array<Byte>,
+        effectivePaletteAlpha: Array<Byte>,
+        palettePreprocessed: Bool,
+        paletteComposeApplied: Bool,
+        paletteGammaApplied: Bool,
         expandPalette: Array<Byte>,
         expandPaletteAlpha: Array<Byte>,
         expandTransparency: PngExpandTransparency,
@@ -244,6 +254,11 @@ public class PngReadTransformInitialization {
         initializedGamma16BitTablesValue = PngGamma16BitTables(
             initializedGamma16BitTables
         )
+        ownedEffectivePalette = effectivePalette.clone()
+        ownedEffectivePaletteAlpha = effectivePaletteAlpha.clone()
+        palettePreprocessedValue = palettePreprocessed
+        paletteComposeAppliedValue = paletteComposeApplied
+        paletteGammaAppliedValue = paletteGammaApplied
         ownedExpandPalette = expandPalette.clone()
         ownedExpandPaletteAlpha = expandPaletteAlpha.clone()
         expandTransparencyValue = expandTransparency
@@ -482,6 +497,26 @@ public class PngReadTransformInitialization {
 
     public func gamma16BitTables(): PngGamma16BitTables {
         PngGamma16BitTables(initializedGamma16BitTablesValue)
+    }
+
+    public func effectivePalette(): Array<Byte> {
+        ownedEffectivePalette.clone()
+    }
+
+    public func effectivePaletteAlpha(): Array<Byte> {
+        ownedEffectivePaletteAlpha.clone()
+    }
+
+    public func palettePreprocessed(): Bool {
+        palettePreprocessedValue
+    }
+
+    public func paletteComposeApplied(): Bool {
+        paletteComposeAppliedValue
+    }
+
+    public func paletteGammaApplied(): Bool {
+        paletteGammaAppliedValue
     }
 
     public func expandPalette(): Array<Byte> {
@@ -925,7 +960,7 @@ private func pngInitializeBackgroundGamma(
     gammaValues: PngGammaValues,
     gammaTablesRequired: Bool
 ): PngEffectiveBackgroundInitialization {
-    if (!gammaTablesRequired || ihdr.colorType == Indexed) {
+    if (!gammaTablesRequired) {
         return initialized
     }
 
@@ -953,14 +988,19 @@ private func pngInitializeBackgroundGamma(
         )
     }
 
+    let backgroundBitDepth = if (ihdr.colorType == Indexed) {
+        UInt8(8)
+    } else {
+        ihdr.bitDepth
+    }
     let linear = pngCorrectInitializedBackground(
         initialized.original,
-        ihdr.bitDepth,
+        backgroundBitDepth,
         toLinearGamma
     )
     let screen = pngCorrectInitializedBackground(
         initialized.original,
-        ihdr.bitDepth,
+        backgroundBitDepth,
         toScreenGamma
     )
     PngEffectiveBackgroundInitialization(
@@ -1162,8 +1202,6 @@ public func initializePngReadTransformations(
         initializedGammaValues,
         composeGammaTablesRequired
     )
-    let effectiveStripAlphaBeforeCompose = state.stripAlphaEnabled() &&
-        !initializedBackground.composeEnabled
     let effectiveOutputHasAlpha = if (state.addAlphaEnabled()) {
         true
     } else if (state.stripAlphaEnabled()) {
@@ -1173,17 +1211,6 @@ public func initializePngReadTransformations(
             (classification.hasTransparency && state.expandTransparencyEnabled())
     }
     let expandEnabled = state.expandEnabled()
-    let expandPalette = if (expandEnabled && usesPaletteInitializer) {
-        metadata.palette()
-    } else {
-        Array<Byte>()
-    }
-    let expandPaletteAlpha = if (expandEnabled && usesPaletteInitializer &&
-        state.expandTransparencyEnabled()) {
-        metadata.paletteAlpha()
-    } else {
-        Array<Byte>()
-    }
     let expandTransparency = if (expandEnabled && !usesPaletteInitializer &&
         state.expandTransparencyEnabled() && metadata.hasTransparency) {
         match (ihdr.colorType) {
@@ -1233,6 +1260,49 @@ public func initializePngReadTransformations(
         metadata.significantBits,
         state.scale16Enabled() || state.strip16Enabled()
     )
+    let paletteInitialization = if (usesPaletteInitializer) {
+        pngInitPaletteBackgroundTransformations(
+            metadata.palette(),
+            metadata.paletteAlpha(),
+            initializedBackground.composeEnabled,
+            if (initializedBackground.configured) {
+                initializedBackground.background
+            } else {
+                PngBackground()
+            },
+            if (initializedBackground.configured) {
+                initializedBackground.linear
+            } else {
+                PngBackground()
+            },
+            initializedGammaValues.correctionRequired &&
+                (!expandEnabled || !rgbToGrayEnabled),
+            initializedGamma8BitTables
+        )
+    } else {
+        PngPaletteTransformInitialization(
+            Array<Byte>(),
+            Array<Byte>(),
+            false,
+            false,
+            false
+        )
+    }
+    let rowComposeEnabled = initializedBackground.composeEnabled &&
+        !paletteInitialization.composeApplied
+    let effectiveStripAlphaBeforeCompose = state.stripAlphaEnabled() &&
+        !rowComposeEnabled
+    let expandPalette = if (expandEnabled && usesPaletteInitializer) {
+        paletteInitialization.palette()
+    } else {
+        Array<Byte>()
+    }
+    let expandPaletteAlpha = if (expandEnabled && usesPaletteInitializer &&
+        state.expandTransparencyEnabled()) {
+        paletteInitialization.paletteAlpha()
+    } else {
+        Array<Byte>()
+    }
     let quantizeEnabled = state.quantizeEnabled()
     let quantizeMode = if (quantizeEnabled) {
         state.quantizeMode()
@@ -1292,15 +1362,15 @@ public func initializePngReadTransformations(
     let gammaStageEnabled = (initializedGamma8BitTables.built() ||
         initializedGamma16BitTables.built()) &&
         initializedGammaValues.correctionRequired && !rgbToGrayEnabled &&
-        ihdr.colorType != Indexed && !initializedBackground.composeEnabled
+        ihdr.colorType != Indexed && !rowComposeEnabled
     let stripAlphaAfterCompose = state.stripAlphaEnabled() &&
-        initializedBackground.composeEnabled
+        rowComposeEnabled
     let stages = pngReadTransformStages(
         state,
         checkForInvalidIndexEnabled,
         gammaStageEnabled,
         effectiveStripAlphaBeforeCompose,
-        initializedBackground.composeEnabled,
+        rowComposeEnabled,
         stripAlphaAfterCompose
     )
     state.markRowInitialized()
@@ -1314,7 +1384,7 @@ public func initializePngReadTransformations(
         state.expandTransparencyEnabled(),
         effectiveOutputHasAlpha,
         initializedBackground.configured,
-        initializedBackground.composeEnabled,
+        rowComposeEnabled,
         initializedBackground.expandEnabled,
         initializedBackground.background,
         initializedBackground.original,
@@ -1331,6 +1401,11 @@ public func initializePngReadTransformations(
         initializedGammaValues,
         initializedGamma8BitTables,
         initializedGamma16BitTables,
+        paletteInitialization.palette(),
+        paletteInitialization.paletteAlpha(),
+        paletteInitialization.preprocessed,
+        paletteInitialization.composeApplied,
+        paletteInitialization.gammaApplied,
         expandPalette,
         expandPaletteAlpha,
         expandTransparency,

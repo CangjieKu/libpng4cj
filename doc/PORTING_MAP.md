@@ -808,6 +808,35 @@ LP-S004BF translates the complete row-local `png_do_compose` switch:
 alpha-mode encoding/optimization, and remaining initializer/dispatcher work
 stay separate.
 
+## Implemented Palette Background Composition Initialization
+
+LP-S004BG translates the Indexed initialization-time PLTE/tRNS branches that
+precede row execution:
+
+- initialization owns an effective palette and retained alpha-prefix snapshot
+  independently from source metadata and accessor copies
+- transparent entries become the effective screen background; partial-alpha
+  entries use exact byte composition; opaque and implicit-tail entries survive
+  unchanged when no Gamma correction is required
+- Gamma-aware composition resolves direct, to-linear, and from-linear tables
+  once, composes partial entries against the linear background, and directly
+  corrects opaque entries
+- Background Screen, File, and Unique modes derive 8-bit screen/linear colors
+  even when the source Indexed bit depth is 1/2/4
+- Gamma-only Indexed input directly corrects PLTE without adding a row Gamma
+  stage
+- Expanded Indexed RGB-to-gray keeps PLTE uncorrected so the gamma-aware
+  RGB-to-gray stage owns the single linearization path
+- completed palette composition cancels row Compose; Expand consumes the
+  effective PLTE and original tRNS prefix before Strip Alpha, while non-Expand
+  projection exposes the same effective palette and clears transparency
+- malformed palette and alpha-prefix snapshots fail before mutation
+
+The three initializer/info/dispatcher ledger rows remain partial because
+alpha-mode Encode/Optimize behavior, full metadata projection, and remaining
+dispatch branches are still open. The total remains
+`34 translated / 8 partial / 3 pending`.
+
 ## Implemented Direct Invert-Monochrome Row Body
 
 LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
