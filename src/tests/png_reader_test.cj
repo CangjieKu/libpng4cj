@@ -23,6 +23,15 @@ private func makeChunk(chunkType: Array<Byte>, data: Array<Byte>): Array<Byte> {
     appendBytes(appendBytes(appendBytes(length, chunkType), data), crc)
 }
 
+private func makeCorruptChunk(
+    chunkType: Array<Byte>,
+    data: Array<Byte>
+): Array<Byte> {
+    let chunk = makeChunk(chunkType, data)
+    chunk[chunk.size - 1] = chunk[chunk.size - 1] ^ UInt8(1)
+    chunk
+}
+
 private func makeIhdrData(
     width: UInt32,
     height: UInt32,
@@ -191,6 +200,165 @@ public class PngReaderTestSuite {
         } catch (e: PngFormatException) {
             @Assert(e.kind.toString(), "CRC_MISMATCH")
             @Assert(session.position(), Int64(8))
+        }
+    }
+
+    @TestCase
+    public func preservesFrozenCrcActionIdentitiesAndReplacement(): Unit {
+        @Assert(CrcDefault.ordinalValue(), Int64(0))
+        @Assert(CrcErrorQuit.ordinalValue(), Int64(1))
+        @Assert(CrcWarnDiscard.ordinalValue(), Int64(2))
+        @Assert(CrcWarnUse.ordinalValue(), Int64(3))
+        @Assert(CrcQuietUse.ordinalValue(), Int64(4))
+        @Assert(CrcNoChange.ordinalValue(), Int64(5))
+
+        let data = makeIhdrData(
+            UInt32(1), UInt32(1), UInt8(8), UInt8(0), UInt8(0), UInt8(0), UInt8(0)
+        )
+        let session = PngReadSession(makePngWithIhdr(data))
+        @Assert(session.criticalCrcAction(), CrcErrorQuit)
+        @Assert(session.ancillaryCrcAction(), CrcWarnDiscard)
+        session.setCrcAction(CrcWarnUse, CrcQuietUse)
+        @Assert(session.criticalCrcAction(), CrcWarnUse)
+        @Assert(session.ancillaryCrcAction(), CrcQuietUse)
+        session.setCrcAction(CrcNoChange, CrcNoChange)
+        @Assert(session.criticalCrcAction(), CrcWarnUse)
+        @Assert(session.ancillaryCrcAction(), CrcQuietUse)
+        session.setCrcAction(CrcWarnDiscard, CrcDefault)
+        @Assert(session.criticalCrcAction(), CrcErrorQuit)
+        @Assert(session.ancillaryCrcAction(), CrcWarnDiscard)
+        @Assert(session.invalidCriticalDiscardWarning(), true)
+        @Assert(session.crcWarningCount(), Int64(1))
+    }
+
+    @TestCase
+    public func usesOrRejectsCriticalCrcMismatchAsConfigured(): Unit {
+        let data = makeIhdrData(
+            UInt32(1), UInt32(1), UInt8(8), UInt8(0), UInt8(0), UInt8(0), UInt8(0)
+        )
+        let png = appendBytes(PNG_SIGNATURE, makeCorruptChunk(PNG_CHUNK_IHDR, data))
+
+        let warningSession = PngReadSession(png)
+        warningSession.setCrcAction(CrcWarnUse, CrcNoChange)
+        let warningChunk = warningSession.readNextChunk()
+        @Assert(warningChunk.crcValid, false)
+        @Assert(warningSession.crcWarningCount(), Int64(1))
+        @Assert(warningSession.position(), Int64(33))
+
+        let quietSession = PngReadSession(png)
+        quietSession.setCrcAction(CrcQuietUse, CrcNoChange)
+        let quietChunk = quietSession.readNextChunk()
+        @Assert(quietChunk.crcValid, false)
+        @Assert(quietSession.crcWarningCount(), Int64(0))
+        @Assert(quietSession.crcQuietUseCount(), Int64(1))
+
+        let errorSession = PngReadSession(png)
+        try {
+            errorSession.readNextChunk()
+            @Fail("default critical CRC action should reject corrupt IHDR")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "CRC_MISMATCH")
+            @Assert(errorSession.position(), Int64(8))
+        }
+    }
+
+    @TestCase
+    public func discardsUsesOrRejectsAncillaryCrcMismatch(): Unit {
+        let data = makeIhdrData(
+            UInt32(1), UInt32(1), UInt8(8), UInt8(0), UInt8(0), UInt8(0), UInt8(0)
+        )
+        let ancillaryType: Array<Byte> = [0x76, 0x70, 0x41, 0x67]
+        var png = makePngWithIhdr(data)
+        png = appendBytes(png, makeCorruptChunk(ancillaryType, [1, 2, 3]))
+        png = appendBytes(png, makeChunk(PNG_CHUNK_IEND, []))
+
+        let discardSession = PngReadSession(png)
+        discardSession.readIhdr()
+        let afterDiscard = discardSession.readNextChunk()
+        @Assert(afterDiscard.isType(PNG_CHUNK_IEND), true)
+        @Assert(discardSession.crcWarningCount(), Int64(1))
+        @Assert(discardSession.crcDiscardCount(), Int64(1))
+
+        let warningSession = PngReadSession(png)
+        warningSession.setCrcAction(CrcNoChange, CrcWarnUse)
+        warningSession.readIhdr()
+        let warningChunk = warningSession.readNextChunk()
+        @Assert(warningChunk.isType(ancillaryType), true)
+        @Assert(warningChunk.crcValid, false)
+        @Assert(warningSession.crcWarningCount(), Int64(1))
+
+        let quietSession = PngReadSession(png)
+        quietSession.setCrcAction(CrcNoChange, CrcQuietUse)
+        quietSession.readIhdr()
+        @Assert(quietSession.readNextChunk().crcValid, false)
+        @Assert(quietSession.crcQuietUseCount(), Int64(1))
+
+        let errorSession = PngReadSession(png)
+        errorSession.setCrcAction(CrcNoChange, CrcErrorQuit)
+        errorSession.readIhdr()
+        try {
+            errorSession.readNextChunk()
+            @Fail("ancillary ERROR_QUIT should reject a CRC mismatch")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "CRC_MISMATCH")
+            @Assert(errorSession.position(), Int64(33))
+        }
+    }
+
+    @TestCase
+    public func appliesAncillaryCrcPolicyThroughHighLevelDecode(): Unit {
+        let data = makeIhdrData(
+            UInt32(1), UInt32(1), UInt8(8), UInt8(0), UInt8(0), UInt8(0), UInt8(0)
+        )
+        let ancillaryType: Array<Byte> = [0x76, 0x70, 0x41, 0x67]
+        let compressed: Array<Byte> = [
+            0x78, 0x9c, 0x63, 0x60, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01
+        ]
+        var png = makePngWithIhdr(data)
+        png = appendBytes(png, makeCorruptChunk(ancillaryType, [7]))
+        png = appendBytes(png, makeChunk(PNG_CHUNK_IDAT, compressed))
+        png = appendBytes(png, makeChunk(PNG_CHUNK_IEND, []))
+
+        let discarded = decodePngNonInterlaced(png)
+        let expectedRow: Array<Byte> = [0]
+        @Assert(discarded.row(0), expectedRow)
+        let used = decodePngNonInterlaced(png, CrcNoChange, CrcWarnUse)
+        @Assert(used.row(0), expectedRow)
+
+        try {
+            decodePngNonInterlaced(png, CrcNoChange, CrcErrorQuit)
+            @Fail("high-level ancillary ERROR_QUIT should reject corrupt data")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "CRC_MISMATCH")
+        }
+    }
+
+    @TestCase
+    public func rejectsTruncatedChunkBeforeConfiguredCrcUse(): Unit {
+        let data = makeIhdrData(
+            UInt32(1), UInt32(1), UInt8(8), UInt8(0), UInt8(0), UInt8(0), UInt8(0)
+        )
+        let ancillaryType: Array<Byte> = [0x76, 0x70, 0x41, 0x67]
+        let corruptChunk = makeCorruptChunk(ancillaryType, [1, 2, 3])
+        let truncatedChunk = copyByteRange(
+            corruptChunk,
+            Int64(0),
+            corruptChunk.size - 1
+        )
+        let png = appendBytes(makePngWithIhdr(data), truncatedChunk)
+        let session = PngReadSession(png)
+        session.setCrcAction(CrcNoChange, CrcQuietUse)
+        session.readIhdr()
+
+        try {
+            session.readNextChunk()
+            @Fail("truncated chunk framing should fail before CRC policy")
+        } catch (error: PngFormatException) {
+            @Assert(error.kind.toString(), "TRUNCATED_INPUT")
+            @Assert(session.position(), Int64(33))
+            @Assert(session.crcWarningCount(), Int64(0))
+            @Assert(session.crcQuietUseCount(), Int64(0))
+            @Assert(session.crcDiscardCount(), Int64(0))
         }
     }
 

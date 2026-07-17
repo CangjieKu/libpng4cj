@@ -23,7 +23,7 @@ Status meanings:
 
 | Line | Upstream function | Cangjie anchor | Status | Remaining dependency |
 | ---: | --- | --- | --- | --- |
-| 41 | `png_set_crc_action` | chunk CRC policy | partial | configurable critical/ancillary actions |
+| 41 | `png_set_crc_action` | `PngReadSession.setCrcAction` and `PngCrcAction` | translated | six frozen values, independent critical/ancillary replacement, default/no-change behavior, invalid critical discard fallback, mismatch use/discard/error policy, and inspectable warning/quiet facts translated; native callback delivery and C ABI remain separate |
 | 115 | `png_rtran_ok` | `PngReadTransformState.pngRtranOk` | translated | application error callback emission deferred |
 | 142 | `png_set_background_fixed` | `PngReadTransformState.setBackgroundFixed` | translated | warning callback emission and C ABI deferred |
 | 172 | `png_set_background` | `PngReadTransformState.setBackground` | translated | C ABI floating setter wrapper deferred |
@@ -555,3 +555,15 @@ precedes RGB-to-gray, quantize/Expand16/packing retain frozen order, and active
 user-transform depth/channels remain the final overrides. The info row advances
 from partial to translated, so the ledger becomes
 `42 translated / 3 partial / 0 pending`.
+
+LP-S004BO translates `png_set_crc_action` through `PngCrcAction` and
+`PngReadSession.setCrcAction`. The six frozen numeric identities, independent
+critical and ancillary replacement, `NO_CHANGE`, default critical error and
+ancillary warn/discard behavior, and invalid critical `WARN_DISCARD` warning
+plus error fallback are retained. CRC mismatches can error, warn/use, or
+quiet/use for critical chunks and error, warn/discard, warn/use, or quiet/use
+for ancillary chunks. Used chunks expose `crcValid`; session counters retain
+warning, quiet-use, and discard facts without claiming native warning
+callbacks. Framing, type, size, and IHDR-order failures still precede CRC
+policy. The setter row advances from partial to translated, so the ledger
+becomes `43 translated / 2 partial / 0 pending`.

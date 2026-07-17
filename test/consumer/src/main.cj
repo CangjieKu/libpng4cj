@@ -318,6 +318,28 @@ main(): Int64 {
         println("libpng4cj gamma initialization check failed")
         return 1
     }
+    let corruptGammaPng = consumerGammaPng()
+    corruptGammaPng[48] = corruptGammaPng[48] ^ UInt8(1)
+    let crcSession = PngReadSession(corruptGammaPng)
+    crcSession.setCrcAction(CrcNoChange, CrcWarnUse)
+    crcSession.readIhdr()
+    let corruptGammaChunk = crcSession.readNextChunk()
+    if (corruptGammaChunk.crcValid ||
+        crcSession.ancillaryCrcAction() != CrcWarnUse ||
+        crcSession.crcWarningCount() != Int64(1)) {
+        println("libpng4cj CRC action session check failed")
+        return 1
+    }
+    let crcDecoded = decodePngNonInterlaced(
+        corruptGammaPng,
+        CrcNoChange,
+        CrcWarnUse
+    )
+    if (!crcDecoded.metadata.hasGamma ||
+        crcDecoded.metadata.gamma != UInt32(45455)) {
+        println("libpng4cj CRC action decode check failed")
+        return 1
+    }
     let gammaState = PngReadTransformState()
     if (!gammaState.setGammaFixed(PNG_DEFAULT_SRGB, PNG_DEFAULT_SRGB) ||
         gammaState.screenGamma() != PNG_GAMMA_SRGB ||

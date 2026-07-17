@@ -23,7 +23,8 @@ import libpng4cj.*
 ## Current Entry Points
 
 - PNG signature, endian, chunk-type, and CRC primitives
-- bounded chunk and metadata reading
+- bounded chunk and metadata reading with configurable critical/ancillary CRC
+  actions
 - non-interlaced packed-row decoding
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
@@ -410,3 +411,35 @@ changes the projected color type.
 The current surface is Cangjie-native. C ABI callback trampolines, raw
 `user_transform_ptr` storage, null callback semantics, late callback mutation,
 write user transforms, and progressive/Adam7 pass execution remain open.
+
+## Read CRC Actions
+
+`PngCrcAction` preserves the six upstream values as `CrcDefault`,
+`CrcErrorQuit`, `CrcWarnDiscard`, `CrcWarnUse`, `CrcQuietUse`, and
+`CrcNoChange`. Their `ordinalValue()` results are the frozen `0..5` values.
+
+`PngReadSession.setCrcAction(criticalAction, ancillaryAction)` replaces the two
+policies independently. New sessions default to critical error/quit and
+ancillary warn/discard. `CrcNoChange` keeps the current value; critical
+`CrcWarnDiscard` is invalid and records a warning fact before selecting
+error/quit.
+
+When corrupt data is accepted, `PngChunk.crcValid` is `false`. The session
+exposes `crcWarningCount()`, `crcQuietUseCount()`, `crcDiscardCount()`, and
+`invalidCriticalDiscardWarning()`. These are native diagnostic facts, not a
+warning/error callback contract.
+
+The high-level overload is:
+
+```cangjie
+decodePngNonInterlaced(
+    bytes,
+    criticalCrcAction,
+    ancillaryCrcAction
+)
+```
+
+The full limits/unknown-chunk overload accepts both actions after
+`unknownPolicy`. Existing overloads preserve the default policy. Frame length,
+chunk type, configured size, and IHDR ordering remain mandatory even when a CRC
+mismatch would otherwise be used or discarded.

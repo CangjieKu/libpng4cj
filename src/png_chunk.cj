@@ -142,6 +142,7 @@ public class PngReadLimits {
 public class PngChunk {
     public let length: UInt32
     public let crc: UInt32
+    public let crcValid: Bool
     public let offset: Int64
     private let ownedType: Array<Byte>
     private let ownedData: Array<Byte>
@@ -151,12 +152,14 @@ public class PngChunk {
         chunkType: Array<Byte>,
         data: Array<Byte>,
         crc: UInt32,
+        crcValid: Bool,
         offset: Int64
     ) {
         this.length = length
         this.ownedType = chunkType
         this.ownedData = data
         this.crc = crc
+        this.crcValid = crcValid
         this.offset = offset
     }
 
@@ -181,6 +184,12 @@ public class PngReadSession {
     private var ihdrRead: Bool = false
     private var chunkCount: Int64 = 0
     private var closed: Bool = false
+    private var criticalCrcActionValue: PngCrcAction = CrcErrorQuit
+    private var ancillaryCrcActionValue: PngCrcAction = CrcWarnDiscard
+    private var crcWarningCountValue: Int64 = 0
+    private var crcQuietUseCountValue: Int64 = 0
+    private var crcDiscardCountValue: Int64 = 0
+    private var invalidCriticalDiscardWarningValue: Bool = false
 
     public init(bytes: Array<Byte>, limits: PngReadLimits) {
         source = bytes.clone()
@@ -208,6 +217,55 @@ public class PngReadSession {
         closed = true
     }
 
+    public func setCrcAction(
+        criticalAction: PngCrcAction,
+        ancillaryAction: PngCrcAction
+    ): Unit {
+        if (criticalAction != CrcNoChange) {
+            criticalCrcActionValue = match (criticalAction) {
+                case CrcWarnUse => CrcWarnUse
+                case CrcQuietUse => CrcQuietUse
+                case CrcWarnDiscard =>
+                    invalidCriticalDiscardWarningValue = true
+                    crcWarningCountValue += 1
+                    CrcErrorQuit
+                case _ => CrcErrorQuit
+            }
+        }
+        if (ancillaryAction != CrcNoChange) {
+            ancillaryCrcActionValue = match (ancillaryAction) {
+                case CrcWarnUse => CrcWarnUse
+                case CrcQuietUse => CrcQuietUse
+                case CrcErrorQuit => CrcErrorQuit
+                case _ => CrcWarnDiscard
+            }
+        }
+    }
+
+    public func criticalCrcAction(): PngCrcAction {
+        criticalCrcActionValue
+    }
+
+    public func ancillaryCrcAction(): PngCrcAction {
+        ancillaryCrcActionValue
+    }
+
+    public func crcWarningCount(): Int64 {
+        crcWarningCountValue
+    }
+
+    public func crcQuietUseCount(): Int64 {
+        crcQuietUseCountValue
+    }
+
+    public func crcDiscardCount(): Int64 {
+        crcDiscardCountValue
+    }
+
+    public func invalidCriticalDiscardWarning(): Bool {
+        invalidCriticalDiscardWarningValue
+    }
+
     private func ensureOpen(): Unit {
         if (closed) {
             throw PngFormatException(SessionClosed, cursor, "PNG read session is closed")
@@ -233,54 +291,91 @@ public class PngReadSession {
     public func readNextChunk(): PngChunk {
         ensureOpen()
         readSignature()
-        let chunkOffset = cursor
-        if (remaining() < 12) {
-            throw PngFormatException(TruncatedInput, chunkOffset, "PNG chunk header or CRC is truncated")
-        }
-
-        let length = readUInt32Be(source, chunkOffset)
-        if (length > PNG_UINT_31_MAX) {
-            throw PngFormatException(InvalidChunkLength, chunkOffset, "PNG chunk length exceeds 31 bits")
-        }
-        if (length > limits.maxChunkBytes) {
-            throw PngFormatException(ChunkTooLarge, chunkOffset, "PNG chunk exceeds configured memory limit")
-        }
-
-        let chunkType = copyByteRange(source, chunkOffset + 4, 4)
-        if (!isValidChunkType(chunkType)) {
-            throw PngFormatException(InvalidChunkType, chunkOffset + 4, "PNG chunk type is invalid")
-        }
-
-        let frameLength = Int64(length) + 12
-        if (frameLength > remaining()) {
-            throw PngFormatException(TruncatedInput, chunkOffset, "PNG chunk payload or CRC is truncated")
-        }
-
-        if (chunkCount == 0 && !sameBytes(chunkType, PNG_CHUNK_IHDR)) {
-            throw PngFormatException(IhdrOutOfOrder, chunkOffset + 4, "IHDR must be the first PNG chunk")
-        }
-        if (sameBytes(chunkType, PNG_CHUNK_IHDR)) {
-            if (ihdrRead) {
-                throw PngFormatException(DuplicateIhdr, chunkOffset + 4, "PNG contains more than one IHDR chunk")
+        while (true) {
+            let chunkOffset = cursor
+            if (remaining() < 12) {
+                throw PngFormatException(TruncatedInput, chunkOffset, "PNG chunk header or CRC is truncated")
             }
-            if (chunkCount != 0) {
-                throw PngFormatException(IhdrOutOfOrder, chunkOffset + 4, "IHDR is not the first PNG chunk")
+
+            let length = readUInt32Be(source, chunkOffset)
+            if (length > PNG_UINT_31_MAX) {
+                throw PngFormatException(InvalidChunkLength, chunkOffset, "PNG chunk length exceeds 31 bits")
             }
-        }
+            if (length > limits.maxChunkBytes) {
+                throw PngFormatException(ChunkTooLarge, chunkOffset, "PNG chunk exceeds configured memory limit")
+            }
 
-        let data = copyByteRange(source, chunkOffset + 8, Int64(length))
-        let expectedCrc = readUInt32Be(source, chunkOffset + 8 + Int64(length))
-        let actualCrc = pngChunkCrc32(chunkType, data)
-        if (expectedCrc != actualCrc) {
-            throw PngFormatException(CrcMismatch, chunkOffset + 8 + Int64(length), "PNG chunk CRC does not match")
-        }
+            let chunkType = copyByteRange(source, chunkOffset + 4, 4)
+            if (!isValidChunkType(chunkType)) {
+                throw PngFormatException(InvalidChunkType, chunkOffset + 4, "PNG chunk type is invalid")
+            }
 
-        cursor = chunkOffset + frameLength
-        chunkCount += 1
-        if (sameBytes(chunkType, PNG_CHUNK_IHDR)) {
-            ihdrRead = true
+            let frameLength = Int64(length) + 12
+            if (frameLength > remaining()) {
+                throw PngFormatException(TruncatedInput, chunkOffset, "PNG chunk payload or CRC is truncated")
+            }
+
+            if (chunkCount == 0 && !sameBytes(chunkType, PNG_CHUNK_IHDR)) {
+                throw PngFormatException(IhdrOutOfOrder, chunkOffset + 4, "IHDR must be the first PNG chunk")
+            }
+            if (sameBytes(chunkType, PNG_CHUNK_IHDR)) {
+                if (ihdrRead) {
+                    throw PngFormatException(DuplicateIhdr, chunkOffset + 4, "PNG contains more than one IHDR chunk")
+                }
+                if (chunkCount != 0) {
+                    throw PngFormatException(IhdrOutOfOrder, chunkOffset + 4, "IHDR is not the first PNG chunk")
+                }
+            }
+
+            let data = copyByteRange(source, chunkOffset + 8, Int64(length))
+            let expectedCrc = readUInt32Be(source, chunkOffset + 8 + Int64(length))
+            let actualCrc = pngChunkCrc32(chunkType, data)
+            let crcValid = expectedCrc == actualCrc
+            if (!crcValid) {
+                let action = if (isCriticalChunk(chunkType)) {
+                    criticalCrcActionValue
+                } else {
+                    ancillaryCrcActionValue
+                }
+                if (action == CrcErrorQuit) {
+                    throw PngFormatException(
+                        CrcMismatch,
+                        chunkOffset + 8 + Int64(length),
+                        "PNG chunk CRC does not match"
+                    )
+                }
+                if (action == CrcWarnUse) {
+                    crcWarningCountValue += 1
+                } else if (action == CrcQuietUse) {
+                    crcQuietUseCountValue += 1
+                } else {
+                    crcWarningCountValue += 1
+                    crcDiscardCountValue += 1
+                    cursor = chunkOffset + frameLength
+                    chunkCount += 1
+                    continue
+                }
+            }
+
+            cursor = chunkOffset + frameLength
+            chunkCount += 1
+            if (sameBytes(chunkType, PNG_CHUNK_IHDR)) {
+                ihdrRead = true
+            }
+            return PngChunk(
+                length,
+                chunkType,
+                data,
+                expectedCrc,
+                crcValid,
+                chunkOffset
+            )
         }
-        PngChunk(length, chunkType, data, expectedCrc, chunkOffset)
+        throw PngFormatException(
+            InvalidArgument,
+            cursor,
+            "PNG chunk reader reached an unreachable state"
+        )
     }
 
     public func readIhdr(): PngIhdr {

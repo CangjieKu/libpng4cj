@@ -1441,3 +1441,23 @@ byte swap, filler, and the complete `png_do_read_transformations` path.
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
 swap, and user callbacks were outside that direct adapter packet; later
 sections record their current status.
+
+## Implemented Read CRC Action Policy
+
+LP-S004BO translates `pngrtran.c::png_set_crc_action` into
+`PngCrcAction` and `PngReadSession.setCrcAction`:
+
+- `DEFAULT`, `ERROR_QUIT`, `WARN_DISCARD`, `WARN_USE`, `QUIET_USE`, and
+  `NO_CHANGE` retain the frozen numeric identities `0..5`
+- critical and ancillary actions are replaced independently
+- the defaults remain critical error/quit and ancillary warn/discard
+- critical `WARN_DISCARD` records a warning fact and falls back to error/quit
+- accepted corrupt chunks expose `PngChunk.crcValid = false`
+- session counters expose warning, quiet-use, and discarded-chunk facts
+- discarded ancillary chunks are consumed without becoming decoder input
+- chunk framing, size, type, and IHDR-order validation still fail before CRC
+  policy can accept or discard data
+
+`decodePngNonInterlaced` also accepts explicit critical and ancillary actions
+for the native high-level read path. Native warning/error callbacks, write-side
+CRC policy, and the C ABI remain separate work.

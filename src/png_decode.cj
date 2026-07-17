@@ -109,9 +109,12 @@ private func decodeInflatedRows(inflated: Array<Byte>, ihdr: PngIhdr): Array<Arr
 public func decodePngNonInterlaced(
     bytes: Array<Byte>,
     limits: PngReadLimits,
-    unknownPolicy: PngUnknownChunkPolicy
+    unknownPolicy: PngUnknownChunkPolicy,
+    criticalCrcAction: PngCrcAction,
+    ancillaryCrcAction: PngCrcAction
 ): PngDecodedRows {
     let session = PngReadSession(bytes, limits)
+    session.setCrcAction(criticalCrcAction, ancillaryCrcAction)
     let ihdr = session.readIhdr()
     if (ihdr.interlaceMethod != None) {
         throw PngFormatException(
@@ -228,6 +231,34 @@ public func decodePngNonInterlaced(
     let inflated = inflatePngZlibExact(compressed.toArray(), expectedSize)
     let metadata = metadataBuilder.build(palette, transparency)
     PngDecodedRows(ihdr, metadata, decodeInflatedRows(inflated, ihdr))
+}
+
+public func decodePngNonInterlaced(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    unknownPolicy: PngUnknownChunkPolicy
+): PngDecodedRows {
+    decodePngNonInterlaced(
+        bytes,
+        limits,
+        unknownPolicy,
+        CrcNoChange,
+        CrcNoChange
+    )
+}
+
+public func decodePngNonInterlaced(
+    bytes: Array<Byte>,
+    criticalCrcAction: PngCrcAction,
+    ancillaryCrcAction: PngCrcAction
+): PngDecodedRows {
+    decodePngNonInterlaced(
+        bytes,
+        PngReadLimits(),
+        Discard,
+        criticalCrcAction,
+        ancillaryCrcAction
+    )
 }
 
 public func decodePngNonInterlaced(bytes: Array<Byte>, limits: PngReadLimits): PngDecodedRows {
