@@ -202,6 +202,15 @@ big-endian 16/32-bit signed/unsigned read and write helpers. These eight symbols
 are direct Cangjie exports and do not create `png_struct`, callback, allocator,
 longjmp, or borrowed string-lifetime obligations.
 
+The first stateful classic read cluster adds direct Cangjie opaque
+`png_struct`/`png_info` handles. Read creation checks the compatible `1.6.*`
+version prefix, info creation records its owner, independent and cascade
+destruction release native tokens and write NULL through the supplied double
+pointers, and error/memory contexts support set/get round trips. Callback and
+allocator addresses are retained only; invocation, allocator-owned storage,
+longjmp, custom IO, row processing, metadata state, and write handles remain
+outside this cluster.
+
 ## Non-Interlaced Packed Write
 
 The first native write surface accepts source-shaped packed rows and emits a

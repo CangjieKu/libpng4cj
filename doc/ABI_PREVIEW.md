@@ -19,6 +19,7 @@ The generated directory contains:
 - `png-image-memory-consumer`: strict C11 `png_image` consumption proof
 - `png-image-file-stdio-consumer`: strict C11 file and `FILE*` proof
 - `png-classic-stateless-consumer`: strict C11 classic utility proof
+- `png-classic-read-handle-consumer`: strict C11 read/info lifecycle proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -97,6 +98,30 @@ The strict consumer freezes every function-pointer signature and compares
 signature ranges, signed edge behavior, and big-endian read/write vectors with
 the libpng `1.6.58` source algorithms, including its `INT32_MIN` read result.
 
+The first stateful classic milestone adds opaque caller-held read and info
+handles:
+
+- `png_create_read_struct` and `png_create_read_struct_2`
+- `png_create_info_struct`
+- `png_destroy_info_struct` and `png_destroy_read_struct`
+- `png_set_error_fn` and `png_get_error_ptr`
+- `png_set_mem_fn` and `png_get_mem_ptr`
+
+The handles are native tokens backed by a mutex-protected Cangjie registry.
+Read creation accepts libpng-compatible `1.6.*` version strings, info handles
+retain their creating read handle, and destruction writes NULL through every
+successfully released pointer-to-pointer argument. Caller error and memory
+contexts can be replaced and read back without transferring ownership. The
+exact nine-symbol set is frozen in
+`abi/symbols/libpng4cj-classic-read-handle-v1.txt`.
+
+The strict lifecycle consumer covers incompatible versions, null inputs,
+independent info destruction, two-info cascade destruction, context updates,
+exact function-pointer declarations, and original/relocated loading. Callback
+addresses and allocator addresses are retained for later ABI work but are not
+invoked, and custom allocators do not yet own handle allocation.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. Raw callback and allocator crossings, remaining
-public symbols, and non-macOS ABI packaging remain outside this checkpoint.
+release, or an LTS artifact. Callback invocation, allocator ownership,
+setjmp/longjmp, classic row/metadata/write state, remaining public symbols, and
+non-macOS ABI packaging remain outside this checkpoint.

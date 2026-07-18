@@ -12,6 +12,8 @@ PNG_IMAGE_FILE_STDIO_EXPECTED="$ROOT/abi/symbols/libpng4cj-png-image-file-stdio-
 PNG_IMAGE_FILE_STDIO_ACTUAL="$OUT/libpng4cj-png-image-file-stdio-v1.actual.txt"
 CLASSIC_STATELESS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-stateless-v1.txt"
 CLASSIC_STATELESS_ACTUAL="$OUT/libpng4cj-classic-stateless-v1.actual.txt"
+CLASSIC_READ_HANDLE_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-read-handle-v1.txt"
+CLASSIC_READ_HANDLE_ACTUAL="$OUT/libpng4cj-classic-read-handle-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -43,6 +45,17 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         $3 == "_png_save_uint_16") { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_STATELESS_ACTUAL"
 diff -u "$CLASSIC_STATELESS_EXPECTED" "$CLASSIC_STATELESS_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_create_read_struct" || \
+        $3 == "_png_create_read_struct_2" || \
+        $3 == "_png_create_info_struct" || \
+        $3 == "_png_destroy_info_struct" || \
+        $3 == "_png_destroy_read_struct" || \
+        $3 == "_png_set_error_fn" || $3 == "_png_get_error_ptr" || \
+        $3 == "_png_set_mem_fn" || $3 == "_png_get_mem_ptr") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_READ_HANDLE_ACTUAL"
+diff -u "$CLASSIC_READ_HANDLE_EXPECTED" "$CLASSIC_READ_HANDLE_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -124,11 +137,29 @@ cc "$ROOT/test/abi_consumer/png_classic_stateless.c" \
 
 "$OUT/png-classic-stateless-consumer" "$OUT/libpng4cj_preview.dylib"
 
+cc "$ROOT/test/abi_consumer/png_classic_read_handle.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-read-handle-consumer"
+
+"$OUT/png-classic-read-handle-consumer" "$OUT/libpng4cj_preview.dylib"
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
 cp "$OUT/png-image-file-stdio-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-stateless-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-read-handle-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -145,5 +176,7 @@ cp "$OUT/png-classic-stateless-consumer" "$RELOCATED/"
     "$RELOCATED/png-image-malformed.bin" \
     "$RELOCATED/missing/png.png"
 "$RELOCATED/png-classic-stateless-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib"
+"$RELOCATED/png-classic-read-handle-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib"
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

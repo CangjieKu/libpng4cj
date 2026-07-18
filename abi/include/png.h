@@ -1,9 +1,11 @@
 #ifndef LIBPNG4CJ_PNG_IMAGE_H
 #define LIBPNG4CJ_PNG_IMAGE_H
 
-/* Frozen libpng 1.6.58 simplified and stateless classic utility API subset.
- * This is not the complete upstream png.h and does not declare stateful,
- * callback, allocator, longjmp, or row IO APIs.
+/* Frozen libpng 1.6.58 simplified and classic API subset.
+ * This is not the complete upstream png.h. The stateful surface currently
+ * covers opaque read/info ownership and caller-context retention; callback
+ * invocation, custom-allocation ownership, longjmp, and row IO are not yet
+ * implemented.
  */
 
 #include <stddef.h>
@@ -19,6 +21,7 @@ extern "C" {
 #define PNG_IMAGE_ERROR 2u
 #define PNG_IMAGE_FAILED(image) ((((image).warning_or_error) & 0x03u) > 1u)
 #define PNG_LIBPNG_VER 10658
+#define PNG_LIBPNG_VER_STRING "1.6.58"
 
 typedef uint8_t png_byte;
 typedef png_byte *png_bytep;
@@ -26,6 +29,25 @@ typedef const png_byte *png_const_bytep;
 typedef uint16_t png_uint_16;
 typedef uint32_t png_uint_32;
 typedef int32_t png_int_32;
+typedef char png_char;
+typedef png_char *png_charp;
+typedef const png_char *png_const_charp;
+typedef void *png_voidp;
+typedef const void *png_const_voidp;
+typedef size_t png_alloc_size_t;
+
+typedef struct png_struct_def png_struct;
+typedef const png_struct *png_const_structp;
+typedef png_struct *png_structp;
+typedef png_struct **png_structpp;
+typedef struct png_info_def png_info;
+typedef png_info *png_infop;
+typedef const png_info *png_const_infop;
+typedef png_info **png_infopp;
+
+typedef void (*png_error_ptr)(png_structp, png_const_charp);
+typedef png_voidp (*png_malloc_ptr)(png_structp, png_alloc_size_t);
+typedef void (*png_free_ptr)(png_structp, png_voidp);
 
 typedef void *png_controlp;
 typedef struct png_image {
@@ -111,6 +133,46 @@ png_int_32 png_get_int_32(png_const_bytep buf);
 void png_save_uint_32(png_bytep buf, png_uint_32 i);
 void png_save_int_32(png_bytep buf, png_int_32 i);
 void png_save_uint_16(png_bytep buf, unsigned int i);
+
+png_structp png_create_read_struct(
+    png_const_charp user_png_ver,
+    png_voidp error_ptr,
+    png_error_ptr error_fn,
+    png_error_ptr warn_fn
+);
+png_structp png_create_read_struct_2(
+    png_const_charp user_png_ver,
+    png_voidp error_ptr,
+    png_error_ptr error_fn,
+    png_error_ptr warn_fn,
+    png_voidp mem_ptr,
+    png_malloc_ptr malloc_fn,
+    png_free_ptr free_fn
+);
+png_infop png_create_info_struct(png_const_structp png_ptr);
+void png_destroy_info_struct(
+    png_const_structp png_ptr,
+    png_infopp info_ptr_ptr
+);
+void png_destroy_read_struct(
+    png_structpp png_ptr_ptr,
+    png_infopp info_ptr_ptr,
+    png_infopp end_info_ptr_ptr
+);
+void png_set_error_fn(
+    png_structp png_ptr,
+    png_voidp error_ptr,
+    png_error_ptr error_fn,
+    png_error_ptr warning_fn
+);
+png_voidp png_get_error_ptr(png_const_structp png_ptr);
+void png_set_mem_fn(
+    png_structp png_ptr,
+    png_voidp mem_ptr,
+    png_malloc_ptr malloc_fn,
+    png_free_ptr free_fn
+);
+png_voidp png_get_mem_ptr(png_const_structp png_ptr);
 
 int png_image_begin_read_from_memory(
     png_imagep image,

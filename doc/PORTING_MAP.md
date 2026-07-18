@@ -1852,7 +1852,20 @@ Porting milestone S008D starts the callback-free classic ABI surface with statel
 - a separate eight-symbol manifest and strict C11 function-pointer signature
   matrix, source-algorithm vectors, warning-as-error build, and relocated proof
 
+Porting milestone S008E establishes the first stateful classic read-handle
+foundation:
+
+- direct Cangjie opaque `png_struct` and `png_info` tokens backed by separate
+  mutex-protected ownership registries
+- upstream-compatible `1.6.*` creation checks, retained error/memory contexts,
+  and exact set/get round trips
+- independent info destruction and read-struct cascade destruction with exact
+  pointer-to-pointer NULL updates
+- nine frozen symbols plus strict C11 function signatures, null/version/context,
+  two-info lifecycle, warning-as-error build, and relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
-parity, raw callback and allocator crossings, complete public-symbol parity,
-and portable packaging remain later Porting milestone S008 and LTS work.
+parity, callback invocation, allocator-owned storage, longjmp, classic row and
+metadata/write state, complete public-symbol parity, and portable packaging
+remain later Porting milestone S008 and LTS work.

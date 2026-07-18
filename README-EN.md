@@ -23,7 +23,7 @@ release, or a cross-platform binary distribution.
 | Progressive reading | Incremental input, early info/row callbacks, Adam7 pass context, pause, and resume |
 | PNG encoding | Whole-image, row-at-a-time, incremental IDAT, Adam7, filter/compression controls, metadata, and unknown chunks |
 | Simplified API | Memory, files, and caller-managed streams with direct8, linear16, colormap, and positive/negative strides |
-| C ABI | Preview facade, `png_image` memory/file/stdio subset, and stateless classic utilities on macOS arm64 |
+| C ABI | Preview facade, `png_image` memory/file/stdio subset, stateless classic utilities, and `png_struct`/`png_info` read-handle lifecycle on macOS arm64 |
 | ICC | iCCP profiles are retained and validated; ICC pixel color conversion is not performed |
 
 See the [Compatibility and Dependency Matrix](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)
@@ -158,8 +158,8 @@ It performs the following checks:
 - builds a dylib with direct Cangjie `@C` exports
 - verifies frozen exported-symbol manifests
 - compiles strict C11 consumers with `-Wall -Wextra -Werror`
-- exercises the preview facade, `png_image` memory/file/stdio subset, and
-  stateless classic utilities
+- exercises the preview facade, `png_image` memory/file/stdio subset,
+  stateless classic utilities, and read/info handle lifecycle
 - relocates the dylib and reruns every consumer on the same host
 
 A C process must initialize and finalize the Cangjie runtime as required by the
@@ -173,8 +173,9 @@ See [C ABI Surfaces](doc/ABI_PREVIEW.md) for details.
 `0.2.0 preview` does not claim:
 
 - complete default-config libpng16 symbol or behavior compatibility
-- the complete stateful `png_struct` / `png_info` classic API
-- C callbacks, user allocators, `setjmp` / `longjmp`, or raw user pointers
+- the complete `png_struct` / `png_info` read, write, row, and metadata state API
+- C callback invocation, user-allocator ownership, `setjmp` / `longjmp`, or
+  the remaining raw user-pointer families
 - ICC-profile-driven pixel color conversion
 - verified Linux, Windows, HarmonyOS, or OpenHarmony ABI artifacts
 - throughput certification for images above 100 MB or concurrent stress proof

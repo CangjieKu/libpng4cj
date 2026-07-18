@@ -1,0 +1,9 @@
+png_create_info_struct
+png_create_read_struct
+png_create_read_struct_2
+png_destroy_info_struct
+png_destroy_read_struct
+png_get_error_ptr
+png_get_mem_ptr
+png_set_error_fn
+png_set_mem_fn
