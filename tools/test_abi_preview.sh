@@ -14,6 +14,8 @@ CLASSIC_STATELESS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-stateless-v1.txt
 CLASSIC_STATELESS_ACTUAL="$OUT/libpng4cj-classic-stateless-v1.actual.txt"
 CLASSIC_READ_HANDLE_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-read-handle-v1.txt"
 CLASSIC_READ_HANDLE_ACTUAL="$OUT/libpng4cj-classic-read-handle-v1.actual.txt"
+CLASSIC_ERROR_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-error-v1.txt"
+CLASSIC_ERROR_ACTUAL="$OUT/libpng4cj-classic-error-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -56,6 +58,11 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_READ_HANDLE_ACTUAL"
 diff -u "$CLASSIC_READ_HANDLE_EXPECTED" "$CLASSIC_READ_HANDLE_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_error" || $3 == "_png_warning") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_ERROR_ACTUAL"
+diff -u "$CLASSIC_ERROR_EXPECTED" "$CLASSIC_ERROR_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \

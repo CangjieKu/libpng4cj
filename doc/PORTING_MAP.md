@@ -1864,8 +1864,22 @@ foundation:
 - nine frozen symbols plus strict C11 function signatures, null/version/context,
   two-info lifecycle, warning-as-error build, and relocated proof
 
+Porting milestone S008F adds the first callable classic failure boundary:
+
+- direct Cangjie `png_warning` and `png_error` exports with a separate two-
+  symbol manifest and exact partial-header declarations
+- callback addresses are snapshotted under the registry mutex and invoked only
+  after releasing it, so callback-side `png_get_error_ptr` does not self-lock
+- warning callbacks return normally; missing callbacks emit the default
+  `libpng warning:` diagnostic
+- error callbacks run first; a missing or returning callback emits the default
+  `libpng error:` diagnostic and terminates through a narrow libc boundary
+- strict C11 proof covers live callback replacement, exact context/message,
+  callback-owned termination, returning/default fatal fallbacks, and original/
+  relocated execution in independent processes
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
-parity, callback invocation, allocator-owned storage, longjmp, classic row and
-metadata/write state, complete public-symbol parity, and portable packaging
+parity, allocator-owned storage, longjmp, chunk/custom IO callbacks, classic row
+and metadata/write state, complete public-symbol parity, and portable packaging
 remain later Porting milestone S008 and LTS work.

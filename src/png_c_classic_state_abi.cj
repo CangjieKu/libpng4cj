@@ -3,6 +3,8 @@ package libpng4cj
 import std.collection.HashMap
 import std.sync.Mutex
 
+foreign func abort(): Unit
+
 private class PngCClassicReadState {
     var errorPtr: CPointer<Unit>
     var errorFn: CPointer<Unit>
@@ -91,6 +93,44 @@ private func pngCClassicReadExists(handle: CPointer<Unit>): Bool {
     if (handle.isNull()) { return false }
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         PNG_C_CLASSIC_READ_REGISTRY.get(handle.toUIntNative()).isSome()
+    }
+}
+
+private func pngCClassicCallback(
+    handle: CPointer<Unit>, warning: Bool
+): CPointer<Unit> {
+    if (handle.isNull()) { return CPointer<Unit>() }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(handle.toUIntNative())) {
+            case Some(state) =>
+                if (warning) { state.warningFn } else { state.errorFn }
+            case None => CPointer<Unit>()
+        }
+    }
+}
+
+private func pngCClassicInvokeCallback(
+    handle: CPointer<Unit>, message: CString, warning: Bool
+): Bool {
+    let callback = pngCClassicCallback(handle, warning)
+    if (callback.isNull()) { return false }
+    let function = CFunc<(CPointer<Unit>, CString) -> Unit>(callback)
+    unsafe { function(handle, message) }
+    true
+}
+
+private func pngCClassicDefaultDiagnostic(
+    kind: String, message: CString, fallback: String
+): Unit {
+    try {
+        let text = if (message.isNull()) {
+            fallback
+        } else {
+            message.toString()
+        }
+        eprintln("libpng ${kind}: ${text}")
+    } catch (_: Exception) {
+        ()
     }
 }
 
@@ -290,4 +330,22 @@ public func png_get_mem_ptr(
             case None => CPointer<Unit>()
         }
     }
+}
+
+@C
+public func png_warning(
+    pngPtr: CPointer<Unit>, warningMessage: CString
+): Unit {
+    if (!pngCClassicInvokeCallback(pngPtr, warningMessage, true)) {
+        pngCClassicDefaultDiagnostic("warning", warningMessage, "")
+    }
+}
+
+@C
+public func png_error(
+    pngPtr: CPointer<Unit>, errorMessage: CString
+): Unit {
+    pngCClassicInvokeCallback(pngPtr, errorMessage, false)
+    pngCClassicDefaultDiagnostic("error", errorMessage, "undefined")
+    unsafe { abort() }
 }

@@ -206,10 +206,12 @@ The first stateful classic read cluster adds direct Cangjie opaque
 `png_struct`/`png_info` handles. Read creation checks the compatible `1.6.*`
 version prefix, info creation records its owner, independent and cascade
 destruction release native tokens and write NULL through the supplied double
-pointers, and error/memory contexts support set/get round trips. Callback and
-allocator addresses are retained only; invocation, allocator-owned storage,
-longjmp, custom IO, row processing, metadata state, and write handles remain
-outside this cluster.
+pointers, and error/memory contexts support set/get round trips. `png_warning`
+and `png_error` snapshot their callbacks under the registry mutex and invoke
+them after releasing it; missing warning callbacks use the default diagnostic,
+while missing or returning error callbacks terminate through the default fatal
+boundary. Allocator-owned storage, longjmp, chunk/custom IO callbacks, row
+processing, metadata state, and write handles remain outside this cluster.
 
 ## Non-Interlaced Packed Write
 

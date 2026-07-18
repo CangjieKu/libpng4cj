@@ -12,5 +12,6 @@ exact simplified `png_image` memory/file/stdio ABI. `./tools/test_abi_preview.sh
 builds the Cangjie dylib, checks all frozen symbol manifests, compiles the
 consumers with warnings as errors, runs direct/linear/colormap memory coverage,
 file and caller-owned `FILE*` read/write and failure cleanup, checks colorspace
-and untagged-16-bit flags, and replays every executable after relocating the
-dylib.
+and untagged-16-bit flags, invokes warning callbacks with callback-side context
+lookup, proves callback-owned/default/returning fatal paths in separate
+processes, and replays every executable after relocating the dylib.

@@ -1,0 +1,2 @@
+png_error
+png_warning

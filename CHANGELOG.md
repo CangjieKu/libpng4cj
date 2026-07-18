@@ -2,14 +2,21 @@
 
 ## Unreleased
 
+- Add direct Cangjie `png_warning` and `png_error` exports. Warning callbacks
+  receive the live handle and exact message outside the registry mutex;
+  missing callbacks use default stderr diagnostics.
+- Add an explicit fatal fallback after a missing or returning error callback,
+  with strict C11 subprocess proof for callback-owned termination, returning
+  callbacks, default termination, live replacement, context lookup, and
+  original/relocated dylib execution. `setjmp`/`longjmp` remains separate.
 - Add the first stateful classic read ABI foundation with direct Cangjie
   `png_struct` and `png_info` opaque handles, compatible major/minor version
   checks, independent and cascade destruction, exact pointer-to-pointer NULL
   updates, and retained error/memory contexts.
 - Freeze nine additional symbols and a strict C11 lifecycle consumer covering
   function signatures, null inputs, two-info ownership, context updates, and
-  original/relocated dylib execution. Callback invocation, custom-allocation
-  ownership, longjmp, and row IO remain outside this surface.
+  original/relocated dylib execution. Custom-allocation ownership, longjmp,
+  and row IO remain outside this surface.
 
 ## 0.2.0 Preview - 2026-07-18
 

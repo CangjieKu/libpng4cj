@@ -19,7 +19,8 @@ The generated directory contains:
 - `png-image-memory-consumer`: strict C11 `png_image` consumption proof
 - `png-image-file-stdio-consumer`: strict C11 file and `FILE*` proof
 - `png-classic-stateless-consumer`: strict C11 classic utility proof
-- `png-classic-read-handle-consumer`: strict C11 read/info lifecycle proof
+- `png-classic-read-handle-consumer`: strict C11 read/info lifecycle and
+  warning/error callback boundary proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -117,11 +118,20 @@ exact nine-symbol set is frozen in
 
 The strict lifecycle consumer covers incompatible versions, null inputs,
 independent info destruction, two-info cascade destruction, context updates,
-exact function-pointer declarations, and original/relocated loading. Callback
-addresses and allocator addresses are retained for later ABI work but are not
-invoked, and custom allocators do not yet own handle allocation.
+exact function-pointer declarations, and original/relocated loading. Allocator
+addresses are retained for later ABI work but do not yet own handle allocation.
+
+The classic error milestone adds direct Cangjie `png_warning` and `png_error`
+exports, frozen in `abi/symbols/libpng4cj-classic-error-v1.txt`. Callback
+addresses are snapshotted under the registry mutex and invoked after releasing
+the lock, allowing callback-side context lookup and later replacement. Missing
+warning callbacks use the default `libpng warning:` stderr diagnostic. Fatal
+errors invoke the current error callback first, then use the default
+`libpng error:` diagnostic and process termination if the callback is absent
+or returns. The strict consumer proves all three fatal outcomes in independent
+processes so a terminating path cannot corrupt the main acceptance process.
 
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. Callback invocation, allocator ownership,
-setjmp/longjmp, classic row/metadata/write state, remaining public symbols, and
+release, or an LTS artifact. Allocator ownership, setjmp/longjmp, chunk/custom
+IO callbacks, classic row/metadata/write state, remaining public symbols, and
 non-macOS ABI packaging remain outside this checkpoint.
