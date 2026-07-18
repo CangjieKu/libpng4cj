@@ -12,20 +12,13 @@ class PngIncrementalIdatWriter {
 
     init(
         cursor: PngWriteEmissionCursor,
-        compressionLevel: Int32,
+        controls: PngWriteControlInitialization,
         maxCompressedBytes: UInt64,
         idatChunkBytes: UInt32
     ) {
         this.cursor = cursor
         this.idatChunkBytes = Int64(idatChunkBytes)
-        let deflateChunkBytes = if (this.idatChunkBytes < Int64(32_768)) {
-            this.idatChunkBytes
-        } else {
-            Int64(32_768)
-        }
-        deflater = PngIncrementalDeflater(
-            compressionLevel, maxCompressedBytes, deflateChunkBytes
-        )
+        deflater = PngIncrementalDeflater(controls, maxCompressedBytes)
     }
 
     private func emitFullChunks(): Unit {
@@ -100,7 +93,7 @@ class PngIncrementalWriteOutput {
         ihdr: PngIhdr,
         palette: Array<Byte>,
         metadataPlan: PngWriteMetadataPlan,
-        compressionLevel: Int32,
+        controls: PngWriteControlInitialization,
         limits: PngWriteLimits,
         sink: PngWriteSink
     ) {
@@ -111,7 +104,7 @@ class PngIncrementalWriteOutput {
             limits.maxOutputBytes
         )
         idat = PngIncrementalIdatWriter(
-            cursor, compressionLevel, limits.maxCompressedBytes,
+            cursor, controls, limits.maxCompressedBytes,
             limits.idatChunkBytes
         )
         try {

@@ -39,6 +39,9 @@ import libpng4cj.*
   non-interlaced/Adam7 memory or custom-sink finalization
 - genuine non-interlaced incremental deflate with `startTo(sink)`, bounded IDAT
   chunk emission during row intake, and exact-once final IEND/flush
+- lifecycle-frozen `PngWriteControlState` configuration for filter subsets,
+  compression level/memory/window/method/strategy, and deflate output-buffer
+  sizing across whole-image, row, sink, and Adam7 write paths
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -76,11 +79,50 @@ let png = encodePngPacked(
 `PngWriteSession` exposes explicit Open, Finalizing, Completed, Failed, and
 Closed states. The full constructor accepts `None` or `Adam7`, an optional
 indexed palette, copy-owned `PngWriteMetadata`, `PngWriteTransformState`,
-`PngWriteFilterStrategy`, zlib level, and `PngWriteLimits`. Strategies include None, Sub, Up, Average, Paeth, and
-deterministic Adaptive selection. Adaptive selection minimizes the sum of
-signed-byte magnitudes and keeps the first filter on ties. Limits independently
-bound transformed row bytes, filtered row bytes, compressed IDAT bytes, raw metadata bytes, compressed
+`PngWriteControlState`, and `PngWriteLimits`. Legacy overloads accepting
+`PngWriteFilterStrategy` plus a zlib level remain available. Filter strategies
+include None, Sub, Up, Average, Paeth, and deterministic Adaptive selection.
+Adaptive selection minimizes the sum of signed-byte magnitudes and keeps the
+first filter on ties. Limits independently bound transformed row bytes,
+filtered row bytes, compressed IDAT bytes, raw metadata bytes, compressed
 metadata bytes, complete encoded output bytes, and each emitted IDAT payload.
+
+Configure advanced filter and compressor policy before creating a session:
+
+```cangjie
+let controls = PngWriteControlState()
+controls.setFilters(true, true, true, false, true)
+controls.setCompressionLevel(Int32(6))
+controls.setCompressionMemoryLevel(Int32(8))
+controls.setCompressionWindowBits(Int32(15))
+controls.setCompressionMethod(Int32(8))
+controls.setCompressionStrategy(WriteCompressionFiltered)
+controls.setCompressionBufferBytes(Int64(32768))
+
+let png = encodePngPacked(
+    width, height, UInt8(8), TruecolorAlpha, rows,
+    Array<Byte>(), PngWriteMetadata(), controls, PngWriteLimits()
+)
+```
+
+`setFilters` accepts any non-empty subset of the five PNG row filters. An
+unset filter policy defaults packed/Indexed output to None and other byte-depth
+output to all filters. Width-one images remove Sub/Average/Paeth and height-one
+images remove Up/Average/Paeth, with deterministic None fallback when the
+requested set becomes empty. Window bits are clamped to PNG's `8..15` range;
+level, memory level, method, and buffer size reject invalid values. Explicit
+compression strategies are Default, Filtered, Huffman-only, RLE, and Fixed.
+Without an explicit strategy, filtered output uses zlib's filtered strategy
+and None-only output uses the default strategy, matching the frozen libpng
+configuration. `WriteHeuristicDefault` and `WriteHeuristicUnweighted` preserve
+the public fixed-heuristic state; libpng 1.6 treats the deprecated weighted
+heuristic body as a no-op, so both currently use the same deterministic score.
+
+The control state is frozen when `PngWriteSession` or `PngRowWriteSession` is
+created. Later mutations do not change that session. Whole-image memory/sink,
+deferred row memory/sink, and early non-interlaced row output share one frozen
+control snapshot and produce identical bytes for identical inputs. Adam7 uses
+the same compressor controls while retaining pass-local previous-row history.
 
 All legal PNG color-type/bit-depth row shapes are accepted for non-interlaced
 or Adam7 output. `encodePngPackedAdam7` and `encodeIndexedPngPackedAdam7`
@@ -227,8 +269,7 @@ the standard read model into canonical pre-IDAT write placement for
 decode-write-decode workflows.
 
 Early Adam7 row output, raw C callback trampolines, simplified
-`png_image_write_*`, compression-policy parity, and full C ABI write parity
-remain later work.
+`png_image_write_*`, and full C ABI write parity remain later work.
 ICC support retains and emits profile bytes; it does not perform ICC pixel
 conversion.
 

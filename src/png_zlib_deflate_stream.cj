@@ -1,5 +1,7 @@
 package libpng4cj
 
+import std.collection.ArrayList
+
 private let ZLIB_DEFLATE_OK: Int32 = Int32(0)
 private let ZLIB_DEFLATE_STREAM_END: Int32 = Int32(1)
 private let ZLIB_DEFLATE_STREAM_ERROR: Int32 = Int32(-2)
@@ -10,9 +12,13 @@ private let ZLIB_DEFLATE_VERSION_ERROR: Int32 = Int32(-6)
 private let ZLIB_DEFLATE_NO_FLUSH: Int32 = Int32(0)
 private let ZLIB_DEFLATE_FINISH: Int32 = Int32(4)
 
-foreign func deflateInit_(
+foreign func deflateInit2_(
     stream: CPointer<PngZStreamNative>,
     level: Int32,
+    method: Int32,
+    windowBits: Int32,
+    memoryLevel: Int32,
+    strategy: Int32,
     version: CString,
     streamSize: Int32
 ): Int32
@@ -43,10 +49,14 @@ public class PngIncrementalDeflater {
     private var finishedValue: Bool = false
     private var closedValue: Bool = false
 
-    public init(
+    private init(
         level: Int32,
         maxOutputBytes: UInt64,
-        outputChunkBytes: Int64
+        outputChunkBytes: Int64,
+        method: Int32,
+        windowBits: Int32,
+        memoryLevel: Int32,
+        strategy: Int32
     ) {
         if (level < Int32(-1) || level > Int32(9)) {
             throw PngFormatException(
@@ -77,14 +87,38 @@ public class PngIncrementalDeflater {
         }
         unsafe { stream.write(PngZStreamNative()) }
         let status = unsafe {
-            deflateInit_(
-                stream, level, zlibVersion(), Int32(sizeOf<PngZStreamNative>())
+            deflateInit2_(
+                stream, level, method, windowBits, memoryLevel, strategy,
+                zlibVersion(), Int32(sizeOf<PngZStreamNative>())
             )
         }
         if (status != ZLIB_DEFLATE_OK) {
             unsafe { LibC.free(stream) }
             pngDeflateFailure(status)
         }
+    }
+
+    init(
+        controls: PngWriteControlInitialization,
+        maxOutputBytes: UInt64
+    ) {
+        this(
+            controls.compressionLevel, maxOutputBytes,
+            controls.compressionBufferBytes, controls.compressionMethod,
+            controls.compressionWindowBits, controls.compressionMemoryLevel,
+            controls.compressionStrategy.zlibValue()
+        )
+    }
+
+    public init(
+        level: Int32,
+        maxOutputBytes: UInt64,
+        outputChunkBytes: Int64
+    ) {
+        this(
+            level, maxOutputBytes, outputChunkBytes, Int32(8), Int32(15),
+            Int32(8), Int32(0)
+        )
     }
 
     public init(level: Int32, maxOutputBytes: UInt64) {
@@ -269,5 +303,26 @@ public class PngIncrementalDeflater {
             !(status == ZLIB_DEFLATE_DATA_ERROR && !finishedValue)) {
             pngDeflateFailure(status)
         }
+    }
+}
+
+func compressPngZlibConfigured(
+    input: Array<Byte>,
+    controls: PngWriteControlInitialization,
+    maxOutput: UInt64
+): Array<Byte> {
+    if (input.size == Int64(0)) {
+        throw PngFormatException(
+            InvalidArgument, -1, "PNG compression input cannot be empty"
+        )
+    }
+    let output = ArrayList<Byte>()
+    let deflater = PngIncrementalDeflater(controls, maxOutput)
+    try {
+        deflater.push(input, { bytes => appendWriteBytes(output, bytes) })
+        deflater.finish({ bytes => appendWriteBytes(output, bytes) })
+        output.toArray()
+    } finally {
+        deflater.close()
     }
 }

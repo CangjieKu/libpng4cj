@@ -8,8 +8,7 @@ public class PngRowWriteSession {
     private let writer: PngWriteSession
     private let ihdr: PngIhdr
     private let initialization: PngWriteTransformInitialization
-    private let strategy: PngWriteFilterStrategy
-    private let compressionLevel: Int32
+    private let writeControls: PngWriteControlInitialization
     private let limits: PngWriteLimits
     private let paletteEntryCount: Int64
     private let expectedRowsValue: UInt32
@@ -28,24 +27,76 @@ public class PngRowWriteSession {
         interlaceMethod: PngInterlaceMethod,
         palette: Array<Byte>,
         metadata: PngWriteMetadata,
+        controls: PngWriteControlState,
+        limits: PngWriteLimits
+    ) {
+        this(
+            width, height, bitDepth, colorType, interlaceMethod, palette,
+            metadata, PngWriteTransformState(bitDepth, colorType), controls,
+            limits
+        )
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        bitDepth: UInt8,
+        colorType: PngColorType,
+        palette: Array<Byte>,
+        metadata: PngWriteMetadata,
+        controls: PngWriteControlState,
+        limits: PngWriteLimits
+    ) {
+        this(
+            width, height, bitDepth, colorType, None, palette, metadata,
+            controls, limits
+        )
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        bitDepth: UInt8,
+        colorType: PngColorType,
+        interlaceMethod: PngInterlaceMethod,
+        palette: Array<Byte>,
+        metadata: PngWriteMetadata,
         transforms: PngWriteTransformState,
-        strategy: PngWriteFilterStrategy,
-        compressionLevel: Int32,
+        controls: PngWriteControlState,
         limits: PngWriteLimits
     ) {
         writer = PngWriteSession(
             width, height, bitDepth, colorType, interlaceMethod, palette,
-            metadata, transforms, strategy, compressionLevel, limits
+            metadata, transforms, controls, limits
         )
         ihdr = writer.incrementalWriteHeader()
         initialization = writer.initializedTransforms()
-        this.strategy = strategy
-        this.compressionLevel = compressionLevel
+        writeControls = writer.incrementalWriteControls()
         this.limits = limits
         paletteEntryCount = palette.size / Int64(3)
         expectedRowsValue = height
         expectedRowBytesValue = initialization.sourceRowBytes(width)
         previousRowValue = Array<Byte>(Int64(ihdr.rowBytes), repeat: UInt8(0))
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        bitDepth: UInt8,
+        colorType: PngColorType,
+        interlaceMethod: PngInterlaceMethod,
+        palette: Array<Byte>,
+        metadata: PngWriteMetadata,
+        transforms: PngWriteTransformState,
+        strategy: PngWriteFilterStrategy,
+        compressionLevel: Int32,
+        limits: PngWriteLimits
+    ) {
+        this(
+            width, height, bitDepth, colorType, interlaceMethod, palette,
+            metadata, transforms,
+            PngWriteControlState(strategy, compressionLevel), limits
+        )
     }
 
     public init(
@@ -204,7 +255,7 @@ public class PngRowWriteSession {
         validateStreamingGeometry()
         let next = PngIncrementalWriteOutput(
             ihdr, writer.incrementalWritePalette(),
-            writer.incrementalWriteMetadataPlan(), compressionLevel, limits,
+            writer.incrementalWriteMetadataPlan(), writeControls, limits,
             sink
         )
         streamingOutputValue = Some(next)
@@ -245,7 +296,7 @@ public class PngRowWriteSession {
             ihdr, transformed, paletteEntryCount, Int64(rowIndex)
         )
         let selected = selectWriteFilter(
-            strategy, transformed, previousRowValue,
+            writeControls, transformed, previousRowValue,
             pngFilterBytesPerPixel(ihdr)
         )
         let frame = ArrayList<Byte>()

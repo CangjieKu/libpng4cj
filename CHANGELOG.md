@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add lifecycle-frozen `PngWriteControlState` configuration for filter subsets,
+  libpng-compatible one-pixel/default filter resolution, compression level,
+  memory level, window bits, method, strategy, and deflate output-buffer size;
+  route whole-image, deferred row, early row, and Adam7 output through the same
+  configured `deflateInit2_` path while preserving legacy constructor failure
+  timing and deterministic bytes.
 - Add `PngIncrementalDeflater` and non-interlaced
   `PngRowWriteSession.startTo(sink)` so transformed and filtered rows feed a
   bounded live zlib stream and complete IDAT chunks reach custom sinks during

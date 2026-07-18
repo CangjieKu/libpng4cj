@@ -27,7 +27,7 @@ private func expectedAdam7FilteredWriteSize(ihdr: PngIhdr, limit: UInt64): UInt6
 func buildFilteredAdam7WriteRows(
     ihdr: PngIhdr,
     rows: Array<Array<Byte>>,
-    strategy: PngWriteFilterStrategy,
+    controls: PngWriteControlInitialization,
     maxCompressedInput: UInt64
 ): Array<Byte> {
     let expected = expectedAdam7FilteredWriteSize(ihdr, maxCompressedInput)
@@ -44,7 +44,9 @@ func buildFilteredAdam7WriteRows(
                 let passRow = pngAdam7GatherRow(
                     rows[Int64(sourceY)], ihdr, geometry
                 )
-                let selected = selectWriteFilter(strategy, passRow, previous, bytesPerPixel)
+                let selected = selectWriteFilter(
+                    controls, passRow, previous, bytesPerPixel
+                )
                 out.add(selected.filterType)
                 appendWriteBytes(out, selected.bytes)
                 previous = passRow

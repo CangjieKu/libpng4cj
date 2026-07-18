@@ -1673,7 +1673,7 @@ LP-S006H adds a native row-at-a-time write lifecycle:
 LP-S006I adds genuine non-interlaced incremental write output:
 
 - `PngIncrementalDeflater` reuses the verified direct LP64/Windows-LLP64
-  `z_stream` layout with `deflateInit_`, fragmented input, bounded output
+  `z_stream` layout with fragmented input, bounded output
   windows, deterministic progress checks, and exact close ownership
 - `PngRowWriteSession.startTo(sink)` emits the signature, IHDR, palette, and
   legal pre-IDAT metadata before the first row
@@ -1688,10 +1688,30 @@ LP-S006I adds genuine non-interlaced incremental write output:
 - Adam7 keeps the LP-S006H buffered compatibility path and rejects `startTo`
   until a pass-spool design can avoid unbounded source-row retention
 
+LP-S006J translates the bounded write compression and filter control surface:
+
+- `PngWriteControlState` accepts a non-empty subset of None/Sub/Up/Average/
+  Paeth, preserves the default/unweighted fixed-heuristic identity, and freezes
+  one resolved filter mask when a whole-image or row session is created
+- unset filters resolve like the frozen writer start path: packed or Indexed
+  images use None, byte-depth images use all filters, and one-pixel geometry
+  removes filters that cannot improve horizontal or vertical prediction
+- zlib level, memory level, PNG method 8, clamped `8..15` window bits, explicit
+  Default/Filtered/Huffman-only/RLE/Fixed strategy, automatic strategy, and
+  output-buffer sizing feed a shared `deflateInit2_` configuration
+- whole-image memory/custom-sink, deferred row memory/custom-sink, early row
+  sink, and Adam7 buffered output consume the same frozen control snapshot;
+  identical non-interlaced policy produces byte-identical output across paths
+- the legacy strategy/level constructors remain source compatible and retain
+  write-time failure for invalid legacy levels, while explicit control setters
+  validate before session creation
+- libpng 1.6's deprecated weighted heuristic functions are no-op bodies; the
+  translated heuristic identity is retained without fabricating a weighting
+  algorithm beyond the deterministic existing filtered-byte score
+
 These write paths finalize a complete image and support non-interlaced or
 Adam7 output.
-Early Adam7 output, raw C callback trampolines, simplified API, compression
-policy parity, and complete libpng16 write ABI remain later LP-S006/LP-S007/
-LP-S008 work. ICC
+Early Adam7 output, raw C callback trampolines, simplified API, and complete
+libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work. ICC
 profile bytes are validated and emitted, but ICC pixel conversion is outside
 libpng's scope.

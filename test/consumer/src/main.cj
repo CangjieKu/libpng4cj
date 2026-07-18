@@ -1001,6 +1001,29 @@ main(): Int64 {
         println("libpng4cj packed write consumer check failed")
         return 1
     }
+    let writeControls = PngWriteControlState()
+    writeControls.setFilters(true, true, true, false, true)
+    writeControls.setFilterHeuristic(WriteHeuristicUnweighted)
+    writeControls.setCompressionLevel(Int32(4))
+    writeControls.setCompressionMemoryLevel(Int32(7))
+    writeControls.setCompressionWindowBits(Int32(13))
+    writeControls.setCompressionMethod(Int32(8))
+    writeControls.setCompressionStrategy(WriteCompressionRle)
+    writeControls.setCompressionBufferBytes(Int64(5))
+    let controlledWritten = encodePngPacked(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha, writeRows,
+        Array<Byte>(), PngWriteMetadata(), writeControls, PngWriteLimits()
+    )
+    if (writeControls.compressionLevel() != Int32(4) ||
+        writeControls.compressionMemoryLevel() != Int32(7) ||
+        writeControls.compressionWindowBits() != Int32(13) ||
+        writeControls.compressionMethod() != Int32(8) ||
+        writeControls.compressionBufferBytes() != Int64(5) ||
+        writeControls.filterHeuristic() != WriteHeuristicUnweighted ||
+        decodePngNonInterlaced(controlledWritten).rows() != writeRows) {
+        println("libpng4cj write control consumer check failed")
+        return 1
+    }
     let packedWriteState = PngWriteTransformState(UInt8(2), Indexed)
     if (!packedWriteState.setPacking()) {
         println("libpng4cj write transform setup failed")
