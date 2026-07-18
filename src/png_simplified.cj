@@ -163,6 +163,7 @@ public class PngImageBuffer {
     public let channels: UInt8
     public let rowStride: Int64
     private let ownedBytes: Array<Byte>
+    private let strideGeometry: PngStrideGeometry
 
     public init(
         width: UInt32,
@@ -175,9 +176,11 @@ public class PngImageBuffer {
                 InvalidArgument, -1, "simplified image dimensions must be positive"
             )
         }
-        let stride = pngImageRowBytes(width, format)
-        let expected = pngImageBufferBytes(width, height, format)
-        if (bytes.size != expected) {
+        let geometry = pngStrideGeometry(
+            pngImageRowBytes(width, format), height, Int64(0),
+            "simplified image"
+        )
+        if (bytes.size != geometry.storageCount) {
             throw PngFormatException(
                 InvalidArgument, -1,
                 "simplified image buffer length does not match its dimensions and format"
@@ -187,8 +190,40 @@ public class PngImageBuffer {
         this.height = height
         this.format = format
         channels = format.channelCount()
-        rowStride = stride
+        rowStride = geometry.rowStride
         ownedBytes = bytes.clone()
+        strideGeometry = geometry
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        format: PngImageFormat,
+        bytes: Array<Byte>,
+        rowStride: Int64
+    ) {
+        if (width == UInt32(0) || height == UInt32(0)) {
+            throw PngFormatException(
+                InvalidArgument, -1, "simplified image dimensions must be positive"
+            )
+        }
+        let geometry = pngStrideGeometry(
+            pngImageRowBytes(width, format), height, rowStride,
+            "simplified image"
+        )
+        if (bytes.size != geometry.storageCount) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified image buffer length does not match its stride geometry"
+            )
+        }
+        this.width = width
+        this.height = height
+        this.format = format
+        channels = format.channelCount()
+        this.rowStride = geometry.rowStride
+        ownedBytes = bytes.clone()
+        strideGeometry = geometry
     }
 
     public func byteCount(): Int64 {
@@ -199,20 +234,44 @@ public class PngImageBuffer {
         ownedBytes.clone()
     }
 
+    public func minimumRowStride(): Int64 { strideGeometry.minimum }
+
+    public func bottomUp(): Bool { rowStride < Int64(0) }
+
     public func row(index: Int64): Array<Byte> {
-        if (index < Int64(0) || index >= Int64(height)) {
-            throw PngFormatException(
-                InvalidArgument, index, "simplified image row index is out of bounds"
-            )
-        }
-        let output = Array<Byte>(rowStride, repeat: UInt8(0))
-        let start = index * rowStride
-        var offset: Int64 = Int64(0)
-        while (offset < rowStride) {
-            output[offset] = ownedBytes[start + offset]
-            offset += Int64(1)
-        }
-        output
+        pngStrideByteRow(
+            ownedBytes, strideGeometry, index, false, "simplified image"
+        )
+    }
+
+    public func storageRow(index: Int64): Array<Byte> {
+        pngStrideByteRow(
+            ownedBytes, strideGeometry, index, true, "simplified image"
+        )
+    }
+
+    public func withRowStride(
+        rowStride: Int64,
+        padding: UInt8
+    ): PngImageBuffer {
+        let geometry = pngStrideGeometry(
+            strideGeometry.minimum, height, rowStride, "simplified image"
+        )
+        PngImageBuffer(
+            width, height, format,
+            pngStrideCopyBytePayload(
+                ownedBytes,
+                strideGeometry,
+                geometry,
+                padding,
+                "simplified image"
+            ),
+            geometry.rowStride
+        )
+    }
+
+    public func withRowStride(rowStride: Int64): PngImageBuffer {
+        withRowStride(rowStride, UInt8(0))
     }
 }
 
@@ -453,6 +512,64 @@ public class PngImage {
         finishRead(format, PngSrgbColor8())
     }
 
+    public func finishReadStrided(
+        format: PngImageFormat,
+        background: PngSrgbColor8,
+        rowStride: Int64,
+        padding: UInt8
+    ): PngImageBuffer {
+        if (stateValue != PngImageReading) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified image finish requires a successful begin"
+            )
+        }
+        try {
+            let geometry = pngStrideGeometry(
+                pngImageRowBytes(widthValue, format), heightValue, rowStride,
+                "simplified image"
+            )
+            pngStrideChargeRead(
+                geometry.storageCount, Int64(1), Int64(0), limitsValue,
+                "simplified image"
+            )
+            let output = pngImageConvertRgba8(
+                decodePngRgba8(inputValue, limitsValue, Scale),
+                format,
+                background
+            ).withRowStride(geometry.rowStride, padding)
+            inputValue = Array<Byte>()
+            stateValue = PngImageFinished
+            output
+        } catch (error: PngFormatException) {
+            recordFailure(error)
+            throw error
+        }
+    }
+
+    public func finishReadStrided(
+        format: PngImageFormat,
+        rowStride: Int64,
+        padding: UInt8
+    ): PngImageBuffer {
+        finishReadStrided(format, PngSrgbColor8(), rowStride, padding)
+    }
+
+    public func finishReadStrided(
+        format: PngImageFormat,
+        background: PngSrgbColor8,
+        rowStride: Int64
+    ): PngImageBuffer {
+        finishReadStrided(format, background, rowStride, UInt8(0))
+    }
+
+    public func finishReadStrided(
+        format: PngImageFormat,
+        rowStride: Int64
+    ): PngImageBuffer {
+        finishReadStrided(format, rowStride, UInt8(0))
+    }
+
     public func finishReadLinear(
         format: PngLinearImageFormat,
         associatedAlpha: Bool
@@ -485,6 +602,72 @@ public class PngImage {
         finishReadLinear(format, false)
     }
 
+    public func finishReadLinearStrided(
+        format: PngLinearImageFormat,
+        associatedAlpha: Bool,
+        rowStride: Int64,
+        padding: UInt16
+    ): PngLinearImageBuffer {
+        if (stateValue != PngImageReading) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified linear image finish requires a successful begin"
+            )
+        }
+        try {
+            let geometry = pngStrideGeometry(
+                Int64(widthValue) * Int64(format.channelCount()),
+                heightValue,
+                rowStride,
+                "simplified linear image"
+            )
+            pngStrideChargeRead(
+                geometry.storageCount,
+                Int64(2),
+                Int64(0),
+                limitsValue,
+                "simplified linear image"
+            )
+            let output = pngImageConvertLinear16(
+                inputValue,
+                limitsValue,
+                format,
+                associatedAlpha
+            ).withRowStride(geometry.rowStride, padding)
+            inputValue = Array<Byte>()
+            stateValue = PngImageFinished
+            output
+        } catch (error: PngFormatException) {
+            recordFailure(error)
+            throw error
+        }
+    }
+
+    public func finishReadLinearStrided(
+        format: PngLinearImageFormat,
+        rowStride: Int64,
+        padding: UInt16
+    ): PngLinearImageBuffer {
+        finishReadLinearStrided(format, false, rowStride, padding)
+    }
+
+    public func finishReadLinearStrided(
+        format: PngLinearImageFormat,
+        associatedAlpha: Bool,
+        rowStride: Int64
+    ): PngLinearImageBuffer {
+        finishReadLinearStrided(
+            format, associatedAlpha, rowStride, UInt16(0)
+        )
+    }
+
+    public func finishReadLinearStrided(
+        format: PngLinearImageFormat,
+        rowStride: Int64
+    ): PngLinearImageBuffer {
+        finishReadLinearStrided(format, rowStride, UInt16(0))
+    }
+
     public func finishReadColormap(
         format: PngColormapFormat,
         background: PngSrgbColor8
@@ -512,6 +695,72 @@ public class PngImage {
         format: PngColormapFormat
     ): PngColormapImageBuffer {
         finishReadColormap(format, PngSrgbColor8())
+    }
+
+    public func finishReadColormapStrided(
+        format: PngColormapFormat,
+        background: PngSrgbColor8,
+        rowStride: Int64,
+        padding: UInt8
+    ): PngColormapImageBuffer {
+        if (stateValue != PngImageReading) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified colormap finish requires a successful begin"
+            )
+        }
+        try {
+            let geometry = pngStrideGeometry(
+                Int64(widthValue),
+                heightValue,
+                rowStride,
+                "simplified colormap image"
+            )
+            let output = pngImageConvertColormap(
+                inputValue, limitsValue, format, background
+            )
+            pngStrideChargeRead(
+                geometry.storageCount,
+                Int64(1),
+                output.colormapByteCount(),
+                limitsValue,
+                "simplified colormap image"
+            )
+            let strided = output.withRowStride(geometry.rowStride, padding)
+            inputValue = Array<Byte>()
+            stateValue = PngImageFinished
+            strided
+        } catch (error: PngFormatException) {
+            recordFailure(error)
+            throw error
+        }
+    }
+
+    public func finishReadColormapStrided(
+        format: PngColormapFormat,
+        rowStride: Int64,
+        padding: UInt8
+    ): PngColormapImageBuffer {
+        finishReadColormapStrided(
+            format, PngSrgbColor8(), rowStride, padding
+        )
+    }
+
+    public func finishReadColormapStrided(
+        format: PngColormapFormat,
+        background: PngSrgbColor8,
+        rowStride: Int64
+    ): PngColormapImageBuffer {
+        finishReadColormapStrided(
+            format, background, rowStride, UInt8(0)
+        )
+    }
+
+    public func finishReadColormapStrided(
+        format: PngColormapFormat,
+        rowStride: Int64
+    ): PngColormapImageBuffer {
+        finishReadColormapStrided(format, rowStride, UInt8(0))
     }
 
     public func free(): Unit {

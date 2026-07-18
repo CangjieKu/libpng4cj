@@ -1287,6 +1287,42 @@ main(): Int64 {
         println("libpng4cj simplified colormap consumer check failed")
         return 1
     }
+    let stridedDirect = beginPngImageReadFromMemory(
+        adam7StreamProbe.bytes
+    ).finishReadStrided(ImageBgra8, Int64(-10), UInt8(0xa5))
+    let stridedLinear = beginPngImageReadFromMemory(
+        adam7StreamProbe.bytes
+    ).finishReadLinearStrided(
+        LinearRgba, true, Int64(-10), UInt16(0xa5a5)
+    )
+    let stridedColormap = beginPngImageReadFromMemory(
+        adam7StreamProbe.bytes
+    ).finishReadColormapStrided(
+        ColormapBgra8, Int64(-4), UInt8(0xa5)
+    )
+    let directStrideRoundTrip = beginPngImageReadFromMemory(
+        writePngImageToMemory(stridedDirect, Adam7)
+    ).finishRead(ImageBgra8)
+    let linearStrideRoundTrip = beginPngImageReadFromMemory(
+        writePngLinearImageToMemory(stridedLinear, false, Adam7)
+    ).finishReadLinear(LinearRgba, true)
+    let colormapStrideRoundTrip = beginPngImageReadFromMemory(
+        writePngColormapImageToMemory(stridedColormap, Adam7)
+    ).finishReadColormap(ColormapBgra8)
+    if (!stridedDirect.bottomUp() || stridedDirect.rowStride != Int64(-10) ||
+        stridedDirect.storageRow(Int64(0))[9] != UInt8(0xa5) ||
+        directStrideRoundTrip.row(Int64(0)) != stridedDirect.row(Int64(0)) ||
+        !stridedLinear.bottomUp() || stridedLinear.rowStride != Int64(-10) ||
+        stridedLinear.storageRow(Int64(0))[9] != UInt16(0xa5a5) ||
+        linearStrideRoundTrip.row(Int64(1)) != stridedLinear.row(Int64(1)) ||
+        !stridedColormap.bottomUp() ||
+        stridedColormap.rowStride != Int64(-4) ||
+        stridedColormap.storageRow(Int64(0))[3] != UInt8(0xa5) ||
+        colormapStrideRoundTrip.row(Int64(0)) !=
+            stridedColormap.row(Int64(0))) {
+        println("libpng4cj simplified strided image consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

@@ -1732,7 +1732,7 @@ LP-S006K removes the Adam7 early-sink rejection through bounded pass spooling:
 
 These write paths finalize a complete image and support non-interlaced or
 Adam7 output.
-Raw C callback trampolines, simplified colormap/stride/file surfaces, and
+Raw C callback trampolines, simplified file surfaces, and
 complete libpng16 write ABI remain later LP-S007/LP-S008 work. ICC profile
 bytes are validated and emitted, but ICC pixel conversion is outside libpng's
 scope.
@@ -1791,7 +1791,24 @@ LP-S007C adds native simplified colormap memory surfaces:
   selects 1/2/4/8-bit indexed depth from entry count, packs application indices,
   and reuses non-interlaced/Adam7 writer controls and limits
 
+LP-S007D adds native custom component-stride storage across all three buffer
+families:
+
+- zero stride resolves to the exact minimum; positive values preserve top-down
+  physical order and negative values preserve bottom-up physical order
+- direct 8-bit and colormap strides count bytes, while linear16 strides count
+  UInt16 components, matching the upstream simplified API unit convention
+- constructors clone the complete physical storage including padding;
+  `row(index)` returns only logical top-down payload and `storageRow(index)`
+  returns the same logical row's complete slot including padding
+- `withRowStride` re-packs existing owned buffers, and strided finish methods
+  allocate checked storage with explicit padding values without raw pointers
+- colormap index validation ignores padding bytes, while every write path reads
+  only logical payload before existing non-interlaced or Adam7 processing
+- transformed-byte limits include allocated stride padding and linear component
+  width before a strided read result is allocated
+
 Exact gamma-aware colormap background/palette conversion, compact 2/4/16-entry
-low-depth grayscale map parity, negative/custom row stride, file/stdio
-operations, raw-pointer buffers, exact `png_image` struct layout, and exported
+low-depth grayscale map parity, file/stdio operations, raw-pointer buffers,
+exact `png_image` struct layout, and exported
 `png_image_*` symbols remain later LP-S007/LP-S008 work.

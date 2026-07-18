@@ -68,6 +68,7 @@ public class PngColormapImageBuffer {
     public let entryCount: UInt16
     private let ownedIndices: Array<Byte>
     private let ownedColormap: Array<Byte>
+    private let strideGeometry: PngStrideGeometry
 
     public init(
         width: UInt32,
@@ -76,8 +77,10 @@ public class PngColormapImageBuffer {
         indices: Array<Byte>,
         colormap: Array<Byte>
     ) {
-        let pixels = pngColormapPixelCount(width, height)
-        if (indices.size != pixels) {
+        let geometry = pngStrideGeometry(
+            Int64(width), height, Int64(0), "simplified colormap image"
+        )
+        if (indices.size != geometry.storageCount) {
             throw PngFormatException(
                 InvalidArgument, -1,
                 "simplified colormap index length does not match image shape"
@@ -97,39 +100,86 @@ public class PngColormapImageBuffer {
                 "simplified colormap requires 1..256 entries"
             )
         }
-        var index: Int64 = Int64(0)
-        while (index < indices.size) {
-            if (Int64(indices[index]) >= entries) {
-                throw PngFormatException(
-                    PaletteIndexOutOfRange, index,
-                    "simplified colormap index is outside the entry table"
-                )
-            }
-            index += Int64(1)
-        }
+        pngColormapValidateIndices(indices, geometry, entries)
         this.width = width
         this.height = height
         this.format = format
-        rowStride = Int64(width)
+        rowStride = geometry.rowStride
         entryChannels = format.channelCount()
         entryCount = UInt16(entries)
         ownedIndices = indices.clone()
         ownedColormap = colormap.clone()
+        strideGeometry = geometry
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        format: PngColormapFormat,
+        indices: Array<Byte>,
+        colormap: Array<Byte>,
+        rowStride: Int64
+    ) {
+        let geometry = pngStrideGeometry(
+            Int64(width), height, rowStride, "simplified colormap image"
+        )
+        if (indices.size != geometry.storageCount) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified colormap index length does not match stride geometry"
+            )
+        }
+        let channels = Int64(format.channelCount())
+        if (colormap.size == Int64(0) || colormap.size % channels != Int64(0)) {
+            throw PngFormatException(
+                InvalidPalette, -1,
+                "simplified colormap requires complete entry components"
+            )
+        }
+        let entries = colormap.size / channels
+        if (entries < Int64(1) || entries > Int64(256)) {
+            throw PngFormatException(
+                InvalidPalette, -1,
+                "simplified colormap requires 1..256 entries"
+            )
+        }
+        pngColormapValidateIndices(indices, geometry, entries)
+        this.width = width
+        this.height = height
+        this.format = format
+        this.rowStride = geometry.rowStride
+        entryChannels = format.channelCount()
+        entryCount = UInt16(entries)
+        ownedIndices = indices.clone()
+        ownedColormap = colormap.clone()
+        strideGeometry = geometry
     }
 
     public func indexByteCount(): Int64 { ownedIndices.size }
     public func colormapByteCount(): Int64 { ownedColormap.size }
     public func indices(): Array<Byte> { ownedIndices.clone() }
     public func colormap(): Array<Byte> { ownedColormap.clone() }
+    public func minimumRowStride(): Int64 { strideGeometry.minimum }
+    public func bottomUp(): Bool { rowStride < Int64(0) }
 
     public func row(index: Int64): Array<Byte> {
-        if (index < Int64(0) || index >= Int64(height)) {
-            throw PngFormatException(
-                InvalidArgument, index,
-                "simplified colormap row index is out of bounds"
-            )
-        }
-        copyByteRange(ownedIndices, index * rowStride, rowStride)
+        pngStrideByteRow(
+            ownedIndices,
+            strideGeometry,
+            index,
+            false,
+            "simplified colormap image"
+        )
+    }
+
+    public func storageRow(index: Int64): Array<Byte> {
+        pngStrideByteRow(
+            ownedIndices,
+            strideGeometry,
+            index,
+            true,
+            "simplified colormap image"
+        )
     }
 
     public func entry(index: Int64): Array<Byte> {
@@ -144,6 +194,61 @@ public class PngColormapImageBuffer {
             index * Int64(entryChannels),
             Int64(entryChannels)
         )
+    }
+
+    public func withRowStride(
+        rowStride: Int64,
+        padding: UInt8
+    ): PngColormapImageBuffer {
+        let geometry = pngStrideGeometry(
+            strideGeometry.minimum,
+            height,
+            rowStride,
+            "simplified colormap image"
+        )
+        PngColormapImageBuffer(
+            width,
+            height,
+            format,
+            pngStrideCopyBytePayload(
+                ownedIndices,
+                strideGeometry,
+                geometry,
+                padding,
+                "simplified colormap image"
+            ),
+            ownedColormap,
+            geometry.rowStride
+        )
+    }
+
+    public func withRowStride(rowStride: Int64): PngColormapImageBuffer {
+        withRowStride(rowStride, UInt8(0))
+    }
+}
+
+private func pngColormapValidateIndices(
+    indices: Array<Byte>,
+    geometry: PngStrideGeometry,
+    entries: Int64
+): Unit {
+    var rowIndex: Int64 = Int64(0)
+    while (rowIndex < geometry.height) {
+        let start = geometry.logicalRowStart(
+            rowIndex, "simplified colormap image"
+        )
+        var pixel: Int64 = Int64(0)
+        while (pixel < geometry.minimum) {
+            if (Int64(indices[start + pixel]) >= entries) {
+                throw PngFormatException(
+                    PaletteIndexOutOfRange,
+                    rowIndex * geometry.minimum + pixel,
+                    "simplified colormap index is outside the entry table"
+                )
+            }
+            pixel += Int64(1)
+        }
+        rowIndex += Int64(1)
     }
 }
 

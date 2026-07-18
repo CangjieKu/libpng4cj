@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add copy-owned custom component strides to direct 8-bit, linear UInt16, and
+  colormap simplified image buffers, including zero-to-minimum normalization,
+  positive padded and negative bottom-up storage, logical row access, padding
+  preservation, checked read allocation, and non-interlaced or Adam7 write-back.
 - Add native simplified colormap memory read/write with copy-owned one-byte
   indices, RGB/BGR/RGBA/ARGB/BGRA/ABGR entry layouts, direct Indexed PLTE/tRNS
   identity, upstream-shaped 256-gray, 216-color, and 244-alpha map families,

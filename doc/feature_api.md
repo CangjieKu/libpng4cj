@@ -97,6 +97,31 @@ minimal row stride, byte count, whole-buffer copy, and row copies. Input at
 1/2/4/8/16-bit depth, Indexed/tRNS, non-interlaced, or Adam7 is accepted through
 the existing decoder.
 
+All three simplified buffer families also support component-based custom row
+strides. A zero stride selects the minimum. A positive stride stores logical
+rows top-down; a negative stride stores the bottom logical row first. Direct
+8-bit and colormap components are bytes, while linear components are UInt16:
+
+```cangjie
+let direct = beginPngImageReadFromMemory(pngBytes)
+    .finishReadStrided(ImageBgra8, Int64(-1024), UInt8(0))
+let linear = beginPngImageReadFromMemory(pngBytes)
+    .finishReadLinearStrided(LinearRgba, true, Int64(1024), UInt16(0))
+let mapped = beginPngImageReadFromMemory(pngBytes)
+    .finishReadColormapStrided(ColormapRgba8, Int64(-512), UInt8(0xff))
+```
+
+The signed `rowStride`, `minimumRowStride()`, and `bottomUp()` report storage
+geometry. `bytes()`, `components()`, and `indices()` copy the complete physical
+storage including padding. `row(index)` always returns only the logical pixel
+payload in top-to-bottom image order; `storageRow(index)` returns that logical
+row's complete storage slot including padding. `withRowStride` re-packs an
+existing owned buffer without exposing caller pointers. Constructors accepting
+an explicit stride preserve caller-provided padding, and colormap validation
+checks only logical pixel indices. Simplified writes consume logical rows, so
+both positive and negative buffers work unchanged with non-interlaced or Adam7
+output.
+
 When the requested format removes alpha, the allocating facade performs bounded
 8-bit integer composition in encoded sample space onto the supplied
 `PngSrgbColor8`; the no-background overload uses black. This packet does not
@@ -117,9 +142,9 @@ let srgbPng = writePngLinearImageToMemory(associated, true)
 
 `PngLinearImageFormat` provides LinearGray, LinearGrayAlpha, LinearAlphaGray,
 LinearRgb, LinearBgr, LinearRgba, LinearArgb, LinearBgra, and LinearAbgr.
-`PngLinearImageBuffer` owns an exact contiguous `Array<UInt16>` with component
-count, byte count, minimal component stride, whole-buffer copies, and row
-copies. Read conversion uses retained gAMA/sRGB facts and the initialized gamma,
+`PngLinearImageBuffer` owns an `Array<UInt16>` with component count, byte count,
+signed component stride, whole-storage copies, logical row copies, and optional
+padding. Read conversion uses retained gAMA/sRGB facts and the initialized gamma,
 expand, Gray-to-RGB, 16-bit, and alpha-mode pipeline. Straight output preserves
 alpha; associated output premultiplies in linear component space; formats that
 remove alpha compose onto linear black.
@@ -140,9 +165,10 @@ let indexedPng = writePngColormapImageToMemory(mapped, Adam7)
 ```
 
 `PngColormapFormat` provides RGB, BGR, RGBA, ARGB, BGRA, and ABGR 8-bit entry
-layouts. `PngColormapImageBuffer` owns one byte per image pixel plus a
-copy-owned 1..256-entry table, with exact dimensions, minimal row stride,
-entry count/channels, whole-buffer copies, row copies, and entry copies.
+layouts. `PngColormapImageBuffer` owns one byte per image pixel plus optional
+row padding and a copy-owned 1..256-entry table, with exact dimensions, signed
+row stride, entry count/channels, whole-storage copies, logical row copies, and
+entry copies.
 Indexed input preserves PLTE/tRNS entry identity and unpacks 1/2/4-bit indices.
 Other inputs use the upstream-shaped simplified families: 256-entry
 gray/gray-alpha, the 6x6x6 216-color cube, or the 216+1+27 alpha/background
@@ -156,9 +182,9 @@ one-byte application indices, and reuses metadata, controls, limits, and
 non-interlaced or Adam7 output. Caller-supplied tRNS is rejected because the
 colormap owns transparency.
 
-This native packet is not the exact C `png_image` ABI. Negative or custom row
-stride, file/stdio operations, raw pointers, struct layout, and exported
-`png_image_*` symbols remain later LP-S007/LP-S008 work.
+This native API is not the exact C `png_image` ABI. File/stdio operations, raw
+pointers, struct layout, and exported `png_image_*` symbols remain outside the
+current surface.
 
 ## Non-Interlaced Packed Write
 

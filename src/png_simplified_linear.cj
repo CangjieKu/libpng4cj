@@ -97,6 +97,7 @@ public class PngLinearImageBuffer {
     public let rowStride: Int64
     public let associatedAlpha: Bool
     private let ownedComponents: Array<UInt16>
+    private let strideGeometry: PngStrideGeometry
 
     public init(
         width: UInt32,
@@ -117,8 +118,13 @@ public class PngLinearImageBuffer {
                 "associated alpha requires a linear format with alpha"
             )
         }
-        let expected = pngLinearComponentCount(width, height, format)
-        if (components.size != expected) {
+        let geometry = pngStrideGeometry(
+            Int64(width) * Int64(format.channelCount()),
+            height,
+            Int64(0),
+            "simplified linear image"
+        )
+        if (components.size != geometry.storageCount) {
             throw PngFormatException(
                 InvalidArgument, -1,
                 "simplified linear image component count does not match shape"
@@ -128,9 +134,52 @@ public class PngLinearImageBuffer {
         this.height = height
         this.format = format
         channels = format.channelCount()
-        rowStride = Int64(width) * Int64(channels)
+        rowStride = geometry.rowStride
         this.associatedAlpha = associatedAlpha
         ownedComponents = components.clone()
+        strideGeometry = geometry
+    }
+
+    public init(
+        width: UInt32,
+        height: UInt32,
+        format: PngLinearImageFormat,
+        components: Array<UInt16>,
+        associatedAlpha: Bool,
+        rowStride: Int64
+    ) {
+        if (width == UInt32(0) || height == UInt32(0)) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified linear image dimensions must be positive"
+            )
+        }
+        if (associatedAlpha && !format.hasAlpha()) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "associated alpha requires a linear format with alpha"
+            )
+        }
+        let geometry = pngStrideGeometry(
+            Int64(width) * Int64(format.channelCount()),
+            height,
+            rowStride,
+            "simplified linear image"
+        )
+        if (components.size != geometry.storageCount) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified linear image component count does not match stride geometry"
+            )
+        }
+        this.width = width
+        this.height = height
+        this.format = format
+        channels = format.channelCount()
+        this.rowStride = geometry.rowStride
+        this.associatedAlpha = associatedAlpha
+        ownedComponents = components.clone()
+        strideGeometry = geometry
     }
 
     public func componentCount(): Int64 { ownedComponents.size }
@@ -147,21 +196,58 @@ public class PngLinearImageBuffer {
 
     public func components(): Array<UInt16> { ownedComponents.clone() }
 
+    public func minimumRowStride(): Int64 { strideGeometry.minimum }
+
+    public func bottomUp(): Bool { rowStride < Int64(0) }
+
     public func row(index: Int64): Array<UInt16> {
-        if (index < Int64(0) || index >= Int64(height)) {
-            throw PngFormatException(
-                InvalidArgument, index,
-                "simplified linear image row index is out of bounds"
-            )
-        }
-        let output = Array<UInt16>(rowStride, repeat: UInt16(0))
-        let start = index * rowStride
-        var offset: Int64 = Int64(0)
-        while (offset < rowStride) {
-            output[offset] = ownedComponents[start + offset]
-            offset += Int64(1)
-        }
-        output
+        pngStrideUInt16Row(
+            ownedComponents,
+            strideGeometry,
+            index,
+            false,
+            "simplified linear image"
+        )
+    }
+
+    public func storageRow(index: Int64): Array<UInt16> {
+        pngStrideUInt16Row(
+            ownedComponents,
+            strideGeometry,
+            index,
+            true,
+            "simplified linear image"
+        )
+    }
+
+    public func withRowStride(
+        rowStride: Int64,
+        padding: UInt16
+    ): PngLinearImageBuffer {
+        let geometry = pngStrideGeometry(
+            strideGeometry.minimum,
+            height,
+            rowStride,
+            "simplified linear image"
+        )
+        PngLinearImageBuffer(
+            width,
+            height,
+            format,
+            pngStrideCopyUInt16Payload(
+                ownedComponents,
+                strideGeometry,
+                geometry,
+                padding,
+                "simplified linear image"
+            ),
+            associatedAlpha,
+            geometry.rowStride
+        )
+    }
+
+    public func withRowStride(rowStride: Int64): PngLinearImageBuffer {
+        withRowStride(rowStride, UInt16(0))
     }
 }
 
