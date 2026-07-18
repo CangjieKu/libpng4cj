@@ -28,4 +28,5 @@ cjc -p "$ROOT/src" \
     -o "$OUT/libpng4cj_preview.dylib"
 
 cp "$ROOT/abi/include/libpng4cj_preview.h" "$OUT/include/"
+cp "$ROOT/abi/include/png.h" "$OUT/include/"
 printf 'libpng4cj ABI preview built at %s\n' "$OUT"

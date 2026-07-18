@@ -251,11 +251,15 @@ public class PngLinearImageBuffer {
     }
 }
 
-private func pngLinearFileGamma(decoded: PngDecodedRows): Int32 {
+private func pngLinearFileGamma(
+    decoded: PngDecodedRows,
+    assume16BitSrgb: Bool
+): Int32 {
     if (decoded.metadata.hasGamma) {
         return Int32(decoded.metadata.gamma)
     }
-    if (decoded.metadata.hasSrgb || decoded.ihdr.bitDepth <= UInt8(8)) {
+    if (decoded.metadata.hasSrgb || decoded.ihdr.bitDepth <= UInt8(8) ||
+        assume16BitSrgb) {
         return Int32(45455)
     }
     PNG_FP_1
@@ -265,7 +269,7 @@ private func pngLinearUsesExactSrgb8(decoded: PngDecodedRows): Bool {
     if (decoded.ihdr.bitDepth > UInt8(8)) { return false }
     if (decoded.metadata.hasSrgb) { return true }
     let normalized = Int32(
-        (Int64(pngLinearFileGamma(decoded)) * Int64(11) + Int64(2)) /
+        (Int64(pngLinearFileGamma(decoded, false)) * Int64(11) + Int64(2)) /
         Int64(5)
     )
     !pngGammaSignificant(normalized)
@@ -328,13 +332,16 @@ private func pngLinearApplyExactSrgb8(
 private func pngLinearReadRgba16(
     bytes: Array<Byte>,
     limits: PngReadLimits,
-    associatedAlpha: Bool
+    associatedAlpha: Bool,
+    assume16BitSrgb: Bool
 ): PngInitializedReadRowsResult {
     let decoded = decodePng(bytes, limits)
     let exactSrgb8 = pngLinearUsesExactSrgb8(decoded)
     let state = PngReadTransformState()
     if (!exactSrgb8 &&
-        !state.setGammaFixed(PNG_FP_1, pngLinearFileGamma(decoded))) {
+        !state.setGammaFixed(
+            PNG_FP_1, pngLinearFileGamma(decoded, assume16BitSrgb)
+        )) {
         throw PngFormatException(
             InvalidArgument, -1,
             "simplified linear image gamma setup failed"
@@ -453,7 +460,8 @@ func pngImageConvertLinear16(
     bytes: Array<Byte>,
     limits: PngReadLimits,
     format: PngLinearImageFormat,
-    associatedAlpha: Bool
+    associatedAlpha: Bool,
+    assume16BitSrgb: Bool
 ): PngLinearImageBuffer {
     if (associatedAlpha && !format.hasAlpha()) {
         throw PngFormatException(
@@ -462,7 +470,9 @@ func pngImageConvertLinear16(
         )
     }
     let useAssociated = associatedAlpha || !format.hasAlpha()
-    let rgba = pngLinearReadRgba16(bytes, limits, useAssociated)
+    let rgba = pngLinearReadRgba16(
+        bytes, limits, useAssociated, assume16BitSrgb
+    )
     let output = Array<UInt16>(
         pngLinearComponentCount(
             rgba.info.width,
@@ -499,6 +509,15 @@ func pngImageConvertLinear16(
         output,
         associatedAlpha
     )
+}
+
+func pngImageConvertLinear16(
+    bytes: Array<Byte>,
+    limits: PngReadLimits,
+    format: PngLinearImageFormat,
+    associatedAlpha: Bool
+): PngLinearImageBuffer {
+    pngImageConvertLinear16(bytes, limits, format, associatedAlpha, false)
 }
 
 private func pngLinearReadPixel(
@@ -637,17 +656,19 @@ private func pngLinearCanonicalWriteRows(
 private func pngLinearWriteMetadata(
     metadata: PngWriteMetadata,
     colorType: PngColorType,
-    convertTo8Bit: Bool
+    convertTo8Bit: Bool,
+    colorspaceNotSrgb: Bool
 ): PngWriteMetadata {
     let output = PngWriteMetadata(metadata)
     output.hasGammaValue = true
     output.gammaValue = if (convertTo8Bit) { UInt32(45455) } else { UInt32(100000) }
-    if (convertTo8Bit) {
+    if (convertTo8Bit && !colorspaceNotSrgb) {
         output.hasSrgbValue = true
         output.srgbValue = Perceptual
     } else {
         output.hasSrgbValue = false
-        if (colorType == Truecolor || colorType == TruecolorAlpha) {
+        if (!convertTo8Bit && !colorspaceNotSrgb &&
+            (colorType == Truecolor || colorType == TruecolorAlpha)) {
             output.hasChromaticitiesValue = true
             output.chromaticitiesValue = PngChromaticities(
                 Int32(31270), Int32(32900),
@@ -660,9 +681,10 @@ private func pngLinearWriteMetadata(
     output
 }
 
-public func writePngLinearImageToMemory(
+func writePngLinearImageToMemoryWithColorspace(
     image: PngLinearImageBuffer,
     convertTo8Bit: Bool,
+    colorspaceNotSrgb: Bool,
     metadata: PngWriteMetadata,
     controls: PngWriteControlState,
     interlaceMethod: PngInterlaceMethod,
@@ -676,10 +698,25 @@ public func writePngLinearImageToMemory(
         colorType,
         interlaceMethod,
         Array<Byte>(),
-        pngLinearWriteMetadata(metadata, colorType, convertTo8Bit),
+        pngLinearWriteMetadata(
+            metadata, colorType, convertTo8Bit, colorspaceNotSrgb
+        ),
         controls,
         limits
     ).write(pngLinearCanonicalWriteRows(image, convertTo8Bit))
+}
+
+public func writePngLinearImageToMemory(
+    image: PngLinearImageBuffer,
+    convertTo8Bit: Bool,
+    metadata: PngWriteMetadata,
+    controls: PngWriteControlState,
+    interlaceMethod: PngInterlaceMethod,
+    limits: PngWriteLimits
+): Array<Byte> {
+    writePngLinearImageToMemoryWithColorspace(
+        image, convertTo8Bit, false, metadata, controls, interlaceMethod, limits
+    )
 }
 
 public func writePngLinearImageToMemory(

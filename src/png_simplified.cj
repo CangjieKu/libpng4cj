@@ -413,6 +413,7 @@ public class PngImage {
     private var sourceBitDepthValue: UInt8 = UInt8(0)
     private var sourceColorTypeValue: PngColorType = Grayscale
     private var suggestedFormatValue: PngImageFormat = ImageGray8
+    private var assume16BitSrgbValue: Bool = false
     private var warningOrErrorValue: UInt32 = UInt32(0)
     private var errorKindValue: Int64 = Int64(-1)
     private var errorOffsetValue: Int64 = Int64(-1)
@@ -432,6 +433,16 @@ public class PngImage {
     public func errorOffset(): Int64 { errorOffsetValue }
     public func message(): String { messageValue }
 
+    func setAssume16BitSrgb(value: Bool): Unit {
+        if (stateValue != PngImageReading) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "16-bit sRGB assumption requires a successful begin"
+            )
+        }
+        assume16BitSrgbValue = value
+    }
+
     private func clearDiagnostic(): Unit {
         warningOrErrorValue = UInt32(0)
         errorKindValue = Int64(-1)
@@ -445,6 +456,7 @@ public class PngImage {
         sourceBitDepthValue = UInt8(0)
         sourceColorTypeValue = Grayscale
         suggestedFormatValue = ImageGray8
+        assume16BitSrgbValue = false
     }
 
     private func recordFailure(error: PngFormatException): Unit {
@@ -636,7 +648,8 @@ public class PngImage {
                 inputValue,
                 limitsValue,
                 format,
-                associatedAlpha
+                associatedAlpha,
+                assume16BitSrgbValue
             )
             inputValue = Array<Byte>()
             stateValue = PngImageFinished
@@ -683,7 +696,8 @@ public class PngImage {
                 inputValue,
                 limitsValue,
                 format,
-                associatedAlpha
+                associatedAlpha,
+                assume16BitSrgbValue
             ).withRowStride(geometry.rowStride, padding)
             inputValue = Array<Byte>()
             stateValue = PngImageFinished

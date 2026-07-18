@@ -1808,7 +1808,28 @@ families:
 - transformed-byte limits include allocated stride padding and linear component
   width before a strided read result is allocated
 
-Exact gamma-aware colormap background/palette conversion, compact 2/4/16-entry
-low-depth grayscale map parity, file/stdio operations, raw-pointer buffers,
-exact `png_image` struct layout, and exported
-`png_image_*` symbols remain later LP-S007/LP-S008 work.
+LP-S007E adds bounded caller-managed stream and owned file-path adapters for all
+three native simplified image families without transferring stream ownership.
+
+LP-S008B exposes an upstream-compatible default-config `png_image` memory ABI
+subset:
+
+- LP64 `png_image` and `png_color` layout, version/status/format/flag constants,
+  and upstream sample/pixel/row/buffer/colormap geometry macros
+- direct Cangjie `@C` exports for begin-read-from-memory, finish-read, free, and
+  write-to-memory with exceptions contained at the boundary
+- a mutex-protected Cangjie state registry retained through an opaque native
+  handle, removed exactly once by finish or free, replacing preview double decode
+- common direct 8-bit, linear UInt16, and RGB-family colormap buffers, signed
+  component stride, associated-alpha reads, solid/caller-buffer background,
+  Adam7 input, and direct/linear/colormap memory writes
+- begin-read cICP/mDCV/sRGB/cHRM colorspace flag derivation, untagged 16-bit sRGB
+  assumption for linear reads, and write-side sRGB/non-sRGB metadata selection
+- strict C11 layout assertions, frozen symbol manifest, undersized write-size
+  behavior, malformed/limit/lifecycle coverage, and relocated dylib proof
+
+Exact gamma-aware direct 8-bit and colormap background/palette conversion,
+linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
+parity, C `FILE*`/stdio operations, raw callback and allocator crossings,
+complete public-symbol parity, and portable packaging remain later LP-S008 and
+LTS work.

@@ -42,6 +42,10 @@ fi
 [ -f "$ROOT/vendor/libpng-1.6.58/LICENSE" ] || \
     fail "vendored libpng license is missing"
 [ -f "$ROOT/README.OpenSource" ] || fail "README.OpenSource is missing"
+[ -f "$ROOT/abi/include/png.h" ] || fail "png_image ABI header is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-png-image-memory-v1.txt" ] || \
+    fail "png_image ABI symbol manifest is missing"
 
 note "upstream=libpng-1.6.58 reference present"
+note "png_image=memory ABI header and symbol manifest present"
 note "PASS"

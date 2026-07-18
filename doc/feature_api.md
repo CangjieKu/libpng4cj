@@ -182,9 +182,17 @@ one-byte application indices, and reuses metadata, controls, limits, and
 non-interlaced or Adam7 output. Caller-supplied tRNS is rejected because the
 colormap owns transparency.
 
-This native API is not the exact C `png_image` ABI. File/stdio operations, raw
-pointers, struct layout, and exported `png_image_*` symbols remain outside the
-current surface.
+The native API is also the implementation substrate for the exported
+`png_image` memory ABI subset. `abi/include/png.h` freezes the upstream LP64
+structure, simplified format and geometry macros, warning/error fields, and the
+four memory lifecycle symbols without presenting itself as the complete
+upstream header. `png_image::opaque` retains one Cangjie-owned begin state until
+finish or free, so the C read path does not repeat pixel decoding. Common direct
+8-bit, linear UInt16, and RGB-family colormap formats use caller-owned raw
+buffers with zero, positive, or negative component stride. Begin facts include
+cICP/mDCV/sRGB/cHRM colorspace classification, and linear reads honor the untagged
+16-bit sRGB assumption flag. Exact gamma-aware direct/color-map pixel parity, C
+`FILE*`/stdio, and raw callback families remain outside this surface.
 
 ## Non-Interlaced Packed Write
 

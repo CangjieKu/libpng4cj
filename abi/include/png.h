@@ -1,0 +1,123 @@
+#ifndef LIBPNG4CJ_PNG_IMAGE_H
+#define LIBPNG4CJ_PNG_IMAGE_H
+
+/* Frozen libpng 1.6.58 simplified memory-API subset. This is not the complete
+ * upstream png.h and does not declare stdio, callback, or classic APIs.
+ */
+
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define PNG_IMAGE_VERSION 1u
+#define PNG_IMAGE_WARNING 1u
+#define PNG_IMAGE_ERROR 2u
+#define PNG_IMAGE_FAILED(image) ((((image).warning_or_error) & 0x03u) > 1u)
+
+typedef void *png_controlp;
+typedef struct png_image {
+    png_controlp opaque;
+    uint32_t version;
+    uint32_t width;
+    uint32_t height;
+    uint32_t format;
+    uint32_t flags;
+    uint32_t colormap_entries;
+    uint32_t warning_or_error;
+    char message[64];
+} png_image, *png_imagep;
+
+typedef struct png_color {
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+} png_color, *png_colorp;
+typedef const png_color *png_const_colorp;
+
+#define PNG_FORMAT_FLAG_ALPHA 0x01u
+#define PNG_FORMAT_FLAG_COLOR 0x02u
+#define PNG_FORMAT_FLAG_LINEAR 0x04u
+#define PNG_FORMAT_FLAG_COLORMAP 0x08u
+#define PNG_FORMAT_FLAG_BGR 0x10u
+#define PNG_FORMAT_FLAG_AFIRST 0x20u
+#define PNG_FORMAT_FLAG_ASSOCIATED_ALPHA 0x40u
+
+#define PNG_FORMAT_GRAY 0u
+#define PNG_FORMAT_GA PNG_FORMAT_FLAG_ALPHA
+#define PNG_FORMAT_AG (PNG_FORMAT_GA | PNG_FORMAT_FLAG_AFIRST)
+#define PNG_FORMAT_RGB PNG_FORMAT_FLAG_COLOR
+#define PNG_FORMAT_BGR (PNG_FORMAT_FLAG_COLOR | PNG_FORMAT_FLAG_BGR)
+#define PNG_FORMAT_RGBA (PNG_FORMAT_RGB | PNG_FORMAT_FLAG_ALPHA)
+#define PNG_FORMAT_ARGB (PNG_FORMAT_RGBA | PNG_FORMAT_FLAG_AFIRST)
+#define PNG_FORMAT_BGRA (PNG_FORMAT_BGR | PNG_FORMAT_FLAG_ALPHA)
+#define PNG_FORMAT_ABGR (PNG_FORMAT_BGRA | PNG_FORMAT_FLAG_AFIRST)
+#define PNG_FORMAT_LINEAR_Y PNG_FORMAT_FLAG_LINEAR
+#define PNG_FORMAT_LINEAR_Y_ALPHA (PNG_FORMAT_FLAG_LINEAR | PNG_FORMAT_FLAG_ALPHA)
+#define PNG_FORMAT_LINEAR_RGB (PNG_FORMAT_FLAG_LINEAR | PNG_FORMAT_FLAG_COLOR)
+#define PNG_FORMAT_LINEAR_RGB_ALPHA \
+    (PNG_FORMAT_FLAG_LINEAR | PNG_FORMAT_FLAG_COLOR | PNG_FORMAT_FLAG_ALPHA)
+#define PNG_FORMAT_RGB_COLORMAP (PNG_FORMAT_RGB | PNG_FORMAT_FLAG_COLORMAP)
+#define PNG_FORMAT_BGR_COLORMAP (PNG_FORMAT_BGR | PNG_FORMAT_FLAG_COLORMAP)
+#define PNG_FORMAT_RGBA_COLORMAP (PNG_FORMAT_RGBA | PNG_FORMAT_FLAG_COLORMAP)
+#define PNG_FORMAT_ARGB_COLORMAP (PNG_FORMAT_ARGB | PNG_FORMAT_FLAG_COLORMAP)
+#define PNG_FORMAT_BGRA_COLORMAP (PNG_FORMAT_BGRA | PNG_FORMAT_FLAG_COLORMAP)
+#define PNG_FORMAT_ABGR_COLORMAP (PNG_FORMAT_ABGR | PNG_FORMAT_FLAG_COLORMAP)
+
+#define PNG_IMAGE_SAMPLE_CHANNELS(format) \
+    (((format) & (PNG_FORMAT_FLAG_COLOR | PNG_FORMAT_FLAG_ALPHA)) + 1u)
+#define PNG_IMAGE_SAMPLE_COMPONENT_SIZE(format) \
+    ((((format) & PNG_FORMAT_FLAG_LINEAR) >> 2) + 1u)
+#define PNG_IMAGE_SAMPLE_SIZE(format) \
+    (PNG_IMAGE_SAMPLE_CHANNELS(format) * PNG_IMAGE_SAMPLE_COMPONENT_SIZE(format))
+#define PNG_IMAGE_MAXIMUM_COLORMAP_COMPONENTS(format) \
+    (PNG_IMAGE_SAMPLE_CHANNELS(format) * 256u)
+#define PNG_IMAGE_PIXEL_(test, format) \
+    (((format) & PNG_FORMAT_FLAG_COLORMAP) ? 1u : test(format))
+#define PNG_IMAGE_PIXEL_CHANNELS(format) \
+    PNG_IMAGE_PIXEL_(PNG_IMAGE_SAMPLE_CHANNELS, format)
+#define PNG_IMAGE_PIXEL_COMPONENT_SIZE(format) \
+    PNG_IMAGE_PIXEL_(PNG_IMAGE_SAMPLE_COMPONENT_SIZE, format)
+#define PNG_IMAGE_PIXEL_SIZE(format) PNG_IMAGE_PIXEL_(PNG_IMAGE_SAMPLE_SIZE, format)
+#define PNG_IMAGE_ROW_STRIDE(image) \
+    (PNG_IMAGE_PIXEL_CHANNELS((image).format) * (image).width)
+#define PNG_IMAGE_BUFFER_SIZE(image, row_stride) \
+    (PNG_IMAGE_PIXEL_COMPONENT_SIZE((image).format) * (image).height * (row_stride))
+#define PNG_IMAGE_SIZE(image) PNG_IMAGE_BUFFER_SIZE(image, PNG_IMAGE_ROW_STRIDE(image))
+#define PNG_IMAGE_COLORMAP_SIZE(image) \
+    (PNG_IMAGE_SAMPLE_SIZE((image).format) * (image).colormap_entries)
+
+#define PNG_IMAGE_FLAG_COLORSPACE_NOT_sRGB 0x01u
+#define PNG_IMAGE_FLAG_FAST 0x02u
+#define PNG_IMAGE_FLAG_16BIT_sRGB 0x04u
+
+int png_image_begin_read_from_memory(
+    png_imagep image,
+    const void *memory,
+    size_t size
+);
+int png_image_finish_read(
+    png_imagep image,
+    png_const_colorp background,
+    void *buffer,
+    int32_t row_stride,
+    void *colormap
+);
+void png_image_free(png_imagep image);
+int png_image_write_to_memory(
+    png_imagep image,
+    void *memory,
+    size_t *memory_bytes,
+    int convert_to_8bit,
+    const void *buffer,
+    int32_t row_stride,
+    const void *colormap
+);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
