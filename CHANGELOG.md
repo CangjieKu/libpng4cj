@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add native simplified colormap memory read/write with copy-owned one-byte
+  indices, RGB/BGR/RGBA/ARGB/BGRA/ABGR entry layouts, direct Indexed PLTE/tRNS
+  identity, upstream-shaped 256-gray, 216-color, and 244-alpha map families,
+  explicit encoded-sample background composition, minimal indexed write depth,
+  and non-interlaced or Adam7 output through the existing writer.
 - Add copy-owned host-numeric UInt16 simplified images for nine linear Gray,
   RGB, BGR, and alpha-first/alpha-last layouts; support straight or associated
   alpha, black composition when alpha is removed, packed/8/16-bit and Adam7

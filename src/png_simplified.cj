@@ -485,6 +485,35 @@ public class PngImage {
         finishReadLinear(format, false)
     }
 
+    public func finishReadColormap(
+        format: PngColormapFormat,
+        background: PngSrgbColor8
+    ): PngColormapImageBuffer {
+        if (stateValue != PngImageReading) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified colormap finish requires a successful begin"
+            )
+        }
+        try {
+            let output = pngImageConvertColormap(
+                inputValue, limitsValue, format, background
+            )
+            inputValue = Array<Byte>()
+            stateValue = PngImageFinished
+            output
+        } catch (error: PngFormatException) {
+            recordFailure(error)
+            throw error
+        }
+    }
+
+    public func finishReadColormap(
+        format: PngColormapFormat
+    ): PngColormapImageBuffer {
+        finishReadColormap(format, PngSrgbColor8())
+    }
+
     public func free(): Unit {
         inputValue = Array<Byte>()
         stateValue = PngImageFreed

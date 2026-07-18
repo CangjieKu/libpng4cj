@@ -1778,6 +1778,20 @@ LP-S007B extends that native facade without claiming the C ABI:
   component count, byte count, minimal component stride, buffer copy, and row
   copy access
 
-Color maps, negative/custom row stride, file/stdio operations, raw-pointer
-buffers, exact `png_image` struct layout, and exported `png_image_*` symbols
-remain later LP-S007/LP-S008 packets.
+LP-S007C adds native simplified colormap memory surfaces:
+
+- `PngColormapImageBuffer` owns one byte per pixel and a 1..256-entry table in
+  RGB/BGR/RGBA/ARGB/BGRA/ABGR layout, with exact shape/count/copy access
+- Indexed input preserves PLTE/tRNS entry identity and unpacks packed source
+  indices; non-indexed input uses upstream-shaped 256 gray/GA, 216 RGB-cube,
+  or 244 RGB-alpha/background mapping families with frozen index topology
+- alpha-removing output composes onto explicit encoded-sRGB background values,
+  with black as the allocating convenience default
+- writing derives canonical RGB PLTE and the shortest required tRNS prefix,
+  selects 1/2/4/8-bit indexed depth from entry count, packs application indices,
+  and reuses non-interlaced/Adam7 writer controls and limits
+
+Exact gamma-aware colormap background/palette conversion, compact 2/4/16-entry
+low-depth grayscale map parity, negative/custom row stride, file/stdio
+operations, raw-pointer buffers, exact `png_image` struct layout, and exported
+`png_image_*` symbols remain later LP-S007/LP-S008 work.

@@ -51,6 +51,9 @@ import libpng4cj.*
 - copy-owned host-numeric UInt16 simplified images in the same nine linear
   layouts, with straight/associated alpha, black composition on alpha removal,
   and 16-bit linear or explicitly converted sRGB8 memory write-back
+- copy-owned simplified colormap images with one byte per pixel, six common
+  entry layouts, direct Indexed palette identity, deterministic generated map
+  families, and indexed non-interlaced or Adam7 memory write-back
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -128,9 +131,34 @@ frozen upstream base/delta transfer tables to emit an 8-bit sRGB PNG. Both
 paths reuse caller metadata, `PngWriteControlState`, `PngWriteLimits`, and
 non-interlaced or Adam7 output.
 
-This native packet is not the exact C `png_image` ABI. Colormap output,
-negative or custom row stride, file/stdio operations, raw pointers, struct
-layout, and exported `png_image_*` symbols remain later LP-S007/LP-S008 work.
+For color-mapped output, use `finishReadColormap`:
+
+```cangjie
+let image = beginPngImageReadFromMemory(pngBytes)
+let mapped = image.finishReadColormap(ColormapBgra8)
+let indexedPng = writePngColormapImageToMemory(mapped, Adam7)
+```
+
+`PngColormapFormat` provides RGB, BGR, RGBA, ARGB, BGRA, and ABGR 8-bit entry
+layouts. `PngColormapImageBuffer` owns one byte per image pixel plus a
+copy-owned 1..256-entry table, with exact dimensions, minimal row stride,
+entry count/channels, whole-buffer copies, row copies, and entry copies.
+Indexed input preserves PLTE/tRNS entry identity and unpacks 1/2/4-bit indices.
+Other inputs use the upstream-shaped simplified families: 256-entry
+gray/gray-alpha, the 6x6x6 216-color cube, or the 216+1+27 alpha/background
+map, with the frozen index thresholds and entry topology. Alpha-removing
+formats compose in encoded sample space onto the supplied `PngSrgbColor8`; the
+convenience overload uses black.
+
+`writePngColormapImageToMemory` derives PLTE and the minimal tRNS prefix from
+the entry table, selects 1/2/4/8-bit indexed depth from entry count, packs the
+one-byte application indices, and reuses metadata, controls, limits, and
+non-interlaced or Adam7 output. Caller-supplied tRNS is rejected because the
+colormap owns transparency.
+
+This native packet is not the exact C `png_image` ABI. Negative or custom row
+stride, file/stdio operations, raw pointers, struct layout, and exported
+`png_image_*` symbols remain later LP-S007/LP-S008 work.
 
 ## Non-Interlaced Packed Write
 

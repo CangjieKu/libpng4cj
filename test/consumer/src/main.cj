@@ -1269,6 +1269,24 @@ main(): Int64 {
         println("libpng4cj simplified linear image consumer check failed")
         return 1
     }
+    let colormapImage = beginPngImageReadFromMemory(adam7StreamProbe.bytes)
+    let colormapBgra = colormapImage.finishReadColormap(ColormapBgra8)
+    let colormapWritten = writePngColormapImageToMemory(colormapBgra, Adam7)
+    let colormapRoundTrip = beginPngImageReadFromMemory(
+        colormapWritten
+    ).finishReadColormap(ColormapBgra8)
+    let colormapDecoded = decodePng(colormapWritten)
+    if (colormapImage.state() != PngImageFinished ||
+        colormapBgra.rowStride != Int64(2) ||
+        colormapBgra.entryCount != UInt16(244) ||
+        colormapBgra.indexByteCount() != Int64(4) ||
+        colormapRoundTrip.indices() != colormapBgra.indices() ||
+        colormapRoundTrip.colormap() != colormapBgra.colormap() ||
+        colormapDecoded.ihdr.colorType != Indexed ||
+        colormapDecoded.ihdr.interlaceMethod != Adam7) {
+        println("libpng4cj simplified colormap consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }
