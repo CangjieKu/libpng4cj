@@ -1951,10 +1951,25 @@ Porting milestone S008L adds the non-floating classic easy-access cluster:
   CRC-valid pHYs/oFFs mutation, wrong-owner/spare/stale handle, allocator,
   strict C11 exact-signature, original, and relocated proof
 
+Porting milestone S008M adds classic scalar metadata and utility getters:
+
+- direct Cangjie exports for floating gAMA/cHRM, pixel aspect, x/y inch
+  offsets, oFFs, cICP, fixed/floating cLLI and mDCV, version/copyright strings,
+  31-bit integer reading, and grayscale palette construction
+- source-equivalent fixed-to-floating scales, all-required oFFs/cICP outputs,
+  optional cLLI/mDCV outputs, invalid-depth no-op behavior, and
+  process-lifetime immutable string backing
+- frozen seventeen-symbol manifest plus strict C11 upstream-value, absent,
+  wrong-owner, stale-handle, allocator, exact-signature, original, and relocated
+  proof
+
+The frozen ABI manifests cover `93/258` upstream default symbols after this
+milestone, leaving `165`, including `29` remaining `png_get_*` symbols.
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor
-timing, floating easy-access/XYZ and extended classic metadata, broader read-end metadata/
+timing, cHRM XYZ and variable-length classic metadata pointers, broader read-end metadata/
 write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

@@ -83,6 +83,20 @@ public func png_get_int_32(buffer: CPointer<UInt8>): Int32 {
 }
 
 @C
+public func png_get_uint_31(
+    pngPtr: CPointer<Unit>, buffer: CPointer<UInt8>
+): UInt32 {
+    let value = pngCReadUInt32(buffer)
+    if (value > UInt32(0x7fff_ffff)) {
+        unsafe {
+            let message = LibC.mallocCString("PNG unsigned integer out of range")
+            png_error(pngPtr, message)
+        }
+    }
+    value
+}
+
+@C
 public func png_save_uint_32(buffer: CPointer<UInt8>, value: UInt32): Unit {
     pngCWriteUInt32(buffer, value)
 }
@@ -105,5 +119,32 @@ public func png_save_uint_16(buffer: CPointer<UInt8>, value: UInt32): Unit {
     unsafe {
         buffer.write(Int64(0), UInt8((value >> UInt32(8)) & UInt32(0xff)))
         buffer.write(Int64(1), UInt8(value & UInt32(0xff)))
+    }
+}
+
+@C
+public func png_build_grayscale_palette(
+    bitDepth: Int32, palette: CPointer<UInt8>
+): Unit {
+    if (palette.isNull()) { return }
+    let (count, increment) = match (bitDepth) {
+        case 1 => (Int32(2), Int32(0xff))
+        case 2 => (Int32(4), Int32(0x55))
+        case 4 => (Int32(16), Int32(0x11))
+        case 8 => (Int32(256), Int32(1))
+        case _ => (Int32(0), Int32(0))
+    }
+    var index = Int32(0)
+    var value = Int32(0)
+    while (index < count) {
+        let sample = UInt8(value & Int32(0xff))
+        let offset = Int64(index) * Int64(3)
+        unsafe {
+            palette.write(offset, sample)
+            palette.write(offset + Int64(1), sample)
+            palette.write(offset + Int64(2), sample)
+        }
+        index += Int32(1)
+        value += increment
     }
 }

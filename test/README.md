@@ -33,3 +33,10 @@ signatures, compares get-valid, pHYs/oFFs fixed conversions, dpi, and signature
 values with an independent libpng 1.6.58 oracle, verifies primary-info versus
 post-IDAT visibility, mutates chunk payloads with valid CRCs for unit gates,
 and repeats ownership, allocator, original, and relocated checks.
+The scalar-metadata consumer freezes seventeen floating/scalar getter, version
+string, 31-bit read, and grayscale-palette signatures; compares gAMA/cHRM/oFFs/
+cICP/cLLI/mDCV values with the vendored upstream sample; verifies output-null
+rules, immutable process-lifetime strings, invalid grayscale depth, the
+out-of-range `png_get_uint_31` fatal callback boundary, absent and wrong-owner
+preservation, stale handles, allocator balance, and original plus relocated
+execution.

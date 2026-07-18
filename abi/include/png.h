@@ -198,9 +198,18 @@ int png_sig_cmp(png_const_bytep sig, size_t start, size_t num_to_check);
 png_uint_32 png_get_uint_32(png_const_bytep buf);
 png_uint_16 png_get_uint_16(png_const_bytep buf);
 png_int_32 png_get_int_32(png_const_bytep buf);
+png_uint_32 png_get_uint_31(
+    png_const_structp png_ptr,
+    png_const_bytep buf
+);
 void png_save_uint_32(png_bytep buf, png_uint_32 i);
 void png_save_int_32(png_bytep buf, png_int_32 i);
 void png_save_uint_16(png_bytep buf, unsigned int i);
+void png_build_grayscale_palette(int bit_depth, png_colorp palette);
+png_const_charp png_get_copyright(png_const_structp png_ptr);
+png_const_charp png_get_header_ver(png_const_structp png_ptr);
+png_const_charp png_get_header_version(png_const_structp png_ptr);
+png_const_charp png_get_libpng_ver(png_const_structp png_ptr);
 
 png_structp png_create_read_struct(
     png_const_charp user_png_ver,
@@ -331,6 +340,10 @@ png_fixed_point png_get_pixel_aspect_ratio_fixed(
     png_const_structp png_ptr,
     png_const_infop info_ptr
 );
+float png_get_pixel_aspect_ratio(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
 png_int_32 png_get_x_offset_pixels(
     png_const_structp png_ptr,
     png_const_infop info_ptr
@@ -371,6 +384,14 @@ png_fixed_point png_get_y_offset_inches_fixed(
     png_const_structp png_ptr,
     png_const_infop info_ptr
 );
+float png_get_x_offset_inches(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+float png_get_y_offset_inches(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
 png_uint_32 png_get_pHYs_dpi(
     png_const_structp png_ptr,
     png_const_infop info_ptr,
@@ -383,6 +404,11 @@ png_uint_32 png_get_gAMA_fixed(
     png_const_infop info_ptr,
     png_fixed_point *file_gamma
 );
+png_uint_32 png_get_gAMA(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    double *file_gamma
+);
 png_uint_32 png_get_cHRM_fixed(
     png_const_structp png_ptr,
     png_const_infop info_ptr,
@@ -394,6 +420,73 @@ png_uint_32 png_get_cHRM_fixed(
     png_fixed_point *green_y,
     png_fixed_point *blue_x,
     png_fixed_point *blue_y
+);
+png_uint_32 png_get_cHRM(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    double *white_x,
+    double *white_y,
+    double *red_x,
+    double *red_y,
+    double *green_x,
+    double *green_y,
+    double *blue_x,
+    double *blue_y
+);
+png_uint_32 png_get_oFFs(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_int_32 *offset_x,
+    png_int_32 *offset_y,
+    int *unit_type
+);
+png_uint_32 png_get_cICP(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_bytep color_primaries,
+    png_bytep transfer_function,
+    png_bytep matrix_coefficients,
+    png_bytep full_range_flag
+);
+png_uint_32 png_get_cLLI_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_uint_32 *maximum_content_light_level,
+    png_uint_32 *maximum_frame_average_light_level
+);
+png_uint_32 png_get_cLLI(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    double *maximum_content_light_level,
+    double *maximum_frame_average_light_level
+);
+png_uint_32 png_get_mDCV_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_fixed_point *white_x,
+    png_fixed_point *white_y,
+    png_fixed_point *red_x,
+    png_fixed_point *red_y,
+    png_fixed_point *green_x,
+    png_fixed_point *green_y,
+    png_fixed_point *blue_x,
+    png_fixed_point *blue_y,
+    png_uint_32 *maximum_display_luminance,
+    png_uint_32 *minimum_display_luminance
+);
+png_uint_32 png_get_mDCV(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    double *white_x,
+    double *white_y,
+    double *red_x,
+    double *red_y,
+    double *green_x,
+    double *green_y,
+    double *blue_x,
+    double *blue_y,
+    double *maximum_display_luminance,
+    double *minimum_display_luminance
 );
 png_uint_32 png_get_sRGB(
     png_const_structp png_ptr,

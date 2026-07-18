@@ -1,0 +1,17 @@
+png_build_grayscale_palette
+png_get_cHRM
+png_get_cICP
+png_get_cLLI
+png_get_cLLI_fixed
+png_get_copyright
+png_get_gAMA
+png_get_header_ver
+png_get_header_version
+png_get_libpng_ver
+png_get_mDCV
+png_get_mDCV_fixed
+png_get_oFFs
+png_get_pixel_aspect_ratio
+png_get_uint_31
+png_get_x_offset_inches
+png_get_y_offset_inches

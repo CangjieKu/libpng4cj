@@ -28,6 +28,8 @@ CLASSIC_METADATA_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-metadata-v1.txt"
 CLASSIC_METADATA_ACTUAL="$OUT/libpng4cj-classic-metadata-v1.actual.txt"
 CLASSIC_EASY_ACCESS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-easy-access-v1.txt"
 CLASSIC_EASY_ACCESS_ACTUAL="$OUT/libpng4cj-classic-easy-access-v1.actual.txt"
+CLASSIC_SCALAR_METADATA_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-scalar-metadata-v1.txt"
+CLASSIC_SCALAR_METADATA_ACTUAL="$OUT/libpng4cj-classic-scalar-metadata-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -137,6 +139,22 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_EASY_ACCESS_ACTUAL"
 diff -u "$CLASSIC_EASY_ACCESS_EXPECTED" "$CLASSIC_EASY_ACCESS_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_build_grayscale_palette" || \
+        $3 == "_png_get_cHRM" || $3 == "_png_get_cICP" || \
+        $3 == "_png_get_cLLI" || $3 == "_png_get_cLLI_fixed" || \
+        $3 == "_png_get_copyright" || $3 == "_png_get_gAMA" || \
+        $3 == "_png_get_header_ver" || \
+        $3 == "_png_get_header_version" || \
+        $3 == "_png_get_libpng_ver" || $3 == "_png_get_mDCV" || \
+        $3 == "_png_get_mDCV_fixed" || $3 == "_png_get_oFFs" || \
+        $3 == "_png_get_pixel_aspect_ratio" || \
+        $3 == "_png_get_uint_31" || \
+        $3 == "_png_get_x_offset_inches" || \
+        $3 == "_png_get_y_offset_inches") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_SCALAR_METADATA_ACTUAL"
+diff -u "$CLASSIC_SCALAR_METADATA_EXPECTED" "$CLASSIC_SCALAR_METADATA_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -319,6 +337,37 @@ cc "$ROOT/test/abi_consumer/png_classic_easy_access.c" \
     "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
     "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbwn3p08.png"
 
+cc "$ROOT/test/abi_consumer/png_classic_scalar_metadata.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-scalar-metadata-consumer"
+
+"$OUT/png-classic-scalar-metadata-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/vendor/libpng-1.6.58/pngtest.png" \
+    "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
+if "$OUT/png-classic-scalar-metadata-consumer" \
+    "$OUT/libpng4cj_preview.dylib" uint31-overflow
+then
+    uint31_status=0
+else
+    uint31_status=$?
+fi
+[ "$uint31_status" -eq 73 ] || {
+    printf '%s\n' "png_get_uint_31 overflow exit=$uint31_status, expected=73" >&2
+    exit 1
+}
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
@@ -329,6 +378,7 @@ cp "$OUT/png-classic-core-info-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-row-read-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-easy-access-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-scalar-metadata-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -367,4 +417,19 @@ cp "$OUT/png-classic-easy-access-consumer" "$RELOCATED/"
     "$ROOT/vendor/libpng-1.6.58/pngtest.png" \
     "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
     "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbwn3p08.png"
+"$RELOCATED/png-classic-scalar-metadata-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/vendor/libpng-1.6.58/pngtest.png" \
+    "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
+if "$RELOCATED/png-classic-scalar-metadata-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" uint31-overflow
+then
+    uint31_status=0
+else
+    uint31_status=$?
+fi
+[ "$uint31_status" -eq 73 ] || {
+    printf '%s\n' "relocated png_get_uint_31 overflow exit=$uint31_status, expected=73" >&2
+    exit 1
+}
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

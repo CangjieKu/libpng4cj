@@ -27,6 +27,8 @@ The generated directory contains:
   getter and allocator-lifecycle proof
 - `png-classic-easy-access-consumer`: strict C11 validity, fixed physical
   conversion, and stable signature-pointer proof
+- `png-classic-scalar-metadata-consumer`: strict C11 floating/scalar metadata,
+  version-string lifetime, utility, owner, and allocator-lifecycle proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -229,10 +231,27 @@ independent system-libpng 1.6.58 oracle, mutates pHYs/oFFs payloads with valid
 CRCs for unit-gate coverage, checks absent/wrong-owner/spare/stale handles,
 allocator balance, exact signatures, and original/relocated loading.
 
+The classic scalar-metadata milestone adds seventeen symbols frozen in
+`abi/symbols/libpng4cj-classic-scalar-metadata-v1.txt`:
+
+- floating gAMA/cHRM, pixel-aspect, and x/y inch getters
+- process-lifetime copyright, header-version, and library-version strings
+- `png_get_uint_31` and `png_build_grayscale_palette`
+- fixed/floating oFFs, cICP, cLLI, and mDCV getters
+
+Floating results are converted from retained fixed facts with the exact source
+scales; `png_get_oFFs` and `png_get_cICP` require every output, while cLLI and
+mDCV preserve optional outputs. Version strings use immutable process-lifetime
+native backing. The strict consumer freezes all signatures, compares the
+vendored upstream metadata values, checks invalid grayscale depth, absent and
+wrong-owner output preservation, the out-of-range UInt31 fatal callback path,
+stale handles, allocator balance, and original plus relocated execution. The
+frozen manifests now cover `93/258` upstream
+default symbols, leaving `165`, including `29` remaining `png_get_*` symbols.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
-pass-progress/display combination, exact callback/cursor timing, floating
-easy-access/XYZ
-and extended metadata getters, broader read-end metadata/write state, remaining
+pass-progress/display combination, exact callback/cursor timing, cHRM XYZ,
+variable-length metadata pointer trees, broader read-end metadata/write state, remaining
 callback families and public symbols, and non-macOS ABI packaging remain
 outside this checkpoint.

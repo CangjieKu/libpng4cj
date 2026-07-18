@@ -18,6 +18,28 @@ private let PNG_C_CLASSIC_SIGNATURE = [
     UInt8(13), UInt8(10), UInt8(26), UInt8(10)
 ]
 
+private class PngCClassicStaticStrings {
+    let copyright: CString
+    let version: CString
+    let headerVersion: CString
+
+    init() {
+        copyright = unsafe { LibC.mallocCString(
+            "\nlibpng version 1.6.58\n" +
+            "Copyright (c) 2018-2026 Cosmin Truta\n" +
+            "Copyright (c) 1998-2002,2004,2006-2018 Glenn Randers-Pehrson\n" +
+            "Copyright (c) 1996-1997 Andreas Dilger\n" +
+            "Copyright (c) 1995-1996 Guy Eric Schalnat, Group 42, Inc.\n"
+        ) }
+        version = unsafe { LibC.mallocCString("1.6.58") }
+        headerVersion = unsafe {
+            LibC.mallocCString(" libpng version 1.6.58\n\n")
+        }
+    }
+}
+
+private let PNG_C_CLASSIC_STATIC_STRINGS = PngCClassicStaticStrings()
+
 private class PngCClassicAllocatorSnapshot {
     let memPtr: CPointer<Unit>
     let mallocFn: CPointer<Unit>
@@ -1915,6 +1937,63 @@ public func png_get_pHYs_dpi(
 }
 
 @C
+public func png_get_pixel_aspect_ratio(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Float32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasPhysicalDimensions ||
+                    access.metadata.physicalDimensions.pixelsPerUnitX ==
+                        UInt32(0)) {
+                    return Float32(0.0)
+                }
+                let value = access.metadata.physicalDimensions
+                Float32(value.pixelsPerUnitY) / Float32(value.pixelsPerUnitX)
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => Float32(0.0)
+    }
+}
+
+@C
+public func png_get_x_offset_inches(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Float32 {
+    Float32(unsafe { png_get_x_offset_microns(pngPtr, infoPtr) }) *
+        Float32(0.00003937)
+}
+
+@C
+public func png_get_y_offset_inches(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Float32 {
+    Float32(unsafe { png_get_y_offset_microns(pngPtr, infoPtr) }) *
+        Float32(0.00003937)
+}
+
+@C
+public func png_get_copyright(pngPtr: CPointer<Unit>): CString {
+    PNG_C_CLASSIC_STATIC_STRINGS.copyright
+}
+
+@C
+public func png_get_header_ver(pngPtr: CPointer<Unit>): CString {
+    PNG_C_CLASSIC_STATIC_STRINGS.version
+}
+
+@C
+public func png_get_header_version(pngPtr: CPointer<Unit>): CString {
+    PNG_C_CLASSIC_STATIC_STRINGS.headerVersion
+}
+
+@C
+public func png_get_libpng_ver(pngPtr: CPointer<Unit>): CString {
+    PNG_C_CLASSIC_STATIC_STRINGS.version
+}
+
+@C
 public func png_get_gAMA_fixed(
     pngPtr: CPointer<Unit>,
     infoPtr: CPointer<Unit>,
@@ -1926,6 +2005,31 @@ public func png_get_gAMA_fixed(
                 if (!access.metadata.hasGamma) { return UInt32(0) }
                 if (!fileGamma.isNull()) {
                     unsafe { fileGamma.write(Int32(access.metadata.gamma)) }
+                }
+                PNG_C_INFO_gAMA
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_gAMA(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    fileGamma: CPointer<Float64>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasGamma) { return UInt32(0) }
+                if (!fileGamma.isNull()) {
+                    unsafe {
+                        fileGamma.write(
+                            Float64(access.metadata.gamma) / Float64(100000.0)
+                        )
+                    }
                 }
                 PNG_C_INFO_gAMA
             } finally {
@@ -1964,6 +2068,320 @@ public func png_get_cHRM_fixed(
                     if (!blueY.isNull()) { blueY.write(value.blueY) }
                 }
                 PNG_C_INFO_cHRM
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_cHRM(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    whiteX: CPointer<Float64>,
+    whiteY: CPointer<Float64>,
+    redX: CPointer<Float64>,
+    redY: CPointer<Float64>,
+    greenX: CPointer<Float64>,
+    greenY: CPointer<Float64>,
+    blueX: CPointer<Float64>,
+    blueY: CPointer<Float64>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasChromaticities) { return UInt32(0) }
+                let value = access.metadata.chromaticities
+                unsafe {
+                    if (!whiteX.isNull()) {
+                        whiteX.write(Float64(value.whiteX) / Float64(100000.0))
+                    }
+                    if (!whiteY.isNull()) {
+                        whiteY.write(Float64(value.whiteY) / Float64(100000.0))
+                    }
+                    if (!redX.isNull()) {
+                        redX.write(Float64(value.redX) / Float64(100000.0))
+                    }
+                    if (!redY.isNull()) {
+                        redY.write(Float64(value.redY) / Float64(100000.0))
+                    }
+                    if (!greenX.isNull()) {
+                        greenX.write(Float64(value.greenX) / Float64(100000.0))
+                    }
+                    if (!greenY.isNull()) {
+                        greenY.write(Float64(value.greenY) / Float64(100000.0))
+                    }
+                    if (!blueX.isNull()) {
+                        blueX.write(Float64(value.blueX) / Float64(100000.0))
+                    }
+                    if (!blueY.isNull()) {
+                        blueY.write(Float64(value.blueY) / Float64(100000.0))
+                    }
+                }
+                PNG_C_INFO_cHRM
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_oFFs(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    offsetX: CPointer<Int32>,
+    offsetY: CPointer<Int32>,
+    unitType: CPointer<Int32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasImageOffset || offsetX.isNull() ||
+                    offsetY.isNull() || unitType.isNull()) {
+                    return UInt32(0)
+                }
+                let value = access.metadata.imageOffset
+                unsafe {
+                    offsetX.write(value.x)
+                    offsetY.write(value.y)
+                    unitType.write(Int32(value.unit))
+                }
+                PNG_C_INFO_oFFs
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_cICP(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    colorPrimaries: CPointer<UInt8>,
+    transferFunction: CPointer<UInt8>,
+    matrixCoefficients: CPointer<UInt8>,
+    fullRangeFlag: CPointer<UInt8>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasCodingIndependentCodePoints ||
+                    colorPrimaries.isNull() || transferFunction.isNull() ||
+                    matrixCoefficients.isNull() || fullRangeFlag.isNull()) {
+                    return UInt32(0)
+                }
+                let value = access.metadata.codingIndependentCodePoints
+                unsafe {
+                    colorPrimaries.write(value.colorPrimaries)
+                    transferFunction.write(value.transferFunction)
+                    matrixCoefficients.write(value.matrixCoefficients)
+                    fullRangeFlag.write(value.fullRangeFlag)
+                }
+                PNG_C_INFO_cICP
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_cLLI_fixed(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    maximumContentLightLevel: CPointer<UInt32>,
+    maximumFrameAverageLightLevel: CPointer<UInt32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasContentLightLevel) { return UInt32(0) }
+                let value = access.metadata.contentLightLevel
+                unsafe {
+                    if (!maximumContentLightLevel.isNull()) {
+                        maximumContentLightLevel.write(
+                            value.maximumContentLightLevel
+                        )
+                    }
+                    if (!maximumFrameAverageLightLevel.isNull()) {
+                        maximumFrameAverageLightLevel.write(
+                            value.maximumFrameAverageLightLevel
+                        )
+                    }
+                }
+                PNG_C_INFO_cLLI
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_cLLI(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    maximumContentLightLevel: CPointer<Float64>,
+    maximumFrameAverageLightLevel: CPointer<Float64>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasContentLightLevel) { return UInt32(0) }
+                let value = access.metadata.contentLightLevel
+                unsafe {
+                    if (!maximumContentLightLevel.isNull()) {
+                        maximumContentLightLevel.write(
+                            Float64(value.maximumContentLightLevel) *
+                                Float64(0.0001)
+                        )
+                    }
+                    if (!maximumFrameAverageLightLevel.isNull()) {
+                        maximumFrameAverageLightLevel.write(
+                            Float64(value.maximumFrameAverageLightLevel) *
+                                Float64(0.0001)
+                        )
+                    }
+                }
+                PNG_C_INFO_cLLI
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+private func pngCClassicWriteMdcvFixed(
+    value: PngMasteringDisplayColorVolume,
+    whiteX: CPointer<Int32>,
+    whiteY: CPointer<Int32>,
+    redX: CPointer<Int32>,
+    redY: CPointer<Int32>,
+    greenX: CPointer<Int32>,
+    greenY: CPointer<Int32>,
+    blueX: CPointer<Int32>,
+    blueY: CPointer<Int32>,
+    maximumDisplayLuminance: CPointer<UInt32>,
+    minimumDisplayLuminance: CPointer<UInt32>
+): Unit {
+    let xy = value.chromaticities
+    unsafe {
+        if (!whiteX.isNull()) { whiteX.write(xy.whiteX) }
+        if (!whiteY.isNull()) { whiteY.write(xy.whiteY) }
+        if (!redX.isNull()) { redX.write(xy.redX) }
+        if (!redY.isNull()) { redY.write(xy.redY) }
+        if (!greenX.isNull()) { greenX.write(xy.greenX) }
+        if (!greenY.isNull()) { greenY.write(xy.greenY) }
+        if (!blueX.isNull()) { blueX.write(xy.blueX) }
+        if (!blueY.isNull()) { blueY.write(xy.blueY) }
+        if (!maximumDisplayLuminance.isNull()) {
+            maximumDisplayLuminance.write(value.maximumDisplayLuminance)
+        }
+        if (!minimumDisplayLuminance.isNull()) {
+            minimumDisplayLuminance.write(value.minimumDisplayLuminance)
+        }
+    }
+}
+
+@C
+public func png_get_mDCV_fixed(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    whiteX: CPointer<Int32>,
+    whiteY: CPointer<Int32>,
+    redX: CPointer<Int32>,
+    redY: CPointer<Int32>,
+    greenX: CPointer<Int32>,
+    greenY: CPointer<Int32>,
+    blueX: CPointer<Int32>,
+    blueY: CPointer<Int32>,
+    maximumDisplayLuminance: CPointer<UInt32>,
+    minimumDisplayLuminance: CPointer<UInt32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasMasteringDisplayColorVolume) {
+                    return UInt32(0)
+                }
+                pngCClassicWriteMdcvFixed(
+                    access.metadata.masteringDisplayColorVolume,
+                    whiteX, whiteY, redX, redY, greenX, greenY, blueX, blueY,
+                    maximumDisplayLuminance, minimumDisplayLuminance
+                )
+                PNG_C_INFO_mDCV
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_mDCV(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    whiteX: CPointer<Float64>,
+    whiteY: CPointer<Float64>,
+    redX: CPointer<Float64>,
+    redY: CPointer<Float64>,
+    greenX: CPointer<Float64>,
+    greenY: CPointer<Float64>,
+    blueX: CPointer<Float64>,
+    blueY: CPointer<Float64>,
+    maximumDisplayLuminance: CPointer<Float64>,
+    minimumDisplayLuminance: CPointer<Float64>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasMasteringDisplayColorVolume) {
+                    return UInt32(0)
+                }
+                let value = access.metadata.masteringDisplayColorVolume
+                let xy = value.chromaticities
+                unsafe {
+                    if (!whiteX.isNull()) {
+                        whiteX.write(Float64(xy.whiteX) / Float64(100000.0))
+                    }
+                    if (!whiteY.isNull()) {
+                        whiteY.write(Float64(xy.whiteY) / Float64(100000.0))
+                    }
+                    if (!redX.isNull()) {
+                        redX.write(Float64(xy.redX) / Float64(100000.0))
+                    }
+                    if (!redY.isNull()) {
+                        redY.write(Float64(xy.redY) / Float64(100000.0))
+                    }
+                    if (!greenX.isNull()) {
+                        greenX.write(Float64(xy.greenX) / Float64(100000.0))
+                    }
+                    if (!greenY.isNull()) {
+                        greenY.write(Float64(xy.greenY) / Float64(100000.0))
+                    }
+                    if (!blueX.isNull()) {
+                        blueX.write(Float64(xy.blueX) / Float64(100000.0))
+                    }
+                    if (!blueY.isNull()) {
+                        blueY.write(Float64(xy.blueY) / Float64(100000.0))
+                    }
+                    if (!maximumDisplayLuminance.isNull()) {
+                        maximumDisplayLuminance.write(
+                            Float64(value.maximumDisplayLuminance) *
+                                Float64(0.0001)
+                        )
+                    }
+                    if (!minimumDisplayLuminance.isNull()) {
+                        minimumDisplayLuminance.write(
+                            Float64(value.minimumDisplayLuminance) *
+                                Float64(0.0001)
+                        )
+                    }
+                }
+                PNG_C_INFO_mDCV
             } finally {
                 pngCClassicEndMetadataAccess(access.state)
             }
