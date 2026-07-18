@@ -49,7 +49,12 @@ fi
     fail "png_image file/stdio ABI symbol manifest is missing"
 [ -f "$ROOT/test/abi_consumer/png_image_file_stdio.c" ] || \
     fail "png_image file/stdio C consumer is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-classic-stateless-v1.txt" ] || \
+    fail "classic stateless ABI symbol manifest is missing"
+[ -f "$ROOT/test/abi_consumer/png_classic_stateless.c" ] || \
+    fail "classic stateless ABI C consumer is missing"
 
 note "upstream=libpng-1.6.58 reference present"
 note "png_image=memory/file/stdio ABI header and symbol manifests present"
+note "classic-abi=version/signature/endian utility manifest and consumer present"
 note "PASS"

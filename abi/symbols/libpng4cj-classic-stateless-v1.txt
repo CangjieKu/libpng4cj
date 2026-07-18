@@ -1,0 +1,8 @@
+png_access_version_number
+png_get_int_32
+png_get_uint_16
+png_get_uint_32
+png_save_int_32
+png_save_uint_16
+png_save_uint_32
+png_sig_cmp

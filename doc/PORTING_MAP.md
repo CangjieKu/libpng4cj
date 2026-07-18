@@ -1841,6 +1841,17 @@ stdio streams:
 - strict C11 symbol, valid read/write, malformed/open/read/write failure,
   ownership, cleanup, and relocated-library proof
 
+LP-S008D starts the callback-free classic ABI surface with stateless utilities:
+
+- direct Cangjie `@C` exports for the numeric library version and signature
+  comparison, without introducing a borrowed string lifetime
+- exact big-endian UInt16/UInt32/Int32 read and write helpers, including the
+  frozen `png_get_int_32` two's-complement edge behavior
+- frozen `png_byte`, pointer, and 16/32-bit integer typedefs plus exact function
+  declarations in the partial `png.h`
+- a separate eight-symbol manifest and strict C11 function-pointer signature
+  matrix, source-algorithm vectors, warning-as-error build, and relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, raw callback and allocator crossings, complete public-symbol parity,

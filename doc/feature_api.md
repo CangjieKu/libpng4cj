@@ -196,6 +196,12 @@ remove incomplete write output; caller-supplied `FILE*` values remain caller-
 owned. Exact gamma-aware direct/color-map pixel parity and raw callback families
 remain outside this surface.
 
+The same partial header also exposes the first callback-free classic utility
+cluster: numeric version access, PNG signature comparison, and the frozen
+big-endian 16/32-bit signed/unsigned read and write helpers. These eight symbols
+are direct Cangjie exports and do not create `png_struct`, callback, allocator,
+longjmp, or borrowed string-lifetime obligations.
+
 ## Non-Interlaced Packed Write
 
 The first native write surface accepts source-shaped packed rows and emits a

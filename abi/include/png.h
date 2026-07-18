@@ -1,8 +1,9 @@
 #ifndef LIBPNG4CJ_PNG_IMAGE_H
 #define LIBPNG4CJ_PNG_IMAGE_H
 
-/* Frozen libpng 1.6.58 simplified memory/file/stdio API subset. This is not
- * the complete upstream png.h and does not declare callback or classic APIs.
+/* Frozen libpng 1.6.58 simplified and stateless classic utility API subset.
+ * This is not the complete upstream png.h and does not declare stateful,
+ * callback, allocator, longjmp, or row IO APIs.
  */
 
 #include <stddef.h>
@@ -17,6 +18,14 @@ extern "C" {
 #define PNG_IMAGE_WARNING 1u
 #define PNG_IMAGE_ERROR 2u
 #define PNG_IMAGE_FAILED(image) ((((image).warning_or_error) & 0x03u) > 1u)
+#define PNG_LIBPNG_VER 10658
+
+typedef uint8_t png_byte;
+typedef png_byte *png_bytep;
+typedef const png_byte *png_const_bytep;
+typedef uint16_t png_uint_16;
+typedef uint32_t png_uint_32;
+typedef int32_t png_int_32;
 
 typedef void *png_controlp;
 typedef struct png_image {
@@ -93,6 +102,15 @@ typedef const png_color *png_const_colorp;
 #define PNG_IMAGE_FLAG_COLORSPACE_NOT_sRGB 0x01u
 #define PNG_IMAGE_FLAG_FAST 0x02u
 #define PNG_IMAGE_FLAG_16BIT_sRGB 0x04u
+
+png_uint_32 png_access_version_number(void);
+int png_sig_cmp(png_const_bytep sig, size_t start, size_t num_to_check);
+png_uint_32 png_get_uint_32(png_const_bytep buf);
+png_uint_16 png_get_uint_16(png_const_bytep buf);
+png_int_32 png_get_int_32(png_const_bytep buf);
+void png_save_uint_32(png_bytep buf, png_uint_32 i);
+void png_save_int_32(png_bytep buf, png_int_32 i);
+void png_save_uint_16(png_bytep buf, unsigned int i);
 
 int png_image_begin_read_from_memory(
     png_imagep image,

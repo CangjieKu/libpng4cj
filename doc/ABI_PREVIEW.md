@@ -18,6 +18,7 @@ The generated directory contains:
 - `abi-consumer`: standalone C consumption proof
 - `png-image-memory-consumer`: strict C11 `png_image` consumption proof
 - `png-image-file-stdio-consumer`: strict C11 file and `FILE*` proof
+- `png-classic-stateless-consumer`: strict C11 classic utility proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -82,6 +83,19 @@ The file/stdio symbols are frozen separately in
 file and caller-owned stdio read/write, caller reuse and close, malformed/open/
 read/write failures, incomplete-file removal, exact symbols, and relocated
 loading.
+
+LP-S008D adds the first callback-free classic libpng utility cluster:
+
+- `png_access_version_number`
+- `png_sig_cmp`
+- `png_get_uint_32`, `png_get_uint_16`, and `png_get_int_32`
+- `png_save_uint_32`, `png_save_int_32`, and `png_save_uint_16`
+
+The declarations use the frozen libpng integer and byte-pointer types, and the
+exact symbols are listed in `abi/symbols/libpng4cj-classic-stateless-v1.txt`.
+The strict consumer freezes every function-pointer signature and compares
+signature ranges, signed edge behavior, and big-endian read/write vectors with
+the libpng `1.6.58` source algorithms, including its `INT32_MIN` read result.
 
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Raw callback and allocator crossings, remaining
