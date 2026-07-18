@@ -21,7 +21,7 @@ PNG 解析、过滤、像素转换、元数据、渐进式读取和编码逻辑�
 | 渐进式读取 | 支持增量输入、早期信息/行回调、Adam7 pass 上下文、暂停与恢复 |
 | PNG 编码 | 支持整图、逐行、增量 IDAT、Adam7、过滤/压缩控制、元数据和未知块 |
 | 简化 API | 支持内存、文件和调用方管理的流；支持 direct8、linear16、colormap 和正负 stride |
-| C ABI | macOS arm64 上提供 preview facade、`png_image` 内存/文件/stdio 子集、无状态经典工具、读取句柄/分配器生命周期、warning/error 分派、custom/stdio `png_read_info` 输入及核心 IHDR getter |
+| C ABI | macOS arm64 上提供 preview facade、`png_image` 内存/文件/stdio 子集、经典工具与读取句柄、custom/stdio `png_read_info`、核心 IHDR getter，以及 raw row/image/read-end 子集 |
 | ICC | 保留并校验 iCCP profile；不执行 ICC 像素颜色转换 |
 
 更细的边界见 [兼容性与依赖矩阵](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)。
@@ -152,7 +152,7 @@ macOS arm64 可运行完整 ABI preview 验证：
 - 构建直接由仓颉 `@C` 导出的 dylib
 - 校验冻结的导出符号清单
 - 以 `-Wall -Wextra -Werror` 编译严格 C11 消费者
-- 验证 preview facade、`png_image` 内存/文件/stdio 子集、经典无状态工具、读取/info 句柄生命周期、warning/error 边界、自定义分配器所有权、custom/stdio `png_read_info` 及核心 IHDR getter
+- 验证 preview facade、`png_image` 内存/文件/stdio 子集、经典无状态工具、读取/info 句柄生命周期、warning/error 边界、自定义分配器所有权、custom/stdio `png_read_info`、核心 IHDR getter 及 raw row/image/read-end
 - 把 dylib 移动后重新运行消费者，验证同机重定位加载
 
 C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例消费者已经展示
@@ -165,7 +165,7 @@ C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例�
 `0.2.0 preview` 暂不声称：
 
 - 完整的 libpng16 默认配置符号与行为兼容
-- `png_struct` / `png_info` 的完整行处理、read-end、写入和元数据状态 API
+- `png_struct` / `png_info` 的变换后行、Adam7 pass/display 合并、完整 read-end 元数据、写入和元数据状态 API
 - `setjmp` / `longjmp`、chunk/row-status 等其余 C 回调与原始用户指针族
 - ICC profile 驱动的像素颜色转换
 - Linux、Windows、HarmonyOS/OpenHarmony ABI 制品验证

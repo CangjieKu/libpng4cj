@@ -63,12 +63,16 @@ fi
     fail "classic read IO ABI symbol manifest is missing"
 [ -f "$ROOT/abi/symbols/libpng4cj-classic-core-info-v1.txt" ] || \
     fail "classic core info ABI symbol manifest is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-classic-row-read-v1.txt" ] || \
+    fail "classic row/read-end ABI symbol manifest is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_read_handle.c" ] || \
     fail "classic read-handle ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_core_info.c" ] || \
     fail "classic core info ABI C consumer is missing"
+[ -f "$ROOT/test/abi_consumer/png_classic_row_read.c" ] || \
+    fail "classic row/read-end ABI C consumer is missing"
 
 note "upstream=libpng-1.6.58 reference present"
 note "png_image=memory/file/stdio ABI header and symbol manifests present"
-note "classic-abi=stateless, read-handle, error, memory, read-IO, and core-info manifests/consumers present"
+note "classic-abi=stateless, read-handle, error, memory, read-IO, core-info, and row-read manifests/consumers present"
 note "PASS"

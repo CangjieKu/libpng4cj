@@ -1915,8 +1915,19 @@ Porting milestone S008I projects the retained classic header facts:
 - frozen ten-symbol manifest plus strict C11 packed grayscale, Adam7 RGBA,
   original, and relocated proof
 
+Porting milestone S008J delivers the first classic raw row/read-end substrate:
+
+- direct Cangjie exports for `png_read_row`, `png_read_rows`, `png_read_image`,
+  and `png_read_end`
+- sequential copy-out of retained raw source-packed rows, including NULL
+  row/display wrapper behavior and complete final Adam7 image rows
+- owner-side row cursor and read-end sealing independent of core-info visibility
+- frozen four-symbol manifest plus strict C11 packed grayscale row/array, Adam7
+  whole-image, read-end, stale-handle, original, and relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
-parity, longjmp, classic rows/read-end and broader metadata/write state,
+parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor
+timing, broader read-end metadata/write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

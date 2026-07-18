@@ -21,6 +21,8 @@ The generated directory contains:
 - `png-classic-stateless-consumer`: strict C11 classic utility proof
 - `png-classic-read-handle-consumer`: strict C11 read/info lifecycle and
   warning/error callback boundary proof
+- `png-classic-core-info-consumer`: strict C11 IHDR/scalar getter proof
+- `png-classic-row-read-consumer`: strict C11 raw row/image/read-end proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -174,7 +176,19 @@ wrong-owner, pre-read, other-info, and destroyed handles return zero. Failed
 nullable output combination, and packed grayscale plus Adam7 RGBA facts pass
 strict C11 original/relocated proof.
 
+The classic row-read milestone adds `png_read_row`, `png_read_rows`,
+`png_read_image`, and `png_read_end`, frozen in
+`abi/symbols/libpng4cj-classic-row-read-v1.txt`. Row and row-array calls
+consume retained raw source-packed rows sequentially; NULL row/display
+destinations follow the wrapper's call behavior, and whole-image delivery
+copies final reconstructed Adam7 rows. Read-end seals remaining retained rows
+and accepts NULL or an owner-matched live info handle. The strict consumer
+checks packed 1-bit grayscale row, display, array, and no-destination behavior;
+Adam7 RGBA complete-image parity; early read-end sealing; stale-handle no-op;
+exact symbols/signatures; and original/relocated loading.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. Setjmp/longjmp, classic rows/read-end, broader
-metadata/write state, remaining callback families and public symbols, and
-non-macOS ABI packaging remain outside this checkpoint.
+release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
+pass-progress/display combination, exact callback/cursor timing, broader
+read-end metadata/write state, remaining callback families and public symbols,
+and non-macOS ABI packaging remain outside this checkpoint.

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add direct Cangjie `png_read_row`, `png_read_rows`, `png_read_image`, and
+  `png_read_end` exports with a frozen four-symbol manifest and exact strict
+  C11 signatures.
+- Deliver retained raw source-packed rows sequentially, copy complete Adam7
+  final images, preserve NULL row/display wrapper behavior, and seal remaining
+  retained rows at read-end with original and relocated consumer proof.
 - Add ten direct Cangjie classic core-info exports covering `png_get_IHDR`,
   width, height, bit depth, color type, filter, interlace, compression,
   channels, and packed source row bytes.

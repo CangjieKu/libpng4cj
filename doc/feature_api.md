@@ -224,9 +224,15 @@ width, height, bit depth, color type, compression, filter, interlace, channels,
 and packed source row bytes only through the exact `png_info` populated by
 `png_read_info`. Null, unknown, wrong-owner, unpopulated, destroyed, and other
 same-owner info handles return zero; failed `png_get_IHDR` calls leave output
-parameters unchanged. Longjmp, row/read-end processing, broader metadata
-projection, write handles, and remaining callback families stay outside this
-cluster.
+parameters unchanged. `png_read_row`, `png_read_rows`, and `png_read_image`
+now copy the retained raw source-packed rows into caller storage; whole-image
+delivery includes the final reconstructed rows for Adam7 input. `png_read_end`
+seals any remaining retained rows and accepts NULL or an owner-matched live
+info handle. This first row substrate does not yet expose transforms, Adam7
+pass-progress/display combination, row callbacks, or trailing metadata
+projection, and the eager read-info bridge does not claim exact upstream
+callback/cursor timing. Longjmp, write handles, and the remaining classic
+families stay outside this cluster.
 
 ## Non-Interlaced Packed Write
 

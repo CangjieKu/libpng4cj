@@ -5,8 +5,9 @@
  * This is not the complete upstream png.h. The stateful surface currently
  * covers opaque read/info ownership, caller-context retention, warning/error
  * callback invocation, fatal fallback termination, custom-allocation
- * ownership, custom/stdio read-info input, and core IHDR getters. Longjmp and
- * row IO are not yet implemented.
+ * ownership, custom/stdio read-info input, core IHDR getters, raw row delivery,
+ * and read-end sealing. Longjmp and transformed/pass-progress row IO are not
+ * yet implemented.
  */
 
 #include <stddef.h>
@@ -46,6 +47,7 @@ extern "C" {
 
 typedef uint8_t png_byte;
 typedef png_byte *png_bytep;
+typedef png_bytep *png_bytepp;
 typedef const png_byte *png_const_bytep;
 typedef uint16_t png_uint_16;
 typedef uint32_t png_uint_32;
@@ -204,6 +206,19 @@ void png_set_read_fn(
 png_voidp png_get_io_ptr(png_const_structp png_ptr);
 void png_set_sig_bytes(png_structp png_ptr, int num_bytes);
 void png_read_info(png_structp png_ptr, png_infop info_ptr);
+void png_read_rows(
+    png_structp png_ptr,
+    png_bytepp row,
+    png_bytepp display_row,
+    png_uint_32 num_rows
+);
+void png_read_row(
+    png_structp png_ptr,
+    png_bytep row,
+    png_bytep display_row
+);
+void png_read_image(png_structp png_ptr, png_bytepp image);
+void png_read_end(png_structp png_ptr, png_infop info_ptr);
 size_t png_get_rowbytes(
     png_const_structp png_ptr,
     png_const_infop info_ptr

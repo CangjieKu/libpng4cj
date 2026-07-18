@@ -21,4 +21,7 @@ caller-owned stdio input, complete read-info decode retention, and isolated
 truncated/excessive-prefix/oversized-chunk fatal paths. A separate core-info
 consumer verifies exact getter signatures, info ownership, failure-side output
 preservation, packed grayscale and Adam7 IHDR facts, and destroyed-handle
-invalidation.
+invalidation. The row-read consumer verifies exact row/read-end signatures,
+packed raw row/display/array delivery, no-destination wrapper behavior, Adam7
+whole-image parity, early read-end sealing, stale handles, and original plus
+relocated execution.

@@ -49,6 +49,8 @@ private class PngCClassicReadState {
     var readOperationActive = false
     var decodedRows: Option<PngDecodedRows> = None
     var decodedInfoHandle = UIntNative(0)
+    var nextRow = Int64(0)
+    var readEndComplete = false
     var destroying = false
     let allocatorMutex = Mutex()
     let selfAllocator: PngCClassicAllocatorSnapshot
@@ -545,6 +547,146 @@ private func pngCClassicDecodedIhdr(
     }
 }
 
+private class PngCClassicRowTake {
+    let row: Option<Array<Byte>>
+    let error: String
+
+    init(row: Option<Array<Byte>>, error: String) {
+        this.row = row
+        this.error = error
+    }
+}
+
+private func pngCClassicTakeRow(
+    pngPtr: CPointer<Unit>
+): PngCClassicRowTake {
+    if (pngPtr.isNull()) {
+        return PngCClassicRowTake(None, "")
+    }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (state.destroying || state.readOperationActive) {
+                    PngCClassicRowTake(None, "")
+                } else if (state.readEndComplete) {
+                    PngCClassicRowTake(None, "Read Error")
+                } else {
+                    match (state.decodedRows) {
+                        case Some(decoded) =>
+                            if (state.nextRow >= decoded.rowCount()) {
+                                PngCClassicRowTake(None, "Not enough image data")
+                            } else {
+                                let row = decoded.row(state.nextRow)
+                                state.nextRow += Int64(1)
+                                PngCClassicRowTake(Some(row), "")
+                            }
+                        case None => PngCClassicRowTake(
+                            None, "Invalid attempt to read row data"
+                        )
+                    }
+                }
+            case None => PngCClassicRowTake(None, "")
+        }
+    }
+}
+
+private func pngCClassicWriteRow(
+    target: CPointer<UInt8>, row: Array<Byte>
+): Unit {
+    if (target.isNull()) { return }
+    var index = Int64(0)
+    while (index < row.size) {
+        unsafe { target.write(index, row[index]) }
+        index += Int64(1)
+    }
+}
+
+private func pngCClassicReadOne(
+    pngPtr: CPointer<Unit>,
+    row: CPointer<UInt8>,
+    displayRow: CPointer<UInt8>
+): Bool {
+    let taken = pngCClassicTakeRow(pngPtr)
+    if (taken.error != "") {
+        pngCClassicErrorText(pngPtr, taken.error)
+        return false
+    }
+    match (taken.row) {
+        case Some(value) =>
+            pngCClassicWriteRow(row, value)
+            pngCClassicWriteRow(displayRow, value)
+        case None => ()
+    }
+    true
+}
+
+private func pngCClassicImageRowCount(
+    pngPtr: CPointer<Unit>
+): (Int64, String) {
+    if (pngPtr.isNull()) { return (Int64(0), "") }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (state.destroying || state.readOperationActive) {
+                    (Int64(0), "")
+                } else if (state.readEndComplete) {
+                    (Int64(0), "Read Error")
+                } else {
+                    match (state.decodedRows) {
+                        case Some(decoded) =>
+                            if (state.nextRow != Int64(0)) {
+                                (Int64(0), "png_read_image may only be called once")
+                            } else {
+                                (decoded.rowCount(), "")
+                            }
+                        case None => (
+                            Int64(0), "Invalid attempt to read row data"
+                        )
+                    }
+                }
+            case None => (Int64(0), "")
+        }
+    }
+}
+
+private func pngCClassicSealRead(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): String {
+    if (pngPtr.isNull()) { return "" }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (state.destroying || state.readOperationActive) {
+                    ""
+                } else {
+                    var infoValid = infoPtr.isNull()
+                    if (!infoPtr.isNull()) {
+                        match (PNG_C_CLASSIC_INFO_REGISTRY.get(
+                            infoPtr.toUIntNative()
+                        )) {
+                            case Some(infoState) =>
+                                infoValid = infoState.owner ==
+                                    pngPtr.toUIntNative()
+                            case None => ()
+                        }
+                    }
+                    if (!infoValid) {
+                        "png_read_end: invalid info pointer"
+                    } else {
+                        match (state.decodedRows) {
+                            case Some(decoded) =>
+                                state.nextRow = decoded.rowCount()
+                                state.readEndComplete = true
+                                ""
+                            case None => "Invalid attempt to read end"
+                        }
+                    }
+                }
+            case None => ""
+        }
+    }
+}
+
 private func pngCClassicReadExact(
     pngPtr: CPointer<Unit>,
     ioPtr: CPointer<Unit>,
@@ -909,6 +1051,70 @@ public func png_read_info(
             }
         case None => ()
     }
+}
+
+@C
+public func png_read_row(
+    pngPtr: CPointer<Unit>,
+    row: CPointer<UInt8>,
+    displayRow: CPointer<UInt8>
+): Unit {
+    pngCClassicReadOne(pngPtr, row, displayRow)
+}
+
+@C
+public func png_read_rows(
+    pngPtr: CPointer<Unit>,
+    rows: CPointer<CPointer<UInt8>>,
+    displayRows: CPointer<CPointer<UInt8>>,
+    numRows: UInt32
+): Unit {
+    if (pngPtr.isNull() || (rows.isNull() && displayRows.isNull())) { return }
+    var index = UInt32(0)
+    while (index < numRows) {
+        let row = if (rows.isNull()) {
+            CPointer<UInt8>()
+        } else {
+            unsafe { rows.read(Int64(index)) }
+        }
+        let displayRow = if (displayRows.isNull()) {
+            CPointer<UInt8>()
+        } else {
+            unsafe { displayRows.read(Int64(index)) }
+        }
+        if (!pngCClassicReadOne(pngPtr, row, displayRow)) { return }
+        index += UInt32(1)
+    }
+}
+
+@C
+public func png_read_image(
+    pngPtr: CPointer<Unit>, image: CPointer<CPointer<UInt8>>
+): Unit {
+    if (pngPtr.isNull()) { return }
+    if (image.isNull()) {
+        pngCClassicErrorText(pngPtr, "png_read_image: invalid image pointer")
+        return
+    }
+    let (rowCount, error) = pngCClassicImageRowCount(pngPtr)
+    if (error != "") {
+        pngCClassicErrorText(pngPtr, error)
+        return
+    }
+    var index = Int64(0)
+    while (index < rowCount) {
+        let row = unsafe { image.read(index) }
+        if (!pngCClassicReadOne(pngPtr, row, CPointer<UInt8>())) { return }
+        index += Int64(1)
+    }
+}
+
+@C
+public func png_read_end(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Unit {
+    let error = pngCClassicSealRead(pngPtr, infoPtr)
+    if (error != "") { pngCClassicErrorText(pngPtr, error) }
 }
 
 @C
