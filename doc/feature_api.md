@@ -219,8 +219,14 @@ future allocations without changing the free owner of existing objects.
 callback. Input callbacks run outside the registry mutex and may recover their
 context through `png_get_io_ptr`; the read-info bridge captures exact framed
 PNG bytes through IEND and retains the decoded Cangjie result for later classic
-getter and row APIs. Longjmp, row/read-end processing, metadata projection,
-write handles, and remaining callback families stay outside this cluster.
+getter and row APIs. Ten core getters now expose the retained IHDR tuple,
+width, height, bit depth, color type, compression, filter, interlace, channels,
+and packed source row bytes only through the exact `png_info` populated by
+`png_read_info`. Null, unknown, wrong-owner, unpopulated, destroyed, and other
+same-owner info handles return zero; failed `png_get_IHDR` calls leave output
+parameters unchanged. Longjmp, row/read-end processing, broader metadata
+projection, write handles, and remaining callback families stay outside this
+cluster.
 
 ## Non-Interlaced Packed Write
 

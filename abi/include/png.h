@@ -5,8 +5,8 @@
  * This is not the complete upstream png.h. The stateful surface currently
  * covers opaque read/info ownership, caller-context retention, warning/error
  * callback invocation, fatal fallback termination, custom-allocation
- * ownership, and custom/stdio read-info input. Longjmp and row IO are not yet
- * implemented.
+ * ownership, custom/stdio read-info input, and core IHDR getters. Longjmp and
+ * row IO are not yet implemented.
  */
 
 #include <stddef.h>
@@ -23,6 +23,26 @@ extern "C" {
 #define PNG_IMAGE_FAILED(image) ((((image).warning_or_error) & 0x03u) > 1u)
 #define PNG_LIBPNG_VER 10658
 #define PNG_LIBPNG_VER_STRING "1.6.58"
+
+#define PNG_COLOR_MASK_PALETTE 1
+#define PNG_COLOR_MASK_COLOR 2
+#define PNG_COLOR_MASK_ALPHA 4
+#define PNG_COLOR_TYPE_GRAY 0
+#define PNG_COLOR_TYPE_PALETTE \
+    (PNG_COLOR_MASK_COLOR | PNG_COLOR_MASK_PALETTE)
+#define PNG_COLOR_TYPE_RGB PNG_COLOR_MASK_COLOR
+#define PNG_COLOR_TYPE_RGB_ALPHA \
+    (PNG_COLOR_MASK_COLOR | PNG_COLOR_MASK_ALPHA)
+#define PNG_COLOR_TYPE_GRAY_ALPHA PNG_COLOR_MASK_ALPHA
+#define PNG_COLOR_TYPE_RGBA PNG_COLOR_TYPE_RGB_ALPHA
+#define PNG_COLOR_TYPE_GA PNG_COLOR_TYPE_GRAY_ALPHA
+#define PNG_COMPRESSION_TYPE_BASE 0
+#define PNG_COMPRESSION_TYPE_DEFAULT PNG_COMPRESSION_TYPE_BASE
+#define PNG_FILTER_TYPE_BASE 0
+#define PNG_FILTER_TYPE_DEFAULT PNG_FILTER_TYPE_BASE
+#define PNG_INTERLACE_NONE 0
+#define PNG_INTERLACE_ADAM7 1
+#define PNG_INTERLACE_LAST 2
 
 typedef uint8_t png_byte;
 typedef png_byte *png_bytep;
@@ -184,6 +204,53 @@ void png_set_read_fn(
 png_voidp png_get_io_ptr(png_const_structp png_ptr);
 void png_set_sig_bytes(png_structp png_ptr, int num_bytes);
 void png_read_info(png_structp png_ptr, png_infop info_ptr);
+size_t png_get_rowbytes(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_byte png_get_channels(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_image_width(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_image_height(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_byte png_get_bit_depth(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_byte png_get_color_type(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_byte png_get_filter_type(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_byte png_get_interlace_type(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_byte png_get_compression_type(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_IHDR(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_uint_32 *width,
+    png_uint_32 *height,
+    int *bit_depth,
+    int *color_type,
+    int *interlace_method,
+    int *compression_method,
+    int *filter_method
+);
 png_voidp png_malloc(
     png_const_structp png_ptr,
     png_alloc_size_t size

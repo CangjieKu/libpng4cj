@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add ten direct Cangjie classic core-info exports covering `png_get_IHDR`,
+  width, height, bit depth, color type, filter, interlace, compression,
+  channels, and packed source row bytes.
+- Bind retained header facts to the exact `png_info` populated by
+  `png_read_info`, preserve failure-side output values, and prove null,
+  unknown, wrong-owner, pre-read, post-read, destroyed, Adam7, and relocated
+  strict C11 behavior.
 - Add direct Cangjie `png_init_io`, `png_set_read_fn`, `png_get_io_ptr`,
   `png_set_sig_bytes`, and `png_read_info` exports with a frozen five-symbol
   manifest and exact strict C11 signatures.

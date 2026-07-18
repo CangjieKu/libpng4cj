@@ -1904,8 +1904,19 @@ Porting milestone S008H connects the classic read handle to real input:
 - frozen five-symbol manifest plus strict C11 custom/stdio, prefix, truncated,
   fatal, original, and relocated proof
 
+Porting milestone S008I projects the retained classic header facts:
+
+- direct Cangjie exports for `png_get_IHDR`, `png_get_rowbytes`,
+  `png_get_channels`, and seven easy-access IHDR scalar getters
+- exact binding to the live `png_info` populated by `png_read_info`, with zero
+  for null, unknown, wrong-owner, pre-read, other-info, and destroyed handles
+- failure-side `png_get_IHDR` output preservation and nullable successful
+  outputs
+- frozen ten-symbol manifest plus strict C11 packed grayscale, Adam7 RGBA,
+  original, and relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
-parity, longjmp, classic getters/rows/read-end and metadata/write state,
+parity, longjmp, classic rows/read-end and broader metadata/write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

@@ -20,6 +20,8 @@ CLASSIC_MEMORY_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-memory-v1.txt"
 CLASSIC_MEMORY_ACTUAL="$OUT/libpng4cj-classic-memory-v1.actual.txt"
 CLASSIC_READ_IO_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-read-io-v1.txt"
 CLASSIC_READ_IO_ACTUAL="$OUT/libpng4cj-classic-read-io-v1.actual.txt"
+CLASSIC_CORE_INFO_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-core-info-v1.txt"
+CLASSIC_CORE_INFO_ACTUAL="$OUT/libpng4cj-classic-core-info-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -81,6 +83,19 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_READ_IO_ACTUAL"
 diff -u "$CLASSIC_READ_IO_EXPECTED" "$CLASSIC_READ_IO_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_get_IHDR" || \
+        $3 == "_png_get_bit_depth" || $3 == "_png_get_channels" || \
+        $3 == "_png_get_color_type" || \
+        $3 == "_png_get_compression_type" || \
+        $3 == "_png_get_filter_type" || \
+        $3 == "_png_get_image_height" || \
+        $3 == "_png_get_image_width" || \
+        $3 == "_png_get_interlace_type" || \
+        $3 == "_png_get_rowbytes") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_CORE_INFO_ACTUAL"
+diff -u "$CLASSIC_CORE_INFO_EXPECTED" "$CLASSIC_CORE_INFO_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -181,12 +196,33 @@ cc "$ROOT/test/abi_consumer/png_classic_read_handle.c" \
     "$OUT/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/basn0g01.png"
 
+cc "$ROOT/test/abi_consumer/png_classic_core_info.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-core-info-consumer"
+
+"$OUT/png-classic-core-info-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
+    "$ROOT/test/fixtures/pngsuite/ibasn6a08.png"
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
 cp "$OUT/png-image-file-stdio-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-stateless-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-read-handle-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-core-info-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -207,4 +243,8 @@ cp "$OUT/png-classic-read-handle-consumer" "$RELOCATED/"
 "$RELOCATED/png-classic-read-handle-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+"$RELOCATED/png-classic-core-info-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
+    "$ROOT/test/fixtures/pngsuite/ibasn6a08.png"
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

@@ -18,4 +18,7 @@ processes, custom allocator ownership and replacement, and replays every
 executable after relocating the dylib. The classic consumer also covers custom
 read callback replacement and context lookup, signature-prefix continuation,
 caller-owned stdio input, complete read-info decode retention, and isolated
-truncated/excessive-prefix/oversized-chunk fatal paths.
+truncated/excessive-prefix/oversized-chunk fatal paths. A separate core-info
+consumer verifies exact getter signatures, info ownership, failure-side output
+preservation, packed grayscale and Adam7 IHDR facts, and destroyed-handle
+invalidation.

@@ -1,0 +1,10 @@
+png_get_IHDR
+png_get_bit_depth
+png_get_channels
+png_get_color_type
+png_get_compression_type
+png_get_filter_type
+png_get_image_height
+png_get_image_width
+png_get_interlace_type
+png_get_rowbytes

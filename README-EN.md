@@ -23,7 +23,7 @@ release, or a cross-platform binary distribution.
 | Progressive reading | Incremental input, early info/row callbacks, Adam7 pass context, pause, and resume |
 | PNG encoding | Whole-image, row-at-a-time, incremental IDAT, Adam7, filter/compression controls, metadata, and unknown chunks |
 | Simplified API | Memory, files, and caller-managed streams with direct8, linear16, colormap, and positive/negative strides |
-| C ABI | Preview facade, `png_image` memory/file/stdio subset, stateless classic utilities, read-handle/allocator lifecycle, warning/error dispatch, and custom/stdio `png_read_info` input on macOS arm64 |
+| C ABI | Preview facade, `png_image` memory/file/stdio subset, stateless classic utilities, read-handle/allocator lifecycle, warning/error dispatch, custom/stdio `png_read_info` input, and core IHDR getters on macOS arm64 |
 | ICC | iCCP profiles are retained and validated; ICC pixel color conversion is not performed |
 
 See the [Compatibility and Dependency Matrix](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)
@@ -161,7 +161,7 @@ It performs the following checks:
 - exercises the preview facade, `png_image` memory/file/stdio subset,
   stateless classic utilities, read/info handle lifecycle, warning callbacks,
   fatal error subprocess boundaries, custom allocator ownership, and
-  custom/stdio `png_read_info`
+  custom/stdio `png_read_info` plus core IHDR getters
 - relocates the dylib and reruns every consumer on the same host
 
 A C process must initialize and finalize the Cangjie runtime as required by the

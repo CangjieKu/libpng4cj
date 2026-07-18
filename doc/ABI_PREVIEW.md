@@ -165,7 +165,16 @@ signature prefix continuation, stdio input, truncated and excessive-prefix
 fatal paths, pre-allocation oversized-chunk rejection, exact symbols/signatures,
 and original/relocated loading.
 
+The classic core-info milestone adds `png_get_IHDR`, `png_get_rowbytes`,
+`png_get_channels`, and the seven easy-access IHDR scalar getters, frozen in
+`abi/symbols/libpng4cj-classic-core-info-v1.txt`. Header facts are visible only
+through the exact live `png_info` populated by `png_read_info`; null, unknown,
+wrong-owner, pre-read, other-info, and destroyed handles return zero. Failed
+`png_get_IHDR` calls preserve caller outputs, successful calls accept any
+nullable output combination, and packed grayscale plus Adam7 RGBA facts pass
+strict C11 original/relocated proof.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. Setjmp/longjmp, classic getters/rows/read-end,
+release, or an LTS artifact. Setjmp/longjmp, classic rows/read-end, broader
 metadata/write state, remaining callback families and public symbols, and
 non-macOS ABI packaging remain outside this checkpoint.
