@@ -1,0 +1,8 @@
+png_get_PLTE
+png_get_bKGD
+png_get_cHRM_fixed
+png_get_gAMA_fixed
+png_get_pHYs
+png_get_sBIT
+png_get_sRGB
+png_get_tRNS

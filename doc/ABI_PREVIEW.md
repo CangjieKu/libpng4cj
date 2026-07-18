@@ -23,6 +23,8 @@ The generated directory contains:
   warning/error callback boundary proof
 - `png-classic-core-info-consumer`: strict C11 IHDR/scalar getter proof
 - `png-classic-row-read-consumer`: strict C11 raw row/image/read-end proof
+- `png-classic-metadata-consumer`: strict C11 fixed/core retained-metadata
+  getter and allocator-lifecycle proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -187,8 +189,27 @@ checks packed 1-bit grayscale row, display, array, and no-destination behavior;
 Adam7 RGBA complete-image parity; early read-end sealing; stale-handle no-op;
 exact symbols/signatures; and original/relocated loading.
 
+The classic metadata milestone adds eight getters frozen in
+`abi/symbols/libpng4cj-classic-metadata-v1.txt`:
+
+- `png_get_gAMA_fixed` and `png_get_cHRM_fixed`
+- `png_get_sRGB`, `png_get_sBIT`, `png_get_bKGD`, and `png_get_pHYs`
+- `png_get_PLTE` and `png_get_tRNS`
+
+Scalar outputs and `PNG_INFO_*` return bits follow the libpng 1.6.58 source
+contracts. Pointer-returning metadata is copied into stable native backing
+owned by the populated info handle and released through the allocator snapshot
+that created that handle. A bounded operation guard keeps destruction from
+racing output publication while caller-memory writes remain outside the
+registry mutex. The strict consumer compares fixed metadata against vendored
+upstream samples, checks palette and indexed/non-indexed transparency output
+combinations, pointer stability, structure layout, absent-output preservation,
+wrong-owner/spare/stale handles, custom allocator balance, exact signatures,
+and original/relocated loading.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
-pass-progress/display combination, exact callback/cursor timing, broader
-read-end metadata/write state, remaining callback families and public symbols,
-and non-macOS ABI packaging remain outside this checkpoint.
+pass-progress/display combination, exact callback/cursor timing, floating/XYZ
+and extended metadata getters, broader read-end metadata/write state, remaining
+callback families and public symbols, and non-macOS ABI packaging remain
+outside this checkpoint.

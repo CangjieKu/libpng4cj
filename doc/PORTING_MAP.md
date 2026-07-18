@@ -1925,9 +1925,23 @@ Porting milestone S008J delivers the first classic raw row/read-end substrate:
 - frozen four-symbol manifest plus strict C11 packed grayscale row/array, Adam7
   whole-image, read-end, stale-handle, original, and relocated proof
 
+Porting milestone S008K projects the retained fixed/core metadata cluster:
+
+- direct Cangjie exports for fixed gAMA/cHRM, sRGB, sBIT, bKGD, pHYs, PLTE,
+  and tRNS getters with exact `PNG_INFO_*` return bits
+- stable native palette, transparency, significant-bit, background, and
+  transparent-color backing owned by the populated info handle
+- matching allocator-snapshot release and a bounded operation guard that keeps
+  destruction from racing pointer publication without holding the registry
+  mutex across caller-memory writes
+- indexed and non-indexed tRNS output distinctions, nullable scalar outputs,
+  absent-output preservation, pointer stability, wrong-owner/spare/stale handle,
+  strict C11 layout/signature, original, and relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor
-timing, broader read-end metadata/write state,
+timing, floating/XYZ and extended classic metadata, broader read-end metadata/
+write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

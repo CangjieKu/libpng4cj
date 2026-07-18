@@ -5,9 +5,9 @@
  * This is not the complete upstream png.h. The stateful surface currently
  * covers opaque read/info ownership, caller-context retention, warning/error
  * callback invocation, fatal fallback termination, custom-allocation
- * ownership, custom/stdio read-info input, core IHDR getters, raw row delivery,
- * and read-end sealing. Longjmp and transformed/pass-progress row IO are not
- * yet implemented.
+ * ownership, custom/stdio read-info input, core IHDR and fixed metadata getters,
+ * raw row delivery, and read-end sealing. Longjmp and transformed/pass-progress
+ * row IO are not yet implemented.
  */
 
 #include <stddef.h>
@@ -52,6 +52,7 @@ typedef const png_byte *png_const_bytep;
 typedef uint16_t png_uint_16;
 typedef uint32_t png_uint_32;
 typedef int32_t png_int_32;
+typedef png_int_32 png_fixed_point;
 typedef char png_char;
 typedef png_char *png_charp;
 typedef const png_char *png_const_charp;
@@ -92,6 +93,31 @@ typedef struct png_color {
     uint8_t blue;
 } png_color, *png_colorp;
 typedef const png_color *png_const_colorp;
+
+typedef struct png_color_16_struct {
+    png_byte index;
+    png_uint_16 red;
+    png_uint_16 green;
+    png_uint_16 blue;
+    png_uint_16 gray;
+} png_color_16, *png_color_16p;
+
+typedef struct png_color_8_struct {
+    png_byte red;
+    png_byte green;
+    png_byte blue;
+    png_byte gray;
+    png_byte alpha;
+} png_color_8, *png_color_8p;
+
+#define PNG_INFO_gAMA 0x0001u
+#define PNG_INFO_sBIT 0x0002u
+#define PNG_INFO_cHRM 0x0004u
+#define PNG_INFO_PLTE 0x0008u
+#define PNG_INFO_tRNS 0x0010u
+#define PNG_INFO_bKGD 0x0020u
+#define PNG_INFO_pHYs 0x0080u
+#define PNG_INFO_sRGB 0x0800u
 
 #define PNG_FORMAT_FLAG_ALPHA 0x01u
 #define PNG_FORMAT_FLAG_COLOR 0x02u
@@ -265,6 +291,58 @@ png_uint_32 png_get_IHDR(
     int *interlace_method,
     int *compression_method,
     int *filter_method
+);
+png_uint_32 png_get_gAMA_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_fixed_point *file_gamma
+);
+png_uint_32 png_get_cHRM_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_fixed_point *white_x,
+    png_fixed_point *white_y,
+    png_fixed_point *red_x,
+    png_fixed_point *red_y,
+    png_fixed_point *green_x,
+    png_fixed_point *green_y,
+    png_fixed_point *blue_x,
+    png_fixed_point *blue_y
+);
+png_uint_32 png_get_sRGB(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    int *file_srgb_intent
+);
+png_uint_32 png_get_sBIT(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_color_8p *sig_bit
+);
+png_uint_32 png_get_bKGD(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_color_16p *background
+);
+png_uint_32 png_get_pHYs(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_uint_32 *res_x,
+    png_uint_32 *res_y,
+    int *unit_type
+);
+png_uint_32 png_get_PLTE(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_colorp *palette,
+    int *num_palette
+);
+png_uint_32 png_get_tRNS(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_bytep *trans_alpha,
+    int *num_trans,
+    png_color_16p *trans_color
 );
 png_voidp png_malloc(
     png_const_structp png_ptr,

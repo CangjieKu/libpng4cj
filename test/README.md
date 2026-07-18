@@ -24,4 +24,8 @@ preservation, packed grayscale and Adam7 IHDR facts, and destroyed-handle
 invalidation. The row-read consumer verifies exact row/read-end signatures,
 packed raw row/display/array delivery, no-destination wrapper behavior, Adam7
 whole-image parity, early read-end sealing, stale handles, and original plus
-relocated execution.
+relocated execution. The metadata consumer freezes the eight fixed/core getter
+signatures and `PNG_INFO_*` values, compares vendored upstream sample values,
+checks stable PLTE/tRNS/sBIT/bKGD pointers, indexed and non-indexed tRNS output
+combinations, wrong-owner/spare/stale handles, allocator balance, and original
+plus relocated execution.

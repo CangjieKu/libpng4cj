@@ -77,6 +77,7 @@ private class PngCClassicInfoState {
     let owner: UIntNative
     let readState: PngCClassicReadState
     let allocator: PngCClassicAllocatorSnapshot
+    var metadataBacking: Option<PngCClassicMetadataBacking> = None
 
     init(
         owner: UIntNative,
@@ -86,6 +87,34 @@ private class PngCClassicInfoState {
         this.owner = owner
         this.readState = readState
         this.allocator = allocator
+    }
+}
+
+private class PngCClassicMetadataBacking {
+    let palette: CPointer<Unit>
+    let paletteCount: Int32
+    let transparency: CPointer<Unit>
+    let transparencyCount: Int32
+    let significantBits: CPointer<Unit>
+    let background: CPointer<Unit>
+    let transparentColor: CPointer<Unit>
+
+    init(
+        palette: CPointer<Unit>,
+        paletteCount: Int32,
+        transparency: CPointer<Unit>,
+        transparencyCount: Int32,
+        significantBits: CPointer<Unit>,
+        background: CPointer<Unit>,
+        transparentColor: CPointer<Unit>
+    ) {
+        this.palette = palette
+        this.paletteCount = paletteCount
+        this.transparency = transparency
+        this.transparencyCount = transparencyCount
+        this.significantBits = significantBits
+        this.background = background
+        this.transparentColor = transparentColor
     }
 }
 
@@ -263,6 +292,174 @@ private func pngCClassicFreeWith(
     }
 }
 
+private func pngCClassicAllocateMetadataBlock(
+    pngPtr: CPointer<Unit>,
+    state: PngCClassicReadState,
+    allocator: PngCClassicAllocatorSnapshot,
+    size: UIntNative
+): CPointer<Unit> {
+    let pointer = pngCClassicAllocateWith(pngPtr, state, allocator, size)
+    if (pointer.isNull()) {
+        throw PngFormatException(
+            AllocationFailure, -1, "Out of memory"
+        )
+    }
+    unsafe { memset(pointer, Int32(0), size) }
+    pointer
+}
+
+private func pngCClassicCopyMetadataBytes(
+    target: CPointer<Unit>, bytes: Array<Byte>
+): Unit {
+    if (target.isNull()) { return }
+    let output = unsafe { CPointer<UInt8>(target) }
+    var index = Int64(0)
+    while (index < bytes.size) {
+        unsafe { output.write(index, bytes[index]) }
+        index += Int64(1)
+    }
+}
+
+private func pngCClassicWriteColor16(
+    target: CPointer<Unit>,
+    index: UInt8,
+    red: UInt16,
+    green: UInt16,
+    blue: UInt16,
+    gray: UInt16
+): Unit {
+    if (target.isNull()) { return }
+    let bytes = unsafe { CPointer<UInt8>(target) }
+    let samples = unsafe { CPointer<UInt16>(target) }
+    unsafe {
+        bytes.write(Int64(0), index)
+        samples.write(Int64(1), red)
+        samples.write(Int64(2), green)
+        samples.write(Int64(3), blue)
+        samples.write(Int64(4), gray)
+    }
+}
+
+private func pngCClassicBuildMetadataBacking(
+    pngPtr: CPointer<Unit>,
+    state: PngCClassicReadState,
+    allocator: PngCClassicAllocatorSnapshot,
+    decoded: PngDecodedRows
+): PngCClassicMetadataBacking {
+    var palette = CPointer<Unit>()
+    var transparency = CPointer<Unit>()
+    var significantBits = CPointer<Unit>()
+    var background = CPointer<Unit>()
+    var transparentColor = CPointer<Unit>()
+    let metadata = decoded.metadata
+    let paletteBytes = metadata.palette()
+    let alphaBytes = metadata.paletteAlpha()
+    try {
+        if (paletteBytes.size > Int64(0)) {
+            palette = pngCClassicAllocateMetadataBlock(
+                pngPtr, state, allocator, UIntNative(paletteBytes.size)
+            )
+            pngCClassicCopyMetadataBytes(palette, paletteBytes)
+        }
+        if (alphaBytes.size > Int64(0)) {
+            transparency = pngCClassicAllocateMetadataBlock(
+                pngPtr, state, allocator, UIntNative(alphaBytes.size)
+            )
+            pngCClassicCopyMetadataBytes(transparency, alphaBytes)
+        }
+        if (metadata.hasSignificantBits) {
+            significantBits = pngCClassicAllocateMetadataBlock(
+                pngPtr, state, allocator, UIntNative(5)
+            )
+            let values = unsafe { CPointer<UInt8>(significantBits) }
+            unsafe {
+                values.write(Int64(0), metadata.significantBits.red)
+                values.write(Int64(1), metadata.significantBits.green)
+                values.write(Int64(2), metadata.significantBits.blue)
+                values.write(Int64(3), metadata.significantBits.gray)
+                values.write(Int64(4), metadata.significantBits.alpha)
+            }
+        }
+        if (metadata.hasBackground) {
+            background = pngCClassicAllocateMetadataBlock(
+                pngPtr, state, allocator, UIntNative(10)
+            )
+            pngCClassicWriteColor16(
+                background,
+                metadata.background.index,
+                metadata.background.red,
+                metadata.background.green,
+                metadata.background.blue,
+                metadata.background.gray
+            )
+        }
+        if (metadata.hasTransparency) {
+            transparentColor = pngCClassicAllocateMetadataBlock(
+                pngPtr, state, allocator, UIntNative(10)
+            )
+            pngCClassicWriteColor16(
+                transparentColor,
+                UInt8(0),
+                metadata.transparentRed,
+                metadata.transparentGreen,
+                metadata.transparentBlue,
+                metadata.transparentGray
+            )
+        }
+        PngCClassicMetadataBacking(
+            palette,
+            Int32(paletteBytes.size / Int64(3)),
+            transparency,
+            if (alphaBytes.size > Int64(0)) {
+                Int32(alphaBytes.size)
+            } else if (metadata.hasTransparency) {
+                Int32(1)
+            } else {
+                Int32(0)
+            },
+            significantBits,
+            background,
+            transparentColor
+        )
+    } catch (error: Exception) {
+        pngCClassicFreeWith(pngPtr, state, allocator, transparentColor)
+        pngCClassicFreeWith(pngPtr, state, allocator, background)
+        pngCClassicFreeWith(pngPtr, state, allocator, significantBits)
+        pngCClassicFreeWith(pngPtr, state, allocator, transparency)
+        pngCClassicFreeWith(pngPtr, state, allocator, palette)
+        throw error
+    }
+}
+
+private func pngCClassicFreeMetadataBacking(
+    owner: CPointer<Unit>, infoState: PngCClassicInfoState
+): Unit {
+    match (infoState.metadataBacking) {
+        case Some(backing) =>
+            pngCClassicFreeWith(
+                owner, infoState.readState, infoState.allocator,
+                backing.transparentColor
+            )
+            pngCClassicFreeWith(
+                owner, infoState.readState, infoState.allocator,
+                backing.background
+            )
+            pngCClassicFreeWith(
+                owner, infoState.readState, infoState.allocator,
+                backing.significantBits
+            )
+            pngCClassicFreeWith(
+                owner, infoState.readState, infoState.allocator,
+                backing.transparency
+            )
+            pngCClassicFreeWith(
+                owner, infoState.readState, infoState.allocator,
+                backing.palette
+            )
+        case None => ()
+    }
+}
+
 private func pngCClassicCallback(
     handle: CPointer<Unit>, warning: Bool
 ): CPointer<Unit> {
@@ -433,6 +630,7 @@ private func pngCClassicReleaseInfo(
     }
     match (released) {
         case Some(infoState) =>
+            pngCClassicFreeMetadataBacking(owner, infoState)
             pngCClassicFreeWith(
                 owner, infoState.readState, infoState.allocator, handle
             )
@@ -473,7 +671,8 @@ private func pngCClassicReleaseRead(
 private func pngCClassicBeginReadInfo(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): Option<(
-    PngCClassicReadState, CPointer<Unit>, CPointer<Unit>, UInt8
+    PngCClassicReadState, PngCClassicAllocatorSnapshot,
+    CPointer<Unit>, CPointer<Unit>, UInt8
 )> {
     if (pngPtr.isNull() || infoPtr.isNull()) { return None }
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
@@ -489,7 +688,10 @@ private func pngCClassicBeginReadInfo(
                             None
                         } else {
                             state.readOperationActive = true
-                            Some((state, state.ioPtr, state.readFn, state.sigBytes))
+                            Some((
+                                state, infoState.allocator,
+                                state.ioPtr, state.readFn, state.sigBytes
+                            ))
                         }
                     case None => None
                 }
@@ -502,7 +704,8 @@ private func pngCClassicEndReadInfo(
     pngPtr: CPointer<Unit>,
     infoPtr: CPointer<Unit>,
     state: PngCClassicReadState,
-    decoded: Option<PngDecodedRows>
+    decoded: Option<PngDecodedRows>,
+    backing: Option<PngCClassicMetadataBacking>
 ): Unit {
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
@@ -511,11 +714,78 @@ private func pngCClassicEndReadInfo(
                     case Some(value) =>
                         state.decodedRows = Some(value)
                         state.decodedInfoHandle = infoPtr.toUIntNative()
+                        match (PNG_C_CLASSIC_INFO_REGISTRY.get(
+                            infoPtr.toUIntNative()
+                        )) {
+                            case Some(infoState) =>
+                                infoState.metadataBacking = backing
+                            case None => ()
+                        }
                     case None => ()
                 }
                 state.readOperationActive = false
             case None => state.readOperationActive = false
         }
+    }
+}
+
+private class PngCClassicMetadataAccess {
+    let state: PngCClassicReadState
+    let ihdr: PngIhdr
+    let metadata: PngReadMetadata
+    let backing: PngCClassicMetadataBacking
+
+    init(
+        state: PngCClassicReadState,
+        ihdr: PngIhdr,
+        metadata: PngReadMetadata,
+        backing: PngCClassicMetadataBacking
+    ) {
+        this.state = state
+        this.ihdr = ihdr
+        this.metadata = metadata
+        this.backing = backing
+    }
+}
+
+private func pngCClassicBeginMetadataAccess(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Option<PngCClassicMetadataAccess> {
+    if (pngPtr.isNull() || infoPtr.isNull()) { return None }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                match (PNG_C_CLASSIC_INFO_REGISTRY.get(
+                    infoPtr.toUIntNative()
+                )) {
+                    case Some(infoState) =>
+                        if (state.destroying || state.readOperationActive ||
+                            infoState.owner != pngPtr.toUIntNative() ||
+                            state.decodedInfoHandle != infoPtr.toUIntNative()) {
+                            None
+                        } else {
+                            match ((state.decodedRows, infoState.metadataBacking)) {
+                                case (Some(decoded), Some(backing)) =>
+                                    state.readOperationActive = true
+                                    Some(PngCClassicMetadataAccess(
+                                        state, decoded.ihdr,
+                                        decoded.metadata, backing
+                                    ))
+                                case _ => None
+                            }
+                        }
+                    case None => None
+                }
+            case None => None
+        }
+    }
+}
+
+private func pngCClassicEndMetadataAccess(
+    state: PngCClassicReadState
+): Unit {
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        state.readOperationActive = false
     }
 }
 
@@ -1036,17 +1306,22 @@ public func png_read_info(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): Unit {
     match (pngCClassicBeginReadInfo(pngPtr, infoPtr)) {
-        case Some((state, ioPtr, readFn, sigBytes)) =>
+        case Some((state, allocator, ioPtr, readFn, sigBytes)) =>
             try {
                 let input = pngCClassicCaptureInput(
                     pngPtr, ioPtr, readFn, sigBytes
                 )
                 let decoded = decodePng(input)
+                let backing = pngCClassicBuildMetadataBacking(
+                    pngPtr, state, allocator, decoded
+                )
                 pngCClassicEndReadInfo(
-                    pngPtr, infoPtr, state, Some(decoded)
+                    pngPtr, infoPtr, state, Some(decoded), Some(backing)
                 )
             } catch (error: Exception) {
-                pngCClassicEndReadInfo(pngPtr, infoPtr, state, None)
+                pngCClassicEndReadInfo(
+                    pngPtr, infoPtr, state, None, None
+                )
                 pngCClassicErrorText(pngPtr, error.message)
             }
         case None => ()
@@ -1243,6 +1518,252 @@ public func png_get_IHDR(
                 }
             }
             UInt32(1)
+        case None => UInt32(0)
+    }
+}
+
+private let PNG_C_INFO_gAMA = UInt32(0x0001)
+private let PNG_C_INFO_sBIT = UInt32(0x0002)
+private let PNG_C_INFO_cHRM = UInt32(0x0004)
+private let PNG_C_INFO_PLTE = UInt32(0x0008)
+private let PNG_C_INFO_tRNS = UInt32(0x0010)
+private let PNG_C_INFO_bKGD = UInt32(0x0020)
+private let PNG_C_INFO_pHYs = UInt32(0x0080)
+private let PNG_C_INFO_sRGB = UInt32(0x0800)
+
+@C
+public func png_get_gAMA_fixed(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    fileGamma: CPointer<Int32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasGamma) { return UInt32(0) }
+                if (!fileGamma.isNull()) {
+                    unsafe { fileGamma.write(Int32(access.metadata.gamma)) }
+                }
+                PNG_C_INFO_gAMA
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_cHRM_fixed(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    whiteX: CPointer<Int32>,
+    whiteY: CPointer<Int32>,
+    redX: CPointer<Int32>,
+    redY: CPointer<Int32>,
+    greenX: CPointer<Int32>,
+    greenY: CPointer<Int32>,
+    blueX: CPointer<Int32>,
+    blueY: CPointer<Int32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasChromaticities) { return UInt32(0) }
+                let value = access.metadata.chromaticities
+                unsafe {
+                    if (!whiteX.isNull()) { whiteX.write(value.whiteX) }
+                    if (!whiteY.isNull()) { whiteY.write(value.whiteY) }
+                    if (!redX.isNull()) { redX.write(value.redX) }
+                    if (!redY.isNull()) { redY.write(value.redY) }
+                    if (!greenX.isNull()) { greenX.write(value.greenX) }
+                    if (!greenY.isNull()) { greenY.write(value.greenY) }
+                    if (!blueX.isNull()) { blueX.write(value.blueX) }
+                    if (!blueY.isNull()) { blueY.write(value.blueY) }
+                }
+                PNG_C_INFO_cHRM
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_sRGB(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    intent: CPointer<Int32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasSrgb) { return UInt32(0) }
+                if (!intent.isNull()) {
+                    unsafe {
+                        intent.write(Int32(
+                            access.metadata.srgbIntent.encodedValue()
+                        ))
+                    }
+                }
+                PNG_C_INFO_sRGB
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_sBIT(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    significantBits: CPointer<CPointer<Unit>>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasSignificantBits ||
+                    significantBits.isNull()) {
+                    return UInt32(0)
+                }
+                unsafe { significantBits.write(access.backing.significantBits) }
+                PNG_C_INFO_sBIT
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_bKGD(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    background: CPointer<CPointer<Unit>>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasBackground || background.isNull()) {
+                    return UInt32(0)
+                }
+                unsafe { background.write(access.backing.background) }
+                PNG_C_INFO_bKGD
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_pHYs(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    resolutionX: CPointer<UInt32>,
+    resolutionY: CPointer<UInt32>,
+    unitType: CPointer<Int32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasPhysicalDimensions) {
+                    return UInt32(0)
+                }
+                let value = access.metadata.physicalDimensions
+                unsafe {
+                    if (!resolutionX.isNull()) {
+                        resolutionX.write(value.pixelsPerUnitX)
+                    }
+                    if (!resolutionY.isNull()) {
+                        resolutionY.write(value.pixelsPerUnitY)
+                    }
+                    if (!unitType.isNull()) {
+                        unitType.write(Int32(value.unit))
+                    }
+                }
+                PNG_C_INFO_pHYs
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_PLTE(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    palette: CPointer<CPointer<Unit>>,
+    paletteCount: CPointer<Int32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasPalette || palette.isNull()) {
+                    return UInt32(0)
+                }
+                unsafe {
+                    palette.write(access.backing.palette)
+                    if (!paletteCount.isNull()) {
+                        paletteCount.write(access.backing.paletteCount)
+                    }
+                }
+                PNG_C_INFO_PLTE
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_tRNS(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    transparency: CPointer<CPointer<Unit>>,
+    transparencyCount: CPointer<Int32>,
+    transparentColor: CPointer<CPointer<Unit>>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasTransparency) { return UInt32(0) }
+                var result = UInt32(0)
+                let paletteColor = access.ihdr.colorType == Indexed
+                unsafe {
+                    if (paletteColor) {
+                        if (!transparency.isNull()) {
+                            transparency.write(access.backing.transparency)
+                            result |= PNG_C_INFO_tRNS
+                        }
+                        if (!transparentColor.isNull()) {
+                            transparentColor.write(
+                                access.backing.transparentColor
+                            )
+                        }
+                    } else {
+                        if (!transparentColor.isNull()) {
+                            transparentColor.write(
+                                access.backing.transparentColor
+                            )
+                            result |= PNG_C_INFO_tRNS
+                        }
+                        if (!transparency.isNull()) {
+                            transparency.write(CPointer<Unit>())
+                        }
+                    }
+                    if (!transparencyCount.isNull()) {
+                        transparencyCount.write(
+                            access.backing.transparencyCount
+                        )
+                        result |= PNG_C_INFO_tRNS
+                    }
+                }
+                result
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
         case None => UInt32(0)
     }
 }
