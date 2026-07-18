@@ -1732,8 +1732,8 @@ LP-S006K removes the Adam7 early-sink rejection through bounded pass spooling:
 
 These write paths finalize a complete image and support non-interlaced or
 Adam7 output.
-Raw C callback trampolines, broader simplified linear/colormap/file surfaces,
-and complete libpng16 write ABI remain later LP-S007/LP-S008 work. ICC profile
+Raw C callback trampolines, simplified colormap/stride/file surfaces, and
+complete libpng16 write ABI remain later LP-S007/LP-S008 work. ICC profile
 bytes are validated and emitted, but ICC pixel conversion is outside libpng's
 scope.
 
@@ -1758,6 +1758,26 @@ C ABI:
 - diagnostics retain warning/error bits, error-kind ordinal, byte offset, and
   message while `free()` releases retained input idempotently
 
-Linear-16/associated-alpha semantics, color maps, negative/custom row stride,
-file/stdio operations, raw-pointer buffers, exact `png_image` struct layout,
-and exported `png_image_*` symbols remain later LP-S007/LP-S008 packets.
+LP-S007B extends that native facade without claiming the C ABI:
+
+- `finishReadLinear` returns copy-owned host-numeric UInt16 components for the
+  same nine Gray/RGB/BGR and alpha-first/alpha-last layouts
+- the existing initialized read pipeline expands packed, palette/tRNS, 8-bit,
+  16-bit, non-interlaced, and Adam7 input, corrects retained gAMA/sRGB samples
+  into linear component space, and preserves straight or associated alpha
+- alpha-removing linear layouts use associated color values, which is exact
+  composition onto black; zero, partial, and full alpha endpoints plus absolute
+  channel order are covered directly
+- `writePngLinearImageToMemory` unassociates when required and emits either
+  16-bit gAMA 1.0 PNG or explicitly converted 8-bit sRGB PNG through the same
+  metadata, controls, limits, and non-interlaced/Adam7 writer substrate
+- 8-bit/default-sRGB reads use the frozen exact 256-entry upstream transfer
+  table, while linear-to-sRGB8 writes use its 512-entry base/delta interpolation
+  tables instead of the generic gamma 1/2.2 approximation
+- `PngLinearImageBuffer` owns exact contiguous UInt16 storage and exposes
+  component count, byte count, minimal component stride, buffer copy, and row
+  copy access
+
+Color maps, negative/custom row stride, file/stdio operations, raw-pointer
+buffers, exact `png_image` struct layout, and exported `png_image_*` symbols
+remain later LP-S007/LP-S008 packets.

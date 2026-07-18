@@ -1243,6 +1243,32 @@ main(): Int64 {
         println("libpng4cj simplified memory image consumer check failed")
         return 1
     }
+    let linearImage = beginPngImageReadFromMemory(adam7StreamProbe.bytes)
+    let linearRgba = linearImage.finishReadLinear(LinearRgba, true)
+    let linearWritten = writePngLinearImageToMemory(linearRgba, false, Adam7)
+    let linearRoundTrip = beginPngImageReadFromMemory(
+        linearWritten
+    ).finishReadLinear(LinearRgba, true)
+    let linearSrgb = writePngLinearImageToMemory(linearRgba, true)
+    let linearSrgbDecoded = decodePng(linearSrgb)
+    let linearMidpointSrgb = beginPngImageReadFromMemory(
+        writePngLinearImageToMemory(PngLinearImageBuffer(
+            UInt32(1), UInt32(1), LinearGray, [UInt16(32768)], false
+        ), true)
+    ).finishRead(ImageGray8)
+    if (linearImage.state() != PngImageFinished ||
+        linearRgba.rowStride != Int64(8) ||
+        linearRgba.byteCount() != Int64(32) ||
+        !linearRgba.associatedAlpha ||
+        linearRoundTrip.components() != linearRgba.components() ||
+        decodePng(linearWritten).ihdr.bitDepth != UInt8(16) ||
+        decodePng(linearWritten).ihdr.interlaceMethod != Adam7 ||
+        linearSrgbDecoded.ihdr.bitDepth != UInt8(8) ||
+        !linearSrgbDecoded.metadata.hasSrgb ||
+        linearMidpointSrgb.bytes() != [UInt8(188)]) {
+        println("libpng4cj simplified linear image consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add copy-owned host-numeric UInt16 simplified images for nine linear Gray,
+  RGB, BGR, and alpha-first/alpha-last layouts; support straight or associated
+  alpha, black composition when alpha is removed, packed/8/16-bit and Adam7
+  input, and bounded 16-bit linear or converted sRGB8 memory write-back using
+  the frozen upstream exact sRGB transfer tables.
 - Add a Cangjie-native simplified memory image facade with copy-owned
   begin/finish/free lifecycle, header and diagnostic facts, nine common 8-bit
   Gray/GA/AG/RGB/BGR/RGBA/ARGB/BGRA/ABGR layouts, explicit background

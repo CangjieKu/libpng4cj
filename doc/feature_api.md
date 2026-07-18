@@ -48,6 +48,9 @@ import libpng4cj.*
 - copy-owned simplified memory images with begin/finish/free lifecycle, the
   common Gray/GA/AG/RGB/BGR/RGBA/ARGB/BGRA/ABGR 8-bit layouts, explicit
   background composition, and non-interlaced or Adam7 memory write-back
+- copy-owned host-numeric UInt16 simplified images in the same nine linear
+  layouts, with straight/associated alpha, black composition on alpha removal,
+  and 16-bit linear or explicitly converted sRGB8 memory write-back
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -99,10 +102,35 @@ claim exact gamma-aware `png_image_finish_read` composition parity.
 existing writer, metadata, controls, limits, and `None`/`Adam7` selection.
 `free()` releases retained input and is idempotent.
 
-This native packet is not the exact C `png_image` ABI. Linear-16 and associated
-alpha, colormap output, negative or custom row stride, file/stdio operations,
-raw pointers, struct layout, and exported `png_image_*` symbols remain later
-LP-S007/LP-S008 work.
+For host-numeric linear UInt16 output, use `finishReadLinear`:
+
+```cangjie
+let image = beginPngImageReadFromMemory(pngBytes)
+let associated = image.finishReadLinear(LinearRgba, true)
+
+let linearPng = writePngLinearImageToMemory(associated, false, Adam7)
+let srgbPng = writePngLinearImageToMemory(associated, true)
+```
+
+`PngLinearImageFormat` provides LinearGray, LinearGrayAlpha, LinearAlphaGray,
+LinearRgb, LinearBgr, LinearRgba, LinearArgb, LinearBgra, and LinearAbgr.
+`PngLinearImageBuffer` owns an exact contiguous `Array<UInt16>` with component
+count, byte count, minimal component stride, whole-buffer copies, and row
+copies. Read conversion uses retained gAMA/sRGB facts and the initialized gamma,
+expand, Gray-to-RGB, 16-bit, and alpha-mode pipeline. Straight output preserves
+alpha; associated output premultiplies in linear component space; formats that
+remove alpha compose onto linear black.
+
+Linear read uses the frozen upstream exact sRGB-to-linear table for 8-bit sRGB
+and default-sRGB sources. Linear write-back unassociates color when required.
+The default emits 16-bit PNG with gAMA 1.0; `convertTo8Bit = true` uses the
+frozen upstream base/delta transfer tables to emit an 8-bit sRGB PNG. Both
+paths reuse caller metadata, `PngWriteControlState`, `PngWriteLimits`, and
+non-interlaced or Adam7 output.
+
+This native packet is not the exact C `png_image` ABI. Colormap output,
+negative or custom row stride, file/stdio operations, raw pointers, struct
+layout, and exported `png_image_*` symbols remain later LP-S007/LP-S008 work.
 
 ## Non-Interlaced Packed Write
 

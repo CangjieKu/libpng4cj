@@ -453,6 +453,38 @@ public class PngImage {
         finishRead(format, PngSrgbColor8())
     }
 
+    public func finishReadLinear(
+        format: PngLinearImageFormat,
+        associatedAlpha: Bool
+    ): PngLinearImageBuffer {
+        if (stateValue != PngImageReading) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "simplified linear image finish requires a successful begin"
+            )
+        }
+        try {
+            let output = pngImageConvertLinear16(
+                inputValue,
+                limitsValue,
+                format,
+                associatedAlpha
+            )
+            inputValue = Array<Byte>()
+            stateValue = PngImageFinished
+            output
+        } catch (error: PngFormatException) {
+            recordFailure(error)
+            throw error
+        }
+    }
+
+    public func finishReadLinear(
+        format: PngLinearImageFormat
+    ): PngLinearImageBuffer {
+        finishReadLinear(format, false)
+    }
+
     public func free(): Unit {
         inputValue = Array<Byte>()
         stateValue = PngImageFreed
