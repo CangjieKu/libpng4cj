@@ -1,5 +1,7 @@
 package libpng4cj
 
+import std.io.InputStream
+
 public let PNG_IMAGE_VERSION: UInt32 = UInt32(1)
 public let PNG_IMAGE_WARNING: UInt32 = UInt32(1)
 public let PNG_IMAGE_ERROR: UInt32 = UInt32(2)
@@ -454,7 +456,10 @@ public class PngImage {
         stateValue = PngImageFailed
     }
 
-    public func beginReadFromMemory(bytes: Array<Byte>, limits: PngReadLimits): Unit {
+    private func beginReadWith(
+        source: () -> Array<Byte>,
+        limits: PngReadLimits
+    ): Unit {
         if (stateValue != PngImageEmpty && stateValue != PngImageFreed) {
             throw PngFormatException(
                 InvalidArgument, -1,
@@ -464,6 +469,7 @@ public class PngImage {
         clearDiagnostic()
         clearImageFacts()
         try {
+            let bytes = source()
             let ihdr = readPngIhdr(bytes, limits)
             inputValue = bytes.clone()
             limitsValue = limits
@@ -479,8 +485,53 @@ public class PngImage {
         }
     }
 
+    public func beginReadFromMemory(bytes: Array<Byte>, limits: PngReadLimits): Unit {
+        beginReadWith({ => bytes }, limits)
+    }
+
     public func beginReadFromMemory(bytes: Array<Byte>): Unit {
         beginReadFromMemory(bytes, PngReadLimits())
+    }
+
+    public func beginReadFromStream(
+        input: InputStream,
+        limits: PngReadLimits,
+        ioLimits: PngSimplifiedIoLimits
+    ): Unit {
+        beginReadWith(
+            { => pngReadSimplifiedStreamBytes(input, ioLimits) },
+            limits
+        )
+    }
+
+    public func beginReadFromStream(
+        input: InputStream,
+        limits: PngReadLimits
+    ): Unit {
+        beginReadFromStream(input, limits, PngSimplifiedIoLimits())
+    }
+
+    public func beginReadFromStream(input: InputStream): Unit {
+        beginReadFromStream(input, PngReadLimits())
+    }
+
+    public func beginReadFromFile(
+        path: String,
+        limits: PngReadLimits,
+        ioLimits: PngSimplifiedIoLimits
+    ): Unit {
+        beginReadWith(
+            { => pngReadSimplifiedFileBytes(path, ioLimits) },
+            limits
+        )
+    }
+
+    public func beginReadFromFile(path: String, limits: PngReadLimits): Unit {
+        beginReadFromFile(path, limits, PngSimplifiedIoLimits())
+    }
+
+    public func beginReadFromFile(path: String): Unit {
+        beginReadFromFile(path, PngReadLimits())
     }
 
     public func finishRead(

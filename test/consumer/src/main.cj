@@ -1,6 +1,7 @@
 package libpng4cj_consumer
 
 import std.fs.*
+import std.io.*
 import libpng4cj.*
 
 private let CONSUMER_RGBA_ZLIB: Array<Byte> = [
@@ -1321,6 +1322,40 @@ main(): Int64 {
         colormapStrideRoundTrip.row(Int64(0)) !=
             stridedColormap.row(Int64(0))) {
         println("libpng4cj simplified strided image consumer check failed")
+        return 1
+    }
+    let simplifiedStream = ByteBuffer(simplifiedWritten)
+    let streamRead = beginPngImageReadFromStream(
+        simplifiedStream,
+        PngReadLimits(),
+        PngSimplifiedIoLimits(UInt64(simplifiedWritten.size), UInt32(3))
+    ).finishRead(ImageBgra8)
+    let simplifiedOutput = ByteBuffer()
+    writePngImageToStream(streamRead, simplifiedOutput, Adam7)
+    simplifiedOutput.seek(SeekPosition.Begin(Int64(0)))
+    let streamRoundTrip = beginPngImageReadFromStream(
+        simplifiedOutput
+    ).finishRead(ImageBgra8)
+    let simplifiedPath = "/tmp/libpng4cj-consumer-s007e.png"
+    if (exists(Path(simplifiedPath))) { remove(Path(simplifiedPath)) }
+    writePngColormapImageToFile(stridedColormap, simplifiedPath, Adam7)
+    let fileRoundTrip = beginPngImageReadFromFile(
+        simplifiedPath
+    ).finishRead(ImageBgra8)
+    let expectedFileRoundTrip = beginPngImageReadFromMemory(
+        writePngColormapImageToMemory(stridedColormap, Adam7)
+    ).finishRead(ImageBgra8)
+    remove(Path(simplifiedPath))
+    if (streamRead.bytes() != simplifiedBgra.bytes()) {
+        println("libpng4cj simplified stream read consumer check failed")
+        return 1
+    }
+    if (streamRoundTrip.bytes() != streamRead.bytes()) {
+        println("libpng4cj simplified stream write consumer check failed")
+        return 1
+    }
+    if (fileRoundTrip.bytes() != expectedFileRoundTrip.bytes()) {
+        println("libpng4cj simplified file consumer check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
