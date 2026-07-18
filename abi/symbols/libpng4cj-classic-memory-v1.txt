@@ -1,0 +1,6 @@
+png_calloc
+png_free
+png_free_default
+png_malloc
+png_malloc_default
+png_malloc_warn

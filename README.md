@@ -152,7 +152,7 @@ macOS arm64 可运行完整 ABI preview 验证：
 - 构建直接由仓颉 `@C` 导出的 dylib
 - 校验冻结的导出符号清单
 - 以 `-Wall -Wextra -Werror` 编译严格 C11 消费者
-- 验证 preview facade、`png_image` 内存/文件/stdio 子集、经典无状态工具、读取/info 句柄生命周期，以及 warning/error 回调和 fatal 子进程边界
+- 验证 preview facade、`png_image` 内存/文件/stdio 子集、经典无状态工具、读取/info 句柄生命周期、warning/error 边界，以及自定义分配器所有权
 - 把 dylib 移动后重新运行消费者，验证同机重定位加载
 
 C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例消费者已经展示
@@ -166,7 +166,7 @@ C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例�
 
 - 完整的 libpng16 默认配置符号与行为兼容
 - `png_struct` / `png_info` 的完整读取、写入、行处理和元数据状态 API
-- `setjmp` / `longjmp`、用户分配器接管、chunk/custom IO 等其余 C 回调与原始用户指针族
+- `setjmp` / `longjmp`、chunk/custom IO 等其余 C 回调与原始用户指针族
 - ICC profile 驱动的像素颜色转换
 - Linux、Windows、HarmonyOS/OpenHarmony ABI 制品验证
 - 超过 100 MB 图片的吞吐认证或并发压力认证

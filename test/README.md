@@ -14,4 +14,5 @@ consumers with warnings as errors, runs direct/linear/colormap memory coverage,
 file and caller-owned `FILE*` read/write and failure cleanup, checks colorspace
 and untagged-16-bit flags, invokes warning callbacks with callback-side context
 lookup, proves callback-owned/default/returning fatal paths in separate
-processes, and replays every executable after relocating the dylib.
+processes, custom allocator ownership and replacement, and replays every
+executable after relocating the dylib.

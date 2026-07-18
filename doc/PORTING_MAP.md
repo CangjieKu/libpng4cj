@@ -1878,8 +1878,23 @@ Porting milestone S008F adds the first callable classic failure boundary:
   callback-owned termination, returning/default fatal fallbacks, and original/
   relocated execution in independent processes
 
+Porting milestone S008G makes the classic memory boundary allocator-owned:
+
+- direct Cangjie exports for `png_malloc`, `png_calloc`, `png_malloc_warn`,
+  `png_free`, `png_malloc_default`, and `png_free_default`
+- creation-time temporary context registration so the custom allocator can use
+  `png_get_mem_ptr` before the final opaque read handle exists
+- allocator ownership of the returned read handle, info handles, and explicit
+  allocations, with object-level free-owner snapshots across later replacement
+- callback invocation outside the registry mutex, default allocator bypass,
+  zero-filled calloc, deterministic warning/fatal failure, and duplicate-free
+  suppression
+- frozen macOS arm64 default-profile size requests of 1224 bytes for
+  `png_struct` and 352 bytes for `png_info`, plus exact six-symbol, strict C11,
+  original/relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
-parity, allocator-owned storage, longjmp, chunk/custom IO callbacks, classic row
-and metadata/write state, complete public-symbol parity, and portable packaging
-remain later Porting milestone S008 and LTS work.
+parity, longjmp, chunk/custom IO callbacks, classic row and metadata/write
+state, complete public-symbol parity, and portable packaging remain later
+Porting milestone S008 and LTS work.

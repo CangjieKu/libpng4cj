@@ -210,8 +210,12 @@ pointers, and error/memory contexts support set/get round trips. `png_warning`
 and `png_error` snapshot their callbacks under the registry mutex and invoke
 them after releasing it; missing warning callbacks use the default diagnostic,
 while missing or returning error callbacks terminate through the default fatal
-boundary. Allocator-owned storage, longjmp, chunk/custom IO callbacks, row
-processing, metadata state, and write handles remain outside this cluster.
+boundary. Custom allocators own read/info handles and explicit
+`png_malloc`/`png_calloc` results; callbacks can query their memory context,
+default allocation can bypass user callbacks, and allocator replacement changes
+future allocations without changing the free owner of existing objects.
+Longjmp, chunk/custom IO callbacks, row processing, metadata state, and write
+handles remain outside this cluster.
 
 ## Non-Interlaced Packed Write
 

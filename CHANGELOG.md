@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Add direct Cangjie `png_malloc`, `png_calloc`, `png_malloc_warn`, `png_free`,
+  `png_malloc_default`, and `png_free_default` exports with a frozen symbol
+  manifest and strict C11 signature proof.
+- Make custom allocators own the created read handle, info handles, and explicit
+  allocations. Allocator callbacks receive a live context handle outside the
+  registry mutex; allocator replacement affects future allocations while each
+  existing allocation retains its matching free owner.
+- Prove the frozen macOS arm64 default-profile requests for `png_struct` and
+  `png_info`, zero-filled calloc, default-allocation bypass, deterministic warn
+  and fatal allocation failure, duplicate-free suppression, and original/
+  relocated dylib execution.
 - Add direct Cangjie `png_warning` and `png_error` exports. Warning callbacks
   receive the live handle and exact message outside the registry mutex;
   missing callbacks use default stderr diagnostics.
@@ -15,8 +26,8 @@
   updates, and retained error/memory contexts.
 - Freeze nine additional symbols and a strict C11 lifecycle consumer covering
   function signatures, null inputs, two-info ownership, context updates, and
-  original/relocated dylib execution. Custom-allocation ownership, longjmp,
-  and row IO remain outside this surface.
+  original/relocated dylib execution. Longjmp and row IO remain outside this
+  surface.
 
 ## 0.2.0 Preview - 2026-07-18
 

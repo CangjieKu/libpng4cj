@@ -160,7 +160,7 @@ It performs the following checks:
 - compiles strict C11 consumers with `-Wall -Wextra -Werror`
 - exercises the preview facade, `png_image` memory/file/stdio subset,
   stateless classic utilities, read/info handle lifecycle, warning callbacks,
-  and fatal error subprocess boundaries
+  fatal error subprocess boundaries, and custom allocator ownership
 - relocates the dylib and reruns every consumer on the same host
 
 A C process must initialize and finalize the Cangjie runtime as required by the
@@ -175,7 +175,7 @@ See [C ABI Surfaces](doc/ABI_PREVIEW.md) for details.
 
 - complete default-config libpng16 symbol or behavior compatibility
 - the complete `png_struct` / `png_info` read, write, row, and metadata state API
-- `setjmp` / `longjmp`, user-allocator ownership, chunk/custom-IO callbacks,
+- `setjmp` / `longjmp`, chunk/custom-IO callbacks,
   and the remaining raw user-pointer families
 - ICC-profile-driven pixel color conversion
 - verified Linux, Windows, HarmonyOS, or OpenHarmony ABI artifacts

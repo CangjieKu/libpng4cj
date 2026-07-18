@@ -118,8 +118,7 @@ exact nine-symbol set is frozen in
 
 The strict lifecycle consumer covers incompatible versions, null inputs,
 independent info destruction, two-info cascade destruction, context updates,
-exact function-pointer declarations, and original/relocated loading. Allocator
-addresses are retained for later ABI work but do not yet own handle allocation.
+exact function-pointer declarations, and original/relocated loading.
 
 The classic error milestone adds direct Cangjie `png_warning` and `png_error`
 exports, frozen in `abi/symbols/libpng4cj-classic-error-v1.txt`. Callback
@@ -131,7 +130,25 @@ errors invoke the current error callback first, then use the default
 or returns. The strict consumer proves all three fatal outcomes in independent
 processes so a terminating path cannot corrupt the main acceptance process.
 
+The classic memory milestone adds direct Cangjie exports for `png_malloc`,
+`png_calloc`, `png_malloc_warn`, `png_free`, `png_malloc_default`, and
+`png_free_default`, frozen in
+`abi/symbols/libpng4cj-classic-memory-v1.txt`. `png_create_read_struct_2`
+invokes the configured allocator through a temporary live creation context and
+returns the allocator-owned block as the opaque read handle. Info handles and
+explicit allocations use the current allocator; later `png_set_mem_fn` calls
+affect future allocations, while already-created objects retain the allocator
+snapshot that owns their release. Default allocation APIs bypass user
+callbacks.
+
+For the frozen macOS arm64 default configuration, the strict consumer verifies
+the upstream `png_struct` and `png_info` requests at 1224 and 352 bytes. It also
+proves callback-side `png_get_mem_ptr`, zero-filled calloc, allocator-family
+matching after replacement, creation and warn-return allocation failure,
+fatal allocation failure in an isolated process, duplicate-free suppression,
+and original/relocated loading.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. Allocator ownership, setjmp/longjmp, chunk/custom
-IO callbacks, classic row/metadata/write state, remaining public symbols, and
-non-macOS ABI packaging remain outside this checkpoint.
+release, or an LTS artifact. Setjmp/longjmp, chunk/custom IO callbacks, classic
+row/metadata/write state, remaining public symbols, and non-macOS ABI packaging
+remain outside this checkpoint.

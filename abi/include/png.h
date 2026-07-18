@@ -4,8 +4,8 @@
 /* Frozen libpng 1.6.58 simplified and classic API subset.
  * This is not the complete upstream png.h. The stateful surface currently
  * covers opaque read/info ownership, caller-context retention, warning/error
- * callback invocation, and fatal fallback termination. Custom-allocation
- * ownership, longjmp, and row IO are not yet implemented.
+ * callback invocation, fatal fallback termination, and custom-allocation
+ * ownership. Longjmp and row IO are not yet implemented.
  */
 
 #include <stddef.h>
@@ -173,6 +173,24 @@ void png_set_mem_fn(
     png_free_ptr free_fn
 );
 png_voidp png_get_mem_ptr(png_const_structp png_ptr);
+png_voidp png_malloc(
+    png_const_structp png_ptr,
+    png_alloc_size_t size
+);
+png_voidp png_calloc(
+    png_const_structp png_ptr,
+    png_alloc_size_t size
+);
+png_voidp png_malloc_warn(
+    png_const_structp png_ptr,
+    png_alloc_size_t size
+);
+png_voidp png_malloc_default(
+    png_const_structp png_ptr,
+    png_alloc_size_t size
+);
+void png_free(png_const_structp png_ptr, png_voidp ptr);
+void png_free_default(png_const_structp png_ptr, png_voidp ptr);
 void png_warning(
     png_const_structp png_ptr,
     png_const_charp warning_message
