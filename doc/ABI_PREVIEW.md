@@ -32,6 +32,9 @@ The generated directory contains:
 - `png-classic-extended-metadata-consumer`: strict C11 cHRM XYZ, variable
   metadata structures and pointer trees, phase visibility, fatal sCAL fixed
   conversion, owner, and allocator-lifecycle proof
+- `png-classic-runtime-context-consumer`: strict C11 read-owner defaults,
+  row/pass and IO status, palette status, NULL registration contexts, and
+  stale/null lifecycle proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -264,14 +267,21 @@ tIME, and unknown metadata; the post-IDAT zTXt/eXIf facts retained by the native
 decoder do not leak into these getters. The strict consumer freezes exact LP64
 layouts, compares `pngtest.png` values with libpng 1.6.58, checks pointer
 stability and owner/lifecycle rejection, and reproduces the upstream sCAL
-fixed-point overflow diagnostic in a subprocess. The frozen manifests now cover
-`108/258` upstream default symbols, leaving `150`, including `14` remaining
-`png_get_*` symbols.
+fixed-point overflow diagnostic in a subprocess.
+
+The classic runtime/context milestone adds all fourteen remaining `png_get_*`
+symbols frozen in `abi/symbols/libpng4cj-classic-runtime-context-v1.txt`. It
+preserves the frozen read-owner defaults for user limits, chunk limits, and the
+IDAT buffer; exposes the current sequential row cursor and zero pass/IO/status
+facts; returns NULL for registration contexts whose setters remain outside;
+and proves null, wrong-info, stale, original, and relocated execution. The
+frozen manifests now cover `122/258` upstream default symbols, leaving `136`
+and no unmanifested `png_get_*` symbols.
 
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
 pass-progress/display combination, exact callback/cursor timing, high-level
-rows population, remaining runtime/context getters, broader read-end
+rows population, runtime/context setter and registration parity, broader read-end
 metadata/write state, remaining callback families and public symbols, and
 non-macOS ABI packaging remain
 outside this checkpoint.

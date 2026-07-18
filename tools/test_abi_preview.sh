@@ -32,6 +32,8 @@ CLASSIC_SCALAR_METADATA_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-scalar-met
 CLASSIC_SCALAR_METADATA_ACTUAL="$OUT/libpng4cj-classic-scalar-metadata-v1.actual.txt"
 CLASSIC_EXTENDED_METADATA_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-extended-metadata-v1.txt"
 CLASSIC_EXTENDED_METADATA_ACTUAL="$OUT/libpng4cj-classic-extended-metadata-v1.actual.txt"
+CLASSIC_RUNTIME_CONTEXT_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-runtime-context-v1.txt"
+CLASSIC_RUNTIME_CONTEXT_ACTUAL="$OUT/libpng4cj-classic-runtime-context-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -169,6 +171,23 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_EXTENDED_METADATA_ACTUAL"
 diff -u "$CLASSIC_EXTENDED_METADATA_EXPECTED" "$CLASSIC_EXTENDED_METADATA_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_get_chunk_cache_max" || \
+        $3 == "_png_get_chunk_malloc_max" || \
+        $3 == "_png_get_compression_buffer_size" || \
+        $3 == "_png_get_current_pass_number" || \
+        $3 == "_png_get_current_row_number" || \
+        $3 == "_png_get_io_chunk_type" || $3 == "_png_get_io_state" || \
+        $3 == "_png_get_palette_max" || \
+        $3 == "_png_get_progressive_ptr" || \
+        $3 == "_png_get_rgb_to_gray_status" || \
+        $3 == "_png_get_user_chunk_ptr" || \
+        $3 == "_png_get_user_height_max" || \
+        $3 == "_png_get_user_transform_ptr" || \
+        $3 == "_png_get_user_width_max") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_RUNTIME_CONTEXT_ACTUAL"
+diff -u "$CLASSIC_RUNTIME_CONTEXT_EXPECTED" "$CLASSIC_RUNTIME_CONTEXT_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -414,6 +433,25 @@ fi
     exit 1
 }
 
+cc "$ROOT/test/abi_consumer/png_classic_runtime_context.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-runtime-context-consumer"
+
+"$OUT/png-classic-runtime-context-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
@@ -426,6 +464,7 @@ cp "$OUT/png-classic-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-easy-access-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-scalar-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-extended-metadata-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-runtime-context-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -496,4 +535,7 @@ fi
         "relocated png_get_sCAL_fixed overflow exit=$scal_status, expected=75" >&2
     exit 1
 }
+"$RELOCATED/png-classic-runtime-context-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

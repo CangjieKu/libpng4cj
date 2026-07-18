@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add all fourteen remaining classic `png_get_*` exports for read-owner limits,
+  compression buffer size, row/pass and IO status, palette/RGB-to-gray status,
+  and progressive/user context pointers.
+- Freeze libpng 1.6.58 defaults, honest NULL contexts, current sequential row
+  cursor behavior, stale/null lifecycle results, an exact fourteen-symbol
+  manifest, and original plus relocated strict C11 consumer proof.
+
 - Add direct Cangjie `png_read_row`, `png_read_rows`, `png_read_image`, and
   `png_read_end` exports with a frozen four-symbol manifest and exact strict
   C11 signatures.

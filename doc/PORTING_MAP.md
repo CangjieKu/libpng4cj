@@ -1976,13 +1976,24 @@ Porting milestone S008N adds classic extended metadata getters:
 - frozen fifteen-symbol manifest plus strict C11 libpng 1.6.58 oracle,
   structure-layout, owner, stale-handle, allocator, original, and relocated proof
 
-The frozen ABI manifests cover `108/258` upstream default symbols after this
-milestone, leaving `150`, including `14` remaining `png_get_*` symbols.
+Porting milestone S008O adds the remaining classic runtime/context getters:
+
+- direct Cangjie exports for user/chunk limits, compression buffer size,
+  current row/pass, IO state/chunk type, palette and RGB-to-gray status, and
+  progressive/user context pointers
+- frozen libpng 1.6.58 read-owner defaults, current sequential row cursor,
+  zero pass/IO/status facts, and explicit NULL registration contexts until
+  their setter packets land
+- frozen fourteen-symbol manifest plus strict C11 exact signatures, fresh,
+  post-read, wrong-info, null, stale, original, and relocated proof
+
+The frozen ABI manifests cover `122/258` upstream default symbols after this
+milestone, leaving `136` and no unmanifested `png_get_*` symbols.
 
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor
-timing, high-level rows population, remaining runtime/context getters, broader
-read-end metadata/write state,
+timing, high-level rows population, runtime/context setter and registration
+parity, broader read-end metadata/write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

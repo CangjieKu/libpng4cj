@@ -73,6 +73,8 @@ fi
     fail "classic scalar metadata ABI symbol manifest is missing"
 [ -f "$ROOT/abi/symbols/libpng4cj-classic-extended-metadata-v1.txt" ] || \
     fail "classic extended metadata ABI symbol manifest is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-classic-runtime-context-v1.txt" ] || \
+    fail "classic runtime/context ABI symbol manifest is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_read_handle.c" ] || \
     fail "classic read-handle ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_core_info.c" ] || \
@@ -87,8 +89,10 @@ fi
     fail "classic scalar metadata ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_extended_metadata.c" ] || \
     fail "classic extended metadata ABI C consumer is missing"
+[ -f "$ROOT/test/abi_consumer/png_classic_runtime_context.c" ] || \
+    fail "classic runtime/context ABI C consumer is missing"
 
 note "upstream=libpng-1.6.58 reference present"
 note "png_image=memory/file/stdio ABI header and symbol manifests present"
-note "classic-abi=stateless, read-handle, error, memory, read-IO, core-info, row-read, metadata, easy-access, scalar-metadata, and extended-metadata manifests/consumers present"
+note "classic-abi=stateless, read-handle, error, memory, read-IO, core-info, row-read, metadata, easy-access, scalar-metadata, extended-metadata, and runtime-context manifests/consumers present"
 note "PASS"

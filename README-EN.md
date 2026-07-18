@@ -143,7 +143,7 @@ The current baseline is:
 - tag `v1.6.58`
 - commit `3061454d980de7d53608f594194cfac722721d2a`
 - default public-symbol inventory: `258`
-- current frozen ABI manifests cover `108/258` upstream default symbols
+- current frozen ABI manifests cover `122/258` upstream default symbols
 - top-level `pngrtran.c` function inventory: `45`
 
 ## C ABI Preview
@@ -181,7 +181,8 @@ See [C ABI Surfaces](doc/ABI_PREVIEW.md) for details.
 
 - complete default-config libpng16 symbol or behavior compatibility
 - transformed rows, Adam7 pass/display combination, high-level rows population,
-  remaining runtime/context getters, complete read-end metadata, write state,
+  runtime/context setter and registration parity, complete read-end metadata,
+  write state,
   and the remaining `png_struct` / `png_info` state API
 - `setjmp` / `longjmp`, chunk/row-status callback families, and the remaining
   raw user-pointer families

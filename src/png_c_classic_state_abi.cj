@@ -13,6 +13,11 @@ foreign func memset(
 private let PNG_C_CLASSIC_STRUCT_SIZE = UIntNative(1224)
 private let PNG_C_CLASSIC_INFO_SIZE = UIntNative(352)
 private let PNG_C_CLASSIC_MAX_INPUT_BYTES = UInt64(512_000_000)
+private let PNG_C_CLASSIC_USER_WIDTH_MAX = UInt32(1_000_000)
+private let PNG_C_CLASSIC_USER_HEIGHT_MAX = UInt32(1_000_000)
+private let PNG_C_CLASSIC_CHUNK_CACHE_MAX = UInt32(1_000)
+private let PNG_C_CLASSIC_CHUNK_MALLOC_MAX = UIntNative(8_000_000)
+private let PNG_C_CLASSIC_COMPRESSION_BUFFER_SIZE = UIntNative(8_192)
 private let PNG_C_CLASSIC_SIGNATURE = [
     UInt8(137), UInt8(80), UInt8(78), UInt8(71),
     UInt8(13), UInt8(10), UInt8(26), UInt8(10)
@@ -73,6 +78,19 @@ class PngCClassicReadState {
     var decodedInfoHandle = UIntNative(0)
     var nextRow = Int64(0)
     var readEndComplete = false
+    var userWidthMax = PNG_C_CLASSIC_USER_WIDTH_MAX
+    var userHeightMax = PNG_C_CLASSIC_USER_HEIGHT_MAX
+    var chunkCacheMax = PNG_C_CLASSIC_CHUNK_CACHE_MAX
+    var chunkMallocMax = PNG_C_CLASSIC_CHUNK_MALLOC_MAX
+    var compressionBufferSize = PNG_C_CLASSIC_COMPRESSION_BUFFER_SIZE
+    var ioState = UInt32(0)
+    var ioChunkType = UInt32(0)
+    var currentPass = UInt8(0)
+    var paletteMax = Int32(0)
+    var rgbToGrayStatus = UInt8(0)
+    var progressivePtr = CPointer<Unit>()
+    var userChunkPtr = CPointer<Unit>()
+    var userTransformPtr = CPointer<Unit>()
     var destroying = false
     let allocatorMutex = Mutex()
     let selfAllocator: PngCClassicAllocatorSnapshot
@@ -1780,6 +1798,200 @@ public func png_get_io_ptr(
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
             case Some(state) => state.ioPtr
             case None => CPointer<Unit>()
+        }
+    }
+}
+
+@C
+public func png_get_chunk_cache_max(
+    pngPtr: CPointer<Unit>
+): UInt32 {
+    if (pngPtr.isNull()) { return UInt32(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.chunkCacheMax
+            case None => UInt32(0)
+        }
+    }
+}
+
+@C
+public func png_get_chunk_malloc_max(
+    pngPtr: CPointer<Unit>
+): UIntNative {
+    if (pngPtr.isNull()) { return UIntNative(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.chunkMallocMax
+            case None => UIntNative(0)
+        }
+    }
+}
+
+@C
+public func png_get_compression_buffer_size(
+    pngPtr: CPointer<Unit>
+): UIntNative {
+    if (pngPtr.isNull()) { return UIntNative(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.compressionBufferSize
+            case None => UIntNative(0)
+        }
+    }
+}
+
+@C
+public func png_get_current_pass_number(
+    pngPtr: CPointer<Unit>
+): UInt8 {
+    if (pngPtr.isNull()) { return UInt8(8) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.currentPass
+            case None => UInt8(8)
+        }
+    }
+}
+
+@C
+public func png_get_current_row_number(
+    pngPtr: CPointer<Unit>
+): UInt32 {
+    if (pngPtr.isNull()) { return UInt32.Max }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => UInt32(state.nextRow)
+            case None => UInt32.Max
+        }
+    }
+}
+
+@C
+public func png_get_io_chunk_type(
+    pngPtr: CPointer<Unit>
+): UInt32 {
+    if (pngPtr.isNull()) { return UInt32(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.ioChunkType
+            case None => UInt32(0)
+        }
+    }
+}
+
+@C
+public func png_get_io_state(
+    pngPtr: CPointer<Unit>
+): UInt32 {
+    if (pngPtr.isNull()) { return UInt32(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.ioState
+            case None => UInt32(0)
+        }
+    }
+}
+
+@C
+public func png_get_palette_max(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    if (pngPtr.isNull() || infoPtr.isNull()) { return Int32(-1) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                match (PNG_C_CLASSIC_INFO_REGISTRY.get(
+                    infoPtr.toUIntNative()
+                )) {
+                    case Some(infoState) =>
+                        if (infoState.owner == pngPtr.toUIntNative() &&
+                            !state.destroying) {
+                            state.paletteMax
+                        } else {
+                            Int32(-1)
+                        }
+                    case None => Int32(-1)
+                }
+            case None => Int32(-1)
+        }
+    }
+}
+
+@C
+public func png_get_progressive_ptr(
+    pngPtr: CPointer<Unit>
+): CPointer<Unit> {
+    if (pngPtr.isNull()) { return CPointer<Unit>() }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.progressivePtr
+            case None => CPointer<Unit>()
+        }
+    }
+}
+
+@C
+public func png_get_rgb_to_gray_status(
+    pngPtr: CPointer<Unit>
+): UInt8 {
+    if (pngPtr.isNull()) { return UInt8(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.rgbToGrayStatus
+            case None => UInt8(0)
+        }
+    }
+}
+
+@C
+public func png_get_user_chunk_ptr(
+    pngPtr: CPointer<Unit>
+): CPointer<Unit> {
+    if (pngPtr.isNull()) { return CPointer<Unit>() }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.userChunkPtr
+            case None => CPointer<Unit>()
+        }
+    }
+}
+
+@C
+public func png_get_user_height_max(
+    pngPtr: CPointer<Unit>
+): UInt32 {
+    if (pngPtr.isNull()) { return UInt32(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.userHeightMax
+            case None => UInt32(0)
+        }
+    }
+}
+
+@C
+public func png_get_user_transform_ptr(
+    pngPtr: CPointer<Unit>
+): CPointer<Unit> {
+    if (pngPtr.isNull()) { return CPointer<Unit>() }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.userTransformPtr
+            case None => CPointer<Unit>()
+        }
+    }
+}
+
+@C
+public func png_get_user_width_max(
+    pngPtr: CPointer<Unit>
+): UInt32 {
+    if (pngPtr.isNull()) { return UInt32(0) }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.userWidthMax
+            case None => UInt32(0)
         }
     }
 }

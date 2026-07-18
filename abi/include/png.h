@@ -43,6 +43,15 @@ extern "C" {
 #define PNG_FILTER_TYPE_BASE 0
 #define PNG_FILTER_TYPE_DEFAULT PNG_FILTER_TYPE_BASE
 #define PNG_INTERLACE_NONE 0
+#define PNG_IO_NONE 0x0000u
+#define PNG_IO_READING 0x0001u
+#define PNG_IO_WRITING 0x0002u
+#define PNG_IO_SIGNATURE 0x0010u
+#define PNG_IO_CHUNK_HDR 0x0020u
+#define PNG_IO_CHUNK_DATA 0x0040u
+#define PNG_IO_CHUNK_CRC 0x0080u
+#define PNG_IO_MASK_OP 0x000fu
+#define PNG_IO_MASK_LOC 0x00f0u
 #define PNG_INTERLACE_ADAM7 1
 #define PNG_INTERLACE_LAST 2
 
@@ -684,6 +693,23 @@ int png_get_unknown_chunks(
     png_infop info_ptr,
     png_unknown_chunkpp entries
 );
+png_uint_32 png_get_chunk_cache_max(png_const_structp png_ptr);
+png_alloc_size_t png_get_chunk_malloc_max(png_const_structp png_ptr);
+size_t png_get_compression_buffer_size(png_const_structp png_ptr);
+png_byte png_get_current_pass_number(png_const_structp png_ptr);
+png_uint_32 png_get_current_row_number(png_const_structp png_ptr);
+png_uint_32 png_get_io_chunk_type(png_const_structp png_ptr);
+png_uint_32 png_get_io_state(png_const_structp png_ptr);
+int png_get_palette_max(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_voidp png_get_progressive_ptr(png_const_structp png_ptr);
+png_byte png_get_rgb_to_gray_status(png_const_structp png_ptr);
+png_voidp png_get_user_chunk_ptr(png_const_structp png_ptr);
+png_uint_32 png_get_user_height_max(png_const_structp png_ptr);
+png_voidp png_get_user_transform_ptr(png_const_structp png_ptr);
+png_uint_32 png_get_user_width_max(png_const_structp png_ptr);
 png_voidp png_malloc(
     png_const_structp png_ptr,
     png_alloc_size_t size

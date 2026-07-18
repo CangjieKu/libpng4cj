@@ -48,3 +48,9 @@ libpng 1.6.58 oracle, verifies primary-info filtering for post-IDAT text/eXIf,
 checks stable info-owned pointer trees, reproduces the sCAL fixed-point overflow
 fatal boundary, and repeats absent, wrong-owner, spare, stale, allocator,
 original, and relocated checks.
+
+The runtime/context consumer freezes all fourteen remaining classic getter
+signatures; verifies frozen 1.6.58 read-owner defaults, NULL registration
+contexts, row cursor movement, pass/IO/palette status, null and stale handles,
+and original plus relocated execution without claiming the held setter or
+progressive/write registration surfaces.
