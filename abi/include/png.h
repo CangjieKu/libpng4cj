@@ -1,12 +1,13 @@
 #ifndef LIBPNG4CJ_PNG_IMAGE_H
 #define LIBPNG4CJ_PNG_IMAGE_H
 
-/* Frozen libpng 1.6.58 simplified memory-API subset. This is not the complete
- * upstream png.h and does not declare stdio, callback, or classic APIs.
+/* Frozen libpng 1.6.58 simplified memory/file/stdio API subset. This is not
+ * the complete upstream png.h and does not declare callback or classic APIs.
  */
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -98,6 +99,8 @@ int png_image_begin_read_from_memory(
     const void *memory,
     size_t size
 );
+int png_image_begin_read_from_file(png_imagep image, const char *file_name);
+int png_image_begin_read_from_stdio(png_imagep image, FILE *file);
 int png_image_finish_read(
     png_imagep image,
     png_const_colorp background,
@@ -110,6 +113,22 @@ int png_image_write_to_memory(
     png_imagep image,
     void *memory,
     size_t *memory_bytes,
+    int convert_to_8bit,
+    const void *buffer,
+    int32_t row_stride,
+    const void *colormap
+);
+int png_image_write_to_file(
+    png_imagep image,
+    const char *file_name,
+    int convert_to_8bit,
+    const void *buffer,
+    int32_t row_stride,
+    const void *colormap
+);
+int png_image_write_to_stdio(
+    png_imagep image,
+    FILE *file,
     int convert_to_8bit,
     const void *buffer,
     int32_t row_stride,

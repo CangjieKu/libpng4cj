@@ -45,7 +45,11 @@ fi
 [ -f "$ROOT/abi/include/png.h" ] || fail "png_image ABI header is missing"
 [ -f "$ROOT/abi/symbols/libpng4cj-png-image-memory-v1.txt" ] || \
     fail "png_image ABI symbol manifest is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-png-image-file-stdio-v1.txt" ] || \
+    fail "png_image file/stdio ABI symbol manifest is missing"
+[ -f "$ROOT/test/abi_consumer/png_image_file_stdio.c" ] || \
+    fail "png_image file/stdio C consumer is missing"
 
 note "upstream=libpng-1.6.58 reference present"
-note "png_image=memory ABI header and symbol manifest present"
+note "png_image=memory/file/stdio ABI header and symbol manifests present"
 note "PASS"

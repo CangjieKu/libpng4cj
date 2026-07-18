@@ -14,9 +14,10 @@ The generated directory contains:
 
 - `libpng4cj_preview.dylib`: direct Cangjie `@C` implementation
 - `include/libpng4cj_preview.h`: preview API contract
-- `include/png.h`: frozen simplified `png_image` memory ABI header
+- `include/png.h`: frozen simplified `png_image` memory/file/stdio ABI header
 - `abi-consumer`: standalone C consumption proof
 - `png-image-memory-consumer`: strict C11 `png_image` consumption proof
+- `png-image-file-stdio-consumer`: strict C11 file and `FILE*` proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -55,13 +56,33 @@ color-map pixel conversion remains outside this checkpoint.
 
 The exact exported symbol sets are frozen in
 `abi/symbols/libpng4cj-preview-v1.txt` and
-`abi/symbols/libpng4cj-png-image-memory-v1.txt`. The C11 proof statically checks
-the LP64 104-byte structure and every field offset before exercising lifecycle,
-formats, malformed input, limits, read/write ownership, and relocated loading.
-It also proves non-sRGB begin facts and distinct linear output when the
+`abi/symbols/libpng4cj-png-image-memory-v1.txt`, with the file/stdio extension
+in `abi/symbols/libpng4cj-png-image-file-stdio-v1.txt`. The C11 proof statically
+checks the LP64 104-byte structure and every field offset before exercising
+lifecycle, formats, malformed input, limits, read/write ownership, and relocated
+loading. It also proves non-sRGB begin facts and distinct linear output when the
 16-bit-sRGB assumption is enabled.
 
+LP-S008C adds the four simplified stdio/file entry points:
+
+- `png_image_begin_read_from_file`
+- `png_image_begin_read_from_stdio`
+- `png_image_write_to_file`
+- `png_image_write_to_stdio`
+
+The implementation keeps PNG parsing, format conversion, opaque ownership,
+limits, diagnostics, and encoding in Cangjie. A narrow libc FFI performs only
+`FILE*` open/read/write/flush/close/remove operations. Caller-supplied streams
+remain caller-owned; named-file operations own their stream, flush and close
+writes, and remove an incomplete output after failure. The same memory ABI
+format, flag, background, signed-stride, colormap, and Adam7 behavior is reused.
+
+The file/stdio symbols are frozen separately in
+`abi/symbols/libpng4cj-png-image-file-stdio-v1.txt`. The strict consumer proves
+file and caller-owned stdio read/write, caller reuse and close, malformed/open/
+read/write failures, incomplete-file removal, exact symbols, and relocated
+loading.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. C `FILE*`/stdio entry points, raw callback and
-allocator crossings, remaining public symbols, and non-macOS ABI packaging
-remain outside this checkpoint.
+release, or an LTS artifact. Raw callback and allocator crossings, remaining
+public symbols, and non-macOS ABI packaging remain outside this checkpoint.

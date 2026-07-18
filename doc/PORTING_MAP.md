@@ -1828,8 +1828,20 @@ subset:
 - strict C11 layout assertions, frozen symbol manifest, undersized write-size
   behavior, malformed/limit/lifecycle coverage, and relocated dylib proof
 
+LP-S008C extends the same simplified ABI to named files and caller-owned C
+stdio streams:
+
+- direct Cangjie `@C` exports for begin-read-from-file/stdio and
+  write-to-file/stdio, with only narrow libc `FILE*` IO declarations
+- bounded file/stdio input feeding the existing one-decode opaque state and
+  unchanged direct, linear, colormap, signed-stride, background, and Adam7 finish
+- memory-encoder reuse for direct, linear, and colormap file/stdio writes
+- caller-supplied `FILE*` ownership retention; named-file open/close ownership,
+  flush/error checks, and incomplete-output removal
+- strict C11 symbol, valid read/write, malformed/open/read/write failure,
+  ownership, cleanup, and relocated-library proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
-parity, C `FILE*`/stdio operations, raw callback and allocator crossings,
-complete public-symbol parity, and portable packaging remain later LP-S008 and
-LTS work.
+parity, raw callback and allocator crossings, complete public-symbol parity,
+and portable packaging remain later LP-S008 and LTS work.

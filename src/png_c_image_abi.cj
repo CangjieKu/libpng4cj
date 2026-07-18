@@ -1,6 +1,6 @@
 package libpng4cj
 
-import std.collection.HashMap
+import std.collection.{ArrayList, HashMap}
 import std.sync.{AtomicInt64, Mutex}
 
 private let PNG_C_IMAGE_FORMAT_ALPHA: UInt32 = UInt32(0x01)
@@ -17,6 +17,21 @@ private let PNG_C_IMAGE_FLAG_FAST: UInt32 = UInt32(0x02)
 private let PNG_C_IMAGE_FLAG_16BIT_SRGB: UInt32 = UInt32(0x04)
 private let PNG_C_IMAGE_FLAG_MASK: UInt32 = UInt32(0x07)
 private let PNG_C_IMAGE_MAX_MEMORY_BYTES: UInt64 = UInt64(268_435_456)
+private let PNG_C_IMAGE_STDIO_BUFFER_BYTES: Int64 = Int64(64_000)
+
+foreign func fopen(path: CString, mode: CString): CPointer<Unit>
+foreign func fread(
+    buffer: CPointer<UInt8>, size: UIntNative, count: UIntNative,
+    file: CPointer<Unit>
+): UIntNative
+foreign func fwrite(
+    buffer: CPointer<UInt8>, size: UIntNative, count: UIntNative,
+    file: CPointer<Unit>
+): UIntNative
+foreign func fflush(file: CPointer<Unit>): Int32
+foreign func ferror(file: CPointer<Unit>): Int32
+foreign func fclose(file: CPointer<Unit>): Int32
+foreign func remove(path: CString): Int32
 
 @C
 public struct PngCImage {
@@ -110,6 +125,113 @@ private func pngCImageReadInput(memory: CPointer<Unit>, size: UIntNative): Array
         index += Int64(1)
     }
     bytes
+}
+
+private func pngCImageAppendBytes(
+    output: ArrayList<Byte>, bytes: Array<Byte>, count: Int64
+): Unit {
+    var index: Int64 = Int64(0)
+    while (index < count) {
+        output.add(bytes[index])
+        index += Int64(1)
+    }
+}
+
+private func pngCImageReadStdio(
+    file: CPointer<Unit>, operation: String
+): Array<Byte> {
+    if (file.isNull()) {
+        throw PngFormatException(
+            InvalidArgument, -1, "${operation}: invalid argument"
+        )
+    }
+    let output = ArrayList<Byte>()
+    let buffer = Array<Byte>(PNG_C_IMAGE_STDIO_BUFFER_BYTES, repeat: UInt8(0))
+    var total: UInt64 = UInt64(0)
+    while (true) {
+        var count = UIntNative(0)
+        unsafe {
+            let raw = acquireArrayRawData(buffer)
+            try {
+                count = fread(
+                    raw.pointer, UIntNative(1), UIntNative(buffer.size), file
+                )
+            } finally {
+                releaseArrayRawData(raw)
+            }
+        }
+        let incoming = UInt64(count)
+        if (incoming > PNG_C_IMAGE_MAX_MEMORY_BYTES - total) {
+            throw PngFormatException(
+                DecodeLimitExceeded, Int64(total),
+                "${operation}: input exceeds the simplified ABI byte limit"
+            )
+        }
+        if (incoming > UInt64(0)) {
+            pngCImageAppendBytes(output, buffer, Int64(incoming))
+            total += incoming
+        }
+        if (incoming < UInt64(buffer.size)) {
+            if (unsafe { ferror(file) } != Int32(0)) {
+                throw PngFormatException(
+                    IoFailure, Int64(total), "${operation}: read error"
+                )
+            }
+            break
+        }
+    }
+    if (total == UInt64(0)) {
+        throw PngFormatException(
+            InvalidArgument, -1, "${operation}: empty input"
+        )
+    }
+    output.toArray()
+}
+
+private func pngCImageOpen(fileName: CString, modeText: String): CPointer<Unit> {
+    let mode = unsafe { LibC.mallocCString(modeText) }
+    try {
+        unsafe { fopen(fileName, mode) }
+    } finally {
+        unsafe { LibC.free(mode) }
+    }
+}
+
+private func pngCImageCloseQuietly(file: CPointer<Unit>): Unit {
+    if (file.isNotNull()) {
+        unsafe { fclose(file) }
+    }
+}
+
+private func pngCImageRemoveQuietly(fileName: CString): Unit {
+    if (!fileName.isNull()) {
+        unsafe { remove(fileName) }
+    }
+}
+
+private func pngCImageWriteStdio(
+    file: CPointer<Unit>, bytes: Array<Byte>, operation: String
+): Unit {
+    if (file.isNull()) {
+        throw PngFormatException(
+            InvalidArgument, -1, "${operation}: invalid argument"
+        )
+    }
+    var written = UIntNative(0)
+    unsafe {
+        let raw = acquireArrayRawData(bytes)
+        try {
+            written = fwrite(
+                raw.pointer, UIntNative(1), UIntNative(bytes.size), file
+            )
+        } finally {
+            releaseArrayRawData(raw)
+        }
+    }
+    if (UInt64(written) != UInt64(bytes.size) ||
+        unsafe { ferror(file) } != Int32(0)) {
+        throw PngFormatException(IoFailure, -1, "${operation}: write error")
+    }
 }
 
 private func pngCImageChromaticityOutside(
@@ -689,6 +811,24 @@ private func pngCImageFinishColormap(
     UInt32(result.entryCount)
 }
 
+private func pngCImageBeginBytes(
+    image: CPointer<PngCImage>, value: PngCImage, bytes: Array<Byte>
+): Int32 {
+    var output = value
+    let limits = PngReadLimits()
+    let facts = pngCImageHeaderFacts(bytes, limits)
+    let native = PngImage()
+    native.beginReadFromMemory(bytes, limits)
+    output.width = native.width()
+    output.height = native.height()
+    output.format = facts.format
+    output.flags = facts.flags
+    output.colormapEntries = facts.colormapEntries
+    output.opaque = pngCImageRegister(PngCImageReadState(native))
+    pngCImageWrite(image, output)
+    Int32(1)
+}
+
 @C
 public func png_image_begin_read_from_memory(
     image: CPointer<PngCImage>,
@@ -711,21 +851,88 @@ public func png_image_begin_read_from_memory(
     value.flags = UInt32(0)
     try {
         let bytes = pngCImageReadInput(memory, size)
-        let limits = PngReadLimits()
-        let facts = pngCImageHeaderFacts(bytes, limits)
-        let native = PngImage()
-        native.beginReadFromMemory(bytes, limits)
-        value.width = native.width()
-        value.height = native.height()
-        value.format = facts.format
-        value.flags = facts.flags
-        value.colormapEntries = facts.colormapEntries
-        value.opaque = pngCImageRegister(PngCImageReadState(native))
-        pngCImageWrite(image, value)
-        Int32(1)
+        pngCImageBeginBytes(image, value, bytes)
     } catch (error: PngFormatException) {
         pngCImageFail(image, value, error.message)
     } catch (error: Exception) {
+        pngCImageFail(image, value, error.message)
+    }
+}
+
+@C
+public func png_image_begin_read_from_stdio(
+    image: CPointer<PngCImage>, file: CPointer<Unit>
+): Int32 {
+    if (image.isNull()) { return Int32(0) }
+    var value = unsafe { image.read() }
+    if (value.version != PNG_IMAGE_VERSION) {
+        return pngCImageFail(
+            image, value,
+            "png_image_begin_read_from_stdio: incorrect PNG_IMAGE_VERSION"
+        )
+    }
+    if (file.isNull() || value.opaque.isNotNull()) {
+        return pngCImageFail(
+            image, value, "png_image_begin_read_from_stdio: invalid argument"
+        )
+    }
+    value = pngCImageClearMessage(value)
+    value.warningOrError = UInt32(0)
+    value.flags = UInt32(0)
+    try {
+        pngCImageBeginBytes(
+            image, value,
+            pngCImageReadStdio(file, "png_image_begin_read_from_stdio")
+        )
+    } catch (error: PngFormatException) {
+        pngCImageFail(image, value, error.message)
+    } catch (error: Exception) {
+        pngCImageFail(image, value, error.message)
+    }
+}
+
+@C
+public func png_image_begin_read_from_file(
+    image: CPointer<PngCImage>, fileName: CString
+): Int32 {
+    if (image.isNull()) { return Int32(0) }
+    var value = unsafe { image.read() }
+    if (value.version != PNG_IMAGE_VERSION) {
+        return pngCImageFail(
+            image, value,
+            "png_image_begin_read_from_file: incorrect PNG_IMAGE_VERSION"
+        )
+    }
+    if (fileName.isNull() || value.opaque.isNotNull()) {
+        return pngCImageFail(
+            image, value, "png_image_begin_read_from_file: invalid argument"
+        )
+    }
+    value = pngCImageClearMessage(value)
+    value.warningOrError = UInt32(0)
+    value.flags = UInt32(0)
+    let file = pngCImageOpen(fileName, "rb")
+    if (file.isNull()) {
+        return pngCImageFail(
+            image, value, "png_image_begin_read_from_file: open failed"
+        )
+    }
+    var fileOpen = true
+    try {
+        let bytes = pngCImageReadStdio(file, "png_image_begin_read_from_file")
+        if (unsafe { fclose(file) } != Int32(0)) {
+            fileOpen = false
+            return pngCImageFail(
+                image, value, "png_image_begin_read_from_file: close failed"
+            )
+        }
+        fileOpen = false
+        pngCImageBeginBytes(image, value, bytes)
+    } catch (error: PngFormatException) {
+        if (fileOpen) { pngCImageCloseQuietly(file) }
+        pngCImageFail(image, value, error.message)
+    } catch (error: Exception) {
+        if (fileOpen) { pngCImageCloseQuietly(file) }
         pngCImageFail(image, value, error.message)
     }
 }
@@ -804,12 +1011,13 @@ private func pngCImageWriteDirect(
     image: PngCImage,
     buffer: CPointer<Unit>,
     stride: Int64,
-    controls: PngWriteControlState
+    controls: PngWriteControlState,
+    operation: String
 ): Array<Byte> {
     if ((image.format & PNG_C_IMAGE_FORMAT_ASSOCIATED_ALPHA) != UInt32(0)) {
         throw PngFormatException(
             UnsupportedTransform, -1,
-            "png_image_write_to_memory: unsupported transformation"
+            "${operation}: unsupported transformation"
         )
     }
     let components = UInt64(if (stride < Int64(0)) { -stride } else { stride }) *
@@ -829,12 +1037,13 @@ private func pngCImageWriteLinear(
     convertTo8Bit: Bool,
     buffer: CPointer<Unit>,
     stride: Int64,
-    controls: PngWriteControlState
+    controls: PngWriteControlState,
+    operation: String
 ): Array<Byte> {
     if ((image.format & PNG_C_IMAGE_FORMAT_ASSOCIATED_ALPHA) != UInt32(0)) {
         throw PngFormatException(
             UnsupportedTransform, -1,
-            "png_image_write_to_memory: unsupported transformation"
+            "${operation}: unsupported transformation"
         )
     }
     let components = UInt64(if (stride < Int64(0)) { -stride } else { stride }) *
@@ -856,13 +1065,14 @@ private func pngCImageWriteColormap(
     buffer: CPointer<Unit>,
     colormap: CPointer<Unit>,
     stride: Int64,
-    controls: PngWriteControlState
+    controls: PngWriteControlState,
+    operation: String
 ): Array<Byte> {
     if (colormap.isNull() || image.colormapEntries == UInt32(0) ||
         image.colormapEntries > UInt32(256)) {
         throw PngFormatException(
             InvalidArgument, -1,
-            "png_image_write_to_memory: no color-map for color-mapped image"
+            "${operation}: no color-map for color-mapped image"
         )
     }
     let format = pngCImageColormapFormat(image.format)
@@ -884,24 +1094,29 @@ private func pngCImageEncoded(
     convertTo8Bit: Bool,
     buffer: CPointer<Unit>,
     rowStride: Int32,
-    colormap: CPointer<Unit>
+    colormap: CPointer<Unit>,
+    operation: String
 ): Array<Byte> {
     if (image.width == UInt32(0) || image.height == UInt32(0) ||
         buffer.isNull() ||
         (image.flags & !(PNG_C_IMAGE_FLAG_MASK)) != UInt32(0)) {
         throw PngFormatException(
             InvalidArgument, -1,
-            "png_image_write_to_memory: invalid argument"
+            "${operation}: invalid argument"
         )
     }
-    let stride = pngCImageCheckedStride(image, rowStride, "png_image_write_to_memory")
+    let stride = pngCImageCheckedStride(image, rowStride, operation)
     let controls = pngCImageFastControls(image.flags)
     if ((image.format & PNG_C_IMAGE_FORMAT_COLORMAP) != UInt32(0)) {
-        pngCImageWriteColormap(image, buffer, colormap, stride, controls)
+        pngCImageWriteColormap(
+            image, buffer, colormap, stride, controls, operation
+        )
     } else if ((image.format & PNG_C_IMAGE_FORMAT_LINEAR) != UInt32(0)) {
-        pngCImageWriteLinear(image, convertTo8Bit, buffer, stride, controls)
+        pngCImageWriteLinear(
+            image, convertTo8Bit, buffer, stride, controls, operation
+        )
     } else {
-        pngCImageWriteDirect(image, buffer, stride, controls)
+        pngCImageWriteDirect(image, buffer, stride, controls, operation)
     }
 }
 
@@ -938,7 +1153,8 @@ public func png_image_write_to_memory(
     }
     try {
         let encoded = pngCImageEncoded(
-            value, convertTo8Bit != Int32(0), buffer, rowStride, colormap
+            value, convertTo8Bit != Int32(0), buffer, rowStride, colormap,
+            "png_image_write_to_memory"
         )
         unsafe { memoryBytes.write(UIntNative(encoded.size)) }
         if (memory.isNull()) {
@@ -955,6 +1171,108 @@ public func png_image_write_to_memory(
     } catch (error: PngFormatException) {
         pngCImageFail(image, value, error.message)
     } catch (error: Exception) {
+        pngCImageFail(image, value, error.message)
+    }
+}
+
+@C
+public func png_image_write_to_stdio(
+    image: CPointer<PngCImage>,
+    file: CPointer<Unit>,
+    convertTo8Bit: Int32,
+    buffer: CPointer<Unit>,
+    rowStride: Int32,
+    colormap: CPointer<Unit>
+): Int32 {
+    if (image.isNull()) { return Int32(0) }
+    var value = unsafe { image.read() }
+    if (value.version != PNG_IMAGE_VERSION) {
+        return pngCImageFail(
+            image, value,
+            "png_image_write_to_stdio: incorrect PNG_IMAGE_VERSION"
+        )
+    }
+    if (file.isNull() || buffer.isNull() || value.opaque.isNotNull()) {
+        return pngCImageFail(
+            image, value, "png_image_write_to_stdio: invalid argument"
+        )
+    }
+    value = pngCImageClearMessage(value)
+    value.warningOrError = UInt32(0)
+    try {
+        let encoded = pngCImageEncoded(
+            value, convertTo8Bit != Int32(0), buffer, rowStride, colormap,
+            "png_image_write_to_stdio"
+        )
+        pngCImageWriteStdio(file, encoded, "png_image_write_to_stdio")
+        pngCImageWrite(image, value)
+        Int32(1)
+    } catch (error: PngFormatException) {
+        pngCImageFail(image, value, error.message)
+    } catch (error: Exception) {
+        pngCImageFail(image, value, error.message)
+    }
+}
+
+@C
+public func png_image_write_to_file(
+    image: CPointer<PngCImage>,
+    fileName: CString,
+    convertTo8Bit: Int32,
+    buffer: CPointer<Unit>,
+    rowStride: Int32,
+    colormap: CPointer<Unit>
+): Int32 {
+    if (image.isNull()) { return Int32(0) }
+    var value = unsafe { image.read() }
+    if (value.version != PNG_IMAGE_VERSION) {
+        return pngCImageFail(
+            image, value,
+            "png_image_write_to_file: incorrect PNG_IMAGE_VERSION"
+        )
+    }
+    if (fileName.isNull() || buffer.isNull() || value.opaque.isNotNull()) {
+        return pngCImageFail(
+            image, value, "png_image_write_to_file: invalid argument"
+        )
+    }
+    value = pngCImageClearMessage(value)
+    value.warningOrError = UInt32(0)
+    let file = pngCImageOpen(fileName, "wb")
+    if (file.isNull()) {
+        return pngCImageFail(
+            image, value, "png_image_write_to_file: open failed"
+        )
+    }
+    try {
+        let encoded = pngCImageEncoded(
+            value, convertTo8Bit != Int32(0), buffer, rowStride, colormap,
+            "png_image_write_to_file"
+        )
+        pngCImageWriteStdio(file, encoded, "png_image_write_to_file")
+        if (unsafe { fflush(file) } != Int32(0) ||
+            unsafe { ferror(file) } != Int32(0)) {
+            pngCImageCloseQuietly(file)
+            pngCImageRemoveQuietly(fileName)
+            return pngCImageFail(
+                image, value, "png_image_write_to_file: flush failed"
+            )
+        }
+        if (unsafe { fclose(file) } != Int32(0)) {
+            pngCImageRemoveQuietly(fileName)
+            return pngCImageFail(
+                image, value, "png_image_write_to_file: close failed"
+            )
+        }
+        pngCImageWrite(image, value)
+        Int32(1)
+    } catch (error: PngFormatException) {
+        pngCImageCloseQuietly(file)
+        pngCImageRemoveQuietly(fileName)
+        pngCImageFail(image, value, error.message)
+    } catch (error: Exception) {
+        pngCImageCloseQuietly(file)
+        pngCImageRemoveQuietly(fileName)
         pngCImageFail(image, value, error.message)
     }
 }

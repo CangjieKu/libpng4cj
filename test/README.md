@@ -7,9 +7,10 @@ and proves the public `import libpng4cj.*` package root.
 Library unit tests remain under `src/tests/`, matching the current `cjpm test`
 package-discovery model.
 
-`abi_consumer/` contains strict C11 consumers for both the preview facade and
-the exact `png_image` memory ABI. `./tools/test_abi_preview.sh` builds the
-Cangjie dylib, checks both frozen symbol manifests, compiles the consumers with
-warnings as errors, runs direct/linear/colormap read and write coverage, and
-checks colorspace and untagged-16-bit flags before replaying both executables
-after relocating the dylib.
+`abi_consumer/` contains strict C11 consumers for the preview facade and the
+exact simplified `png_image` memory/file/stdio ABI. `./tools/test_abi_preview.sh`
+builds the Cangjie dylib, checks all frozen symbol manifests, compiles the
+consumers with warnings as errors, runs direct/linear/colormap memory coverage,
+file and caller-owned `FILE*` read/write and failure cleanup, checks colorspace
+and untagged-16-bit flags, and replays every executable after relocating the
+dylib.
