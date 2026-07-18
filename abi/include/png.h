@@ -6,9 +6,9 @@
  * covers opaque read/info ownership, caller-context retention, warning/error
  * callback invocation, fatal fallback termination, custom-allocation
  * ownership, custom/stdio read-info input, core IHDR and fixed metadata getters,
- * raw row delivery, read-end sealing, retained metadata, validity, fixed
- * physical conversions, and signature access. Longjmp and transformed/pass-
- * progress row IO are not yet implemented.
+ * raw row delivery, read-end sealing, retained and extended metadata getters,
+ * validity, fixed physical conversions, and signature access. Longjmp and
+ * transformed/pass-progress row IO are not yet implemented.
  */
 
 #include <stddef.h>
@@ -56,6 +56,7 @@ typedef int32_t png_int_32;
 typedef png_int_32 png_fixed_point;
 typedef char png_char;
 typedef png_char *png_charp;
+typedef png_charp *png_charpp;
 typedef const png_char *png_const_charp;
 typedef void *png_voidp;
 typedef const void *png_const_voidp;
@@ -111,6 +112,49 @@ typedef struct png_color_8_struct {
     png_byte alpha;
 } png_color_8, *png_color_8p;
 
+typedef struct png_sPLT_entry_struct {
+    png_uint_16 red;
+    png_uint_16 green;
+    png_uint_16 blue;
+    png_uint_16 alpha;
+    png_uint_16 frequency;
+} png_sPLT_entry, *png_sPLT_entryp;
+
+typedef struct png_sPLT_struct {
+    png_charp name;
+    png_byte depth;
+    png_sPLT_entryp entries;
+    png_int_32 nentries;
+} png_sPLT_t, *png_sPLT_tp;
+typedef png_sPLT_tp *png_sPLT_tpp;
+
+typedef struct png_text_struct {
+    int compression;
+    png_charp key;
+    png_charp text;
+    size_t text_length;
+    size_t itxt_length;
+    png_charp lang;
+    png_charp lang_key;
+} png_text, *png_textp;
+
+typedef struct png_time_struct {
+    png_uint_16 year;
+    png_byte month;
+    png_byte day;
+    png_byte hour;
+    png_byte minute;
+    png_byte second;
+} png_time, *png_timep;
+
+typedef struct png_unknown_chunk_t {
+    png_byte name[5];
+    png_bytep data;
+    size_t size;
+    png_byte location;
+} png_unknown_chunk, *png_unknown_chunkp;
+typedef png_unknown_chunkp *png_unknown_chunkpp;
+
 #define PNG_INFO_gAMA 0x0001u
 #define PNG_INFO_sBIT 0x0002u
 #define PNG_INFO_cHRM 0x0004u
@@ -136,6 +180,16 @@ typedef struct png_color_8_struct {
 #define PNG_RESOLUTION_METER 1
 #define PNG_OFFSET_PIXEL 0
 #define PNG_OFFSET_MICROMETER 1
+#define PNG_SCALE_UNKNOWN 0
+#define PNG_SCALE_METER 1
+#define PNG_SCALE_RADIAN 2
+#define PNG_HAVE_IHDR 0x01
+#define PNG_HAVE_PLTE 0x02
+#define PNG_AFTER_IDAT 0x08
+#define PNG_TEXT_COMPRESSION_NONE -1
+#define PNG_TEXT_COMPRESSION_zTXt 0
+#define PNG_ITXT_COMPRESSION_NONE 1
+#define PNG_ITXT_COMPRESSION_zTXt 2
 
 #define PNG_FORMAT_FLAG_ALPHA 0x01u
 #define PNG_FORMAT_FLAG_COLOR 0x02u
@@ -433,6 +487,32 @@ png_uint_32 png_get_cHRM(
     double *blue_x,
     double *blue_y
 );
+png_uint_32 png_get_cHRM_XYZ(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    double *red_X,
+    double *red_Y,
+    double *red_Z,
+    double *green_X,
+    double *green_Y,
+    double *green_Z,
+    double *blue_X,
+    double *blue_Y,
+    double *blue_Z
+);
+png_uint_32 png_get_cHRM_XYZ_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_fixed_point *red_X,
+    png_fixed_point *red_Y,
+    png_fixed_point *red_Z,
+    png_fixed_point *green_X,
+    png_fixed_point *green_Y,
+    png_fixed_point *green_Z,
+    png_fixed_point *blue_X,
+    png_fixed_point *blue_Y,
+    png_fixed_point *blue_Z
+);
 png_uint_32 png_get_oFFs(
     png_const_structp png_ptr,
     png_const_infop info_ptr,
@@ -522,6 +602,87 @@ png_uint_32 png_get_tRNS(
     png_bytep *trans_alpha,
     int *num_trans,
     png_color_16p *trans_color
+);
+png_uint_32 png_get_eXIf(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_bytep *exif
+);
+png_uint_32 png_get_eXIf_1(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_uint_32 *num_exif,
+    png_bytep *exif
+);
+png_uint_32 png_get_hIST(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_uint_16 **hist
+);
+png_uint_32 png_get_iCCP(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_charpp name,
+    int *compression_type,
+    png_bytepp profile,
+    png_uint_32 *profile_length
+);
+png_uint_32 png_get_pCAL(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_charp *purpose,
+    png_int_32 *x0,
+    png_int_32 *x1,
+    int *equation_type,
+    int *parameter_count,
+    png_charp *units,
+    png_charpp *parameters
+);
+png_bytepp png_get_rows(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_sCAL(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    int *unit,
+    double *width,
+    double *height
+);
+png_uint_32 png_get_sCAL_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    int *unit,
+    png_fixed_point *width,
+    png_fixed_point *height
+);
+png_uint_32 png_get_sCAL_s(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    int *unit,
+    png_charpp width,
+    png_charpp height
+);
+int png_get_sPLT(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_sPLT_tpp entries
+);
+png_uint_32 png_get_tIME(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_timep *modification_time
+);
+int png_get_text(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_textp *text,
+    int *text_count
+);
+int png_get_unknown_chunks(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_unknown_chunkpp entries
 );
 png_voidp png_malloc(
     png_const_structp png_ptr,

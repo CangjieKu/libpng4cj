@@ -37,6 +37,7 @@ public enum PngTextKind <: Equatable<PngTextKind> & ToString {
 
 public class PngTextEntry {
     public let kind: PngTextKind
+    public let beforeIdat: Bool
     private let ownedKeyword: Array<Byte>
     private let ownedText: Array<Byte>
     private let ownedLanguageTag: Array<Byte>
@@ -44,6 +45,7 @@ public class PngTextEntry {
 
     init() {
         kind = Latin1Uncompressed
+        beforeIdat = true
         ownedKeyword = Array<Byte>()
         ownedText = Array<Byte>()
         ownedLanguageTag = Array<Byte>()
@@ -58,6 +60,23 @@ public class PngTextEntry {
         translatedKeyword: Array<Byte>
     ) {
         this.kind = kind
+        beforeIdat = true
+        ownedKeyword = keyword.clone()
+        ownedText = text.clone()
+        ownedLanguageTag = languageTag.clone()
+        ownedTranslatedKeyword = translatedKeyword.clone()
+    }
+
+    init(
+        kind: PngTextKind,
+        keyword: Array<Byte>,
+        text: Array<Byte>,
+        languageTag: Array<Byte>,
+        translatedKeyword: Array<Byte>,
+        beforeIdat: Bool
+    ) {
+        this.kind = kind
+        this.beforeIdat = beforeIdat
         ownedKeyword = keyword.clone()
         ownedText = text.clone()
         ownedLanguageTag = languageTag.clone()
@@ -336,7 +355,11 @@ private func parseIccProfile(
     PngIccProfile(copyByteRange(data, 0, keywordEnd), profile)
 }
 
-private func parseTextChunk(chunk: PngChunk, limits: PngReadLimits): PngTextEntry {
+private func parseTextChunk(
+    chunk: PngChunk,
+    limits: PngReadLimits,
+    beforeIdat: Bool
+): PngTextEntry {
     let data = chunk.payload()
     if (chunk.isType(PNG_CHUNK_tEXt)) {
         if (data.size < 2) {
@@ -344,14 +367,17 @@ private func parseTextChunk(chunk: PngChunk, limits: PngReadLimits): PngTextEntr
         }
         let keywordEnd = findZero(data, 0)
         if (keywordEnd == data.size) {
-            return PngTextEntry(Latin1Uncompressed, data, [], [], [])
+            return PngTextEntry(
+                Latin1Uncompressed, data, [], [], [], beforeIdat
+            )
         }
         PngTextEntry(
             Latin1Uncompressed,
             copyByteRange(data, 0, keywordEnd),
             copyUntilZero(data, keywordEnd + 1),
             [],
-            []
+            [],
+            beforeIdat
         )
     } else if (chunk.isType(PNG_CHUNK_zTXt)) {
         let keywordEnd = findZero(data, 0)
@@ -375,7 +401,8 @@ private func parseTextChunk(chunk: PngChunk, limits: PngReadLimits): PngTextEntr
             copyByteRange(data, 0, keywordEnd),
             copyUntilZero(inflated, 0),
             [],
-            []
+            [],
+            beforeIdat
         )
     } else {
         if (data.size < 6) {
@@ -425,7 +452,8 @@ private func parseTextChunk(chunk: PngChunk, limits: PngReadLimits): PngTextEntr
             copyByteRange(data, 0, keywordEnd),
             text,
             copyByteRange(data, languageStart, languageEnd - languageStart),
-            copyByteRange(data, translatedStart, translatedEnd - translatedStart)
+            copyByteRange(data, translatedStart, translatedEnd - translatedStart),
+            beforeIdat
         )
     }
 }
@@ -463,7 +491,7 @@ func handleExtendedMetadataChunk(
         return true
     }
     if (chunk.isType(PNG_CHUNK_tEXt) || chunk.isType(PNG_CHUNK_zTXt) || chunk.isType(PNG_CHUNK_iTXt)) {
-        parsed.addText(parseTextChunk(chunk, limits))
+        parsed.addText(parseTextChunk(chunk, limits, !seenIdat))
         return true
     }
     if (chunk.isType(PNG_CHUNK_tIME)) {

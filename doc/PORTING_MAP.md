@@ -1963,13 +1963,26 @@ Porting milestone S008M adds classic scalar metadata and utility getters:
   wrong-owner, stale-handle, allocator, exact-signature, original, and relocated
   proof
 
-The frozen ABI manifests cover `93/258` upstream default symbols after this
-milestone, leaving `165`, including `29` remaining `png_get_*` symbols.
+Porting milestone S008N adds classic extended metadata getters:
+
+- direct Cangjie exports for fixed/floating cHRM XYZ, eXIf, hIST, iCCP, pCAL,
+  sCAL, sPLT, tIME, text, unknown chunks, and rows
+- exact LP64 public structures plus info-owned variable-length backing,
+  allocator-matched release, stable pointers, and primary-info filtering for
+  post-IDAT text/eXIf/tIME/unknown facts
+- source-equivalent cHRM xy-to-XYZ fixed arithmetic, sCAL string/floating
+  conversion and fixed-point overflow diagnostic, and an explicit NULL rows
+  result until a later population lifecycle exists
+- frozen fifteen-symbol manifest plus strict C11 libpng 1.6.58 oracle,
+  structure-layout, owner, stale-handle, allocator, original, and relocated proof
+
+The frozen ABI manifests cover `108/258` upstream default symbols after this
+milestone, leaving `150`, including `14` remaining `png_get_*` symbols.
 
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor
-timing, cHRM XYZ and variable-length classic metadata pointers, broader read-end metadata/
-write state,
+timing, high-level rows population, remaining runtime/context getters, broader
+read-end metadata/write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

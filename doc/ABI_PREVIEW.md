@@ -29,6 +29,9 @@ The generated directory contains:
   conversion, and stable signature-pointer proof
 - `png-classic-scalar-metadata-consumer`: strict C11 floating/scalar metadata,
   version-string lifetime, utility, owner, and allocator-lifecycle proof
+- `png-classic-extended-metadata-consumer`: strict C11 cHRM XYZ, variable
+  metadata structures and pointer trees, phase visibility, fatal sCAL fixed
+  conversion, owner, and allocator-lifecycle proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -245,13 +248,30 @@ mDCV preserve optional outputs. Version strings use immutable process-lifetime
 native backing. The strict consumer freezes all signatures, compares the
 vendored upstream metadata values, checks invalid grayscale depth, absent and
 wrong-owner output preservation, the out-of-range UInt31 fatal callback path,
-stale handles, allocator balance, and original plus relocated execution. The
-frozen manifests now cover `93/258` upstream
-default symbols, leaving `165`, including `29` remaining `png_get_*` symbols.
+stale handles, allocator balance, and original plus relocated execution.
+
+The classic extended-metadata milestone adds fifteen symbols frozen in
+`abi/symbols/libpng4cj-classic-extended-metadata-v1.txt`:
+
+- fixed/floating `png_get_cHRM_XYZ`
+- eXIf, hIST, iCCP, pCAL, sCAL, sPLT, tIME, text, and unknown-chunk getters
+- `png_get_rows`, which returns NULL until a later high-level rows population
+  lifecycle is implemented
+
+Variable metadata uses info-owned native backing allocated and released through
+the owning allocator snapshot. Primary info exposes only pre-IDAT text, eXIf,
+tIME, and unknown metadata; the post-IDAT zTXt/eXIf facts retained by the native
+decoder do not leak into these getters. The strict consumer freezes exact LP64
+layouts, compares `pngtest.png` values with libpng 1.6.58, checks pointer
+stability and owner/lifecycle rejection, and reproduces the upstream sCAL
+fixed-point overflow diagnostic in a subprocess. The frozen manifests now cover
+`108/258` upstream default symbols, leaving `150`, including `14` remaining
+`png_get_*` symbols.
 
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
-pass-progress/display combination, exact callback/cursor timing, cHRM XYZ,
-variable-length metadata pointer trees, broader read-end metadata/write state, remaining
-callback families and public symbols, and non-macOS ABI packaging remain
+pass-progress/display combination, exact callback/cursor timing, high-level
+rows population, remaining runtime/context getters, broader read-end
+metadata/write state, remaining callback families and public symbols, and
+non-macOS ABI packaging remain
 outside this checkpoint.

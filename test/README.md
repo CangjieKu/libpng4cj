@@ -40,3 +40,11 @@ rules, immutable process-lifetime strings, invalid grayscale depth, the
 out-of-range `png_get_uint_31` fatal callback boundary, absent and wrong-owner
 preservation, stale handles, allocator balance, and original plus relocated
 execution.
+
+The extended-metadata consumer freezes fifteen cHRM XYZ, pCAL/sCAL, text/time,
+eXIf, iCCP, hIST, sPLT, unknown-chunk, and rows getter signatures plus exact
+LP64 structure layouts. It compares vendored `pngtest.png` values with a
+libpng 1.6.58 oracle, verifies primary-info filtering for post-IDAT text/eXIf,
+checks stable info-owned pointer trees, reproduces the sCAL fixed-point overflow
+fatal boundary, and repeats absent, wrong-owner, spare, stale, allocator,
+original, and relocated checks.

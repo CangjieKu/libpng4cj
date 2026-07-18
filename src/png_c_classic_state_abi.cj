@@ -40,7 +40,7 @@ private class PngCClassicStaticStrings {
 
 private let PNG_C_CLASSIC_STATIC_STRINGS = PngCClassicStaticStrings()
 
-private class PngCClassicAllocatorSnapshot {
+class PngCClassicAllocatorSnapshot {
     let memPtr: CPointer<Unit>
     let mallocFn: CPointer<Unit>
     let freeFn: CPointer<Unit>
@@ -56,7 +56,7 @@ private class PngCClassicAllocatorSnapshot {
     }
 }
 
-private class PngCClassicReadState {
+class PngCClassicReadState {
     var errorPtr: CPointer<Unit>
     var errorFn: CPointer<Unit>
     var warningFn: CPointer<Unit>
@@ -112,7 +112,7 @@ private class PngCClassicInfoState {
     }
 }
 
-private class PngCClassicMetadataBacking {
+class PngCClassicMetadataBacking {
     let signature: CPointer<Unit>
     let palette: CPointer<Unit>
     let paletteCount: Int32
@@ -121,6 +121,26 @@ private class PngCClassicMetadataBacking {
     let significantBits: CPointer<Unit>
     let background: CPointer<Unit>
     let transparentColor: CPointer<Unit>
+    let exif: CPointer<Unit>
+    let exifLength: UInt32
+    let histogram: CPointer<Unit>
+    let iccName: CPointer<Unit>
+    let iccProfile: CPointer<Unit>
+    let iccProfileLength: UInt32
+    let calibrationPurpose: CPointer<Unit>
+    let calibrationUnits: CPointer<Unit>
+    let calibrationParameters: CPointer<Unit>
+    let calibrationParameterCount: Int32
+    let scaleWidth: CPointer<Unit>
+    let scaleHeight: CPointer<Unit>
+    let suggestedPalettes: CPointer<Unit>
+    let suggestedPaletteCount: Int32
+    let modificationTime: CPointer<Unit>
+    let textEntries: CPointer<Unit>
+    let textEntryCount: Int32
+    let unknownChunks: CPointer<Unit>
+    let unknownChunkCount: Int32
+    let extendedAllocations: Array<CPointer<Unit>>
 
     init(
         signature: CPointer<Unit>,
@@ -130,7 +150,27 @@ private class PngCClassicMetadataBacking {
         transparencyCount: Int32,
         significantBits: CPointer<Unit>,
         background: CPointer<Unit>,
-        transparentColor: CPointer<Unit>
+        transparentColor: CPointer<Unit>,
+        exif: CPointer<Unit>,
+        exifLength: UInt32,
+        histogram: CPointer<Unit>,
+        iccName: CPointer<Unit>,
+        iccProfile: CPointer<Unit>,
+        iccProfileLength: UInt32,
+        calibrationPurpose: CPointer<Unit>,
+        calibrationUnits: CPointer<Unit>,
+        calibrationParameters: CPointer<Unit>,
+        calibrationParameterCount: Int32,
+        scaleWidth: CPointer<Unit>,
+        scaleHeight: CPointer<Unit>,
+        suggestedPalettes: CPointer<Unit>,
+        suggestedPaletteCount: Int32,
+        modificationTime: CPointer<Unit>,
+        textEntries: CPointer<Unit>,
+        textEntryCount: Int32,
+        unknownChunks: CPointer<Unit>,
+        unknownChunkCount: Int32,
+        extendedAllocations: Array<CPointer<Unit>>
     ) {
         this.signature = signature
         this.palette = palette
@@ -140,6 +180,26 @@ private class PngCClassicMetadataBacking {
         this.significantBits = significantBits
         this.background = background
         this.transparentColor = transparentColor
+        this.exif = exif
+        this.exifLength = exifLength
+        this.histogram = histogram
+        this.iccName = iccName
+        this.iccProfile = iccProfile
+        this.iccProfileLength = iccProfileLength
+        this.calibrationPurpose = calibrationPurpose
+        this.calibrationUnits = calibrationUnits
+        this.calibrationParameters = calibrationParameters
+        this.calibrationParameterCount = calibrationParameterCount
+        this.scaleWidth = scaleWidth
+        this.scaleHeight = scaleHeight
+        this.suggestedPalettes = suggestedPalettes
+        this.suggestedPaletteCount = suggestedPaletteCount
+        this.modificationTime = modificationTime
+        this.textEntries = textEntries
+        this.textEntryCount = textEntryCount
+        this.unknownChunks = unknownChunks
+        this.unknownChunkCount = unknownChunkCount
+        this.extendedAllocations = extendedAllocations
     }
 }
 
@@ -345,6 +405,50 @@ private func pngCClassicCopyMetadataBytes(
     }
 }
 
+private func pngCClassicTrackMetadataBlock(
+    pngPtr: CPointer<Unit>,
+    state: PngCClassicReadState,
+    allocator: PngCClassicAllocatorSnapshot,
+    allocations: ArrayList<CPointer<Unit>>,
+    size: UIntNative
+): CPointer<Unit> {
+    let pointer = pngCClassicAllocateMetadataBlock(
+        pngPtr, state, allocator, size
+    )
+    allocations.add(pointer)
+    pointer
+}
+
+private func pngCClassicAllocateCString(
+    pngPtr: CPointer<Unit>,
+    state: PngCClassicReadState,
+    allocator: PngCClassicAllocatorSnapshot,
+    allocations: ArrayList<CPointer<Unit>>,
+    bytes: Array<Byte>
+): CPointer<Unit> {
+    let pointer = pngCClassicTrackMetadataBlock(
+        pngPtr, state, allocator, allocations,
+        UIntNative(bytes.size + Int64(1))
+    )
+    pngCClassicCopyMetadataBytes(pointer, bytes)
+    pointer
+}
+
+private func pngCClassicFreeMetadataBlocks(
+    pngPtr: CPointer<Unit>,
+    state: PngCClassicReadState,
+    allocator: PngCClassicAllocatorSnapshot,
+    allocations: Array<CPointer<Unit>>
+): Unit {
+    var index = allocations.size - Int64(1)
+    while (index >= Int64(0)) {
+        pngCClassicFreeWith(
+            pngPtr, state, allocator, allocations[index]
+        )
+        index -= Int64(1)
+    }
+}
+
 private func pngCClassicWriteColor16(
     target: CPointer<Unit>,
     index: UInt8,
@@ -365,6 +469,341 @@ private func pngCClassicWriteColor16(
     }
 }
 
+private class PngCClassicExtendedBackingValues {
+    var exif = CPointer<Unit>()
+    var exifLength = UInt32(0)
+    var histogram = CPointer<Unit>()
+    var iccName = CPointer<Unit>()
+    var iccProfile = CPointer<Unit>()
+    var iccProfileLength = UInt32(0)
+    var calibrationPurpose = CPointer<Unit>()
+    var calibrationUnits = CPointer<Unit>()
+    var calibrationParameters = CPointer<Unit>()
+    var calibrationParameterCount = Int32(0)
+    var scaleWidth = CPointer<Unit>()
+    var scaleHeight = CPointer<Unit>()
+    var suggestedPalettes = CPointer<Unit>()
+    var suggestedPaletteCount = Int32(0)
+    var modificationTime = CPointer<Unit>()
+    var textEntries = CPointer<Unit>()
+    var textEntryCount = Int32(0)
+    var unknownChunks = CPointer<Unit>()
+    var unknownChunkCount = Int32(0)
+    let allocations = ArrayList<CPointer<Unit>>()
+}
+
+private func pngCClassicTextCompression(kind: PngTextKind): Int32 {
+    match (kind) {
+        case Latin1Uncompressed => Int32(-1)
+        case Latin1Compressed => Int32(0)
+        case Utf8Uncompressed => Int32(1)
+        case Utf8Compressed => Int32(2)
+    }
+}
+
+private func pngCClassicUnknownLocation(
+    location: PngUnknownChunkLocation
+): UInt8 {
+    match (location) {
+        case AfterIhdr => UInt8(0x01)
+        case AfterPlte => UInt8(0x03)
+        case AfterIdat => UInt8(0x0b)
+    }
+}
+
+private func pngCClassicBuildExtendedMetadataBacking(
+    pngPtr: CPointer<Unit>,
+    state: PngCClassicReadState,
+    allocator: PngCClassicAllocatorSnapshot,
+    metadata: PngReadMetadata
+): PngCClassicExtendedBackingValues {
+    let result = PngCClassicExtendedBackingValues()
+    let allocations = result.allocations
+    try {
+
+    if (metadata.hasExif && metadata.exifBeforeIdat) {
+        let bytes = metadata.exif()
+        if (bytes.size > Int64(0)) {
+            result.exif = pngCClassicTrackMetadataBlock(
+                pngPtr, state, allocator, allocations,
+                UIntNative(bytes.size)
+            )
+            pngCClassicCopyMetadataBytes(result.exif, bytes)
+            result.exifLength = UInt32(bytes.size)
+        }
+    }
+
+    if (metadata.hasHistogram) {
+        let values = metadata.histogram()
+        if (values.size > Int64(0)) {
+            result.histogram = pngCClassicTrackMetadataBlock(
+                pngPtr, state, allocator, allocations,
+                UIntNative(values.size * Int64(2))
+            )
+            let output = unsafe { CPointer<UInt16>(result.histogram) }
+            var index = Int64(0)
+            while (index < values.size) {
+                unsafe { output.write(index, values[index]) }
+                index += Int64(1)
+            }
+        }
+    }
+
+    if (metadata.hasIccProfile) {
+        let name = metadata.iccProfile.name()
+        let profile = metadata.iccProfile.profile()
+        result.iccName = pngCClassicAllocateCString(
+            pngPtr, state, allocator, allocations, name
+        )
+        if (profile.size > Int64(0)) {
+            result.iccProfile = pngCClassicTrackMetadataBlock(
+                pngPtr, state, allocator, allocations,
+                UIntNative(profile.size)
+            )
+            pngCClassicCopyMetadataBytes(result.iccProfile, profile)
+            result.iccProfileLength = UInt32(profile.size)
+        }
+    }
+
+    if (metadata.hasPixelCalibration) {
+        let value = metadata.pixelCalibration
+        result.calibrationPurpose = pngCClassicAllocateCString(
+            pngPtr, state, allocator, allocations, value.purpose()
+        )
+        result.calibrationUnits = pngCClassicAllocateCString(
+            pngPtr, state, allocator, allocations, value.units()
+        )
+        let count = value.parameterCount()
+        result.calibrationParameterCount = Int32(count)
+        if (count > Int64(0)) {
+            result.calibrationParameters = pngCClassicTrackMetadataBlock(
+                pngPtr, state, allocator, allocations,
+                UIntNative(count * Int64(8))
+            )
+            let pointers = unsafe {
+                CPointer<CPointer<Unit>>(result.calibrationParameters)
+            }
+            var index = Int64(0)
+            while (index < count) {
+                let parameter = pngCClassicAllocateCString(
+                    pngPtr, state, allocator, allocations,
+                    value.parameter(index)
+                )
+                unsafe { pointers.write(index, parameter) }
+                index += Int64(1)
+            }
+        }
+    }
+
+    if (metadata.hasPhysicalScale) {
+        result.scaleWidth = pngCClassicAllocateCString(
+            pngPtr, state, allocator, allocations,
+            metadata.physicalScale.width()
+        )
+        result.scaleHeight = pngCClassicAllocateCString(
+            pngPtr, state, allocator, allocations,
+            metadata.physicalScale.height()
+        )
+    }
+
+    let palettes = metadata.suggestedPalettes()
+    result.suggestedPaletteCount = Int32(palettes.size)
+    if (palettes.size > Int64(0)) {
+        result.suggestedPalettes = pngCClassicTrackMetadataBlock(
+            pngPtr, state, allocator, allocations,
+            UIntNative(palettes.size * Int64(32))
+        )
+        let bytes = unsafe { CPointer<UInt8>(result.suggestedPalettes) }
+        let pointers = unsafe {
+            CPointer<CPointer<Unit>>(result.suggestedPalettes)
+        }
+        let integers = unsafe { CPointer<Int32>(result.suggestedPalettes) }
+        var paletteIndex = Int64(0)
+        while (paletteIndex < palettes.size) {
+            let palette = palettes[paletteIndex]
+            let name = pngCClassicAllocateCString(
+                pngPtr, state, allocator, allocations, palette.name()
+            )
+            let entryCount = palette.entryCount()
+            var entries = CPointer<Unit>()
+            if (entryCount > Int64(0)) {
+                entries = pngCClassicTrackMetadataBlock(
+                    pngPtr, state, allocator, allocations,
+                    UIntNative(entryCount * Int64(10))
+                )
+                let samples = unsafe { CPointer<UInt16>(entries) }
+                var entryIndex = Int64(0)
+                while (entryIndex < entryCount) {
+                    let entry = palette.entry(entryIndex)
+                    let base = entryIndex * Int64(5)
+                    unsafe {
+                        samples.write(base, entry.red)
+                        samples.write(base + Int64(1), entry.green)
+                        samples.write(base + Int64(2), entry.blue)
+                        samples.write(base + Int64(3), entry.alpha)
+                        samples.write(base + Int64(4), entry.frequency)
+                    }
+                    entryIndex += Int64(1)
+                }
+            }
+            let pointerBase = paletteIndex * Int64(4)
+            unsafe {
+                pointers.write(pointerBase, name)
+                bytes.write(paletteIndex * Int64(32) + Int64(8), palette.sampleDepth)
+                pointers.write(pointerBase + Int64(2), entries)
+                integers.write(paletteIndex * Int64(8) + Int64(6), Int32(entryCount))
+            }
+            paletteIndex += Int64(1)
+        }
+    }
+
+    if (metadata.hasModificationTime && metadata.modificationTimeBeforeIdat) {
+        result.modificationTime = pngCClassicTrackMetadataBlock(
+            pngPtr, state, allocator, allocations, UIntNative(8)
+        )
+        let words = unsafe { CPointer<UInt16>(result.modificationTime) }
+        let bytes = unsafe { CPointer<UInt8>(result.modificationTime) }
+        let value = metadata.modificationTime
+        unsafe {
+            words.write(Int64(0), value.year)
+            bytes.write(Int64(2), value.month)
+            bytes.write(Int64(3), value.day)
+            bytes.write(Int64(4), value.hour)
+            bytes.write(Int64(5), value.minute)
+            bytes.write(Int64(6), value.second)
+        }
+    }
+
+    let texts = metadata.textEntries()
+    var visibleTextCount = Int64(0)
+    var textIndex = Int64(0)
+    while (textIndex < texts.size) {
+        if (texts[textIndex].beforeIdat) { visibleTextCount += Int64(1) }
+        textIndex += Int64(1)
+    }
+    result.textEntryCount = Int32(visibleTextCount)
+    if (visibleTextCount > Int64(0)) {
+        result.textEntries = pngCClassicTrackMetadataBlock(
+            pngPtr, state, allocator, allocations,
+            UIntNative(visibleTextCount * Int64(56))
+        )
+        let integers = unsafe { CPointer<Int32>(result.textEntries) }
+        let pointers = unsafe { CPointer<CPointer<Unit>>(result.textEntries) }
+        let sizes = unsafe { CPointer<UIntNative>(result.textEntries) }
+        textIndex = Int64(0)
+        var visibleIndex = Int64(0)
+        while (textIndex < texts.size) {
+            let entry = texts[textIndex]
+            if (entry.beforeIdat) {
+                let keyword = pngCClassicAllocateCString(
+                    pngPtr, state, allocator, allocations, entry.keyword()
+                )
+                let textBytes = entry.text()
+                let text = pngCClassicAllocateCString(
+                    pngPtr, state, allocator, allocations, textBytes
+                )
+                var language = CPointer<Unit>()
+                var translated = CPointer<Unit>()
+                if (entry.kind == Utf8Uncompressed ||
+                    entry.kind == Utf8Compressed) {
+                    language = pngCClassicAllocateCString(
+                        pngPtr, state, allocator, allocations,
+                        entry.languageTag()
+                    )
+                    translated = pngCClassicAllocateCString(
+                        pngPtr, state, allocator, allocations,
+                        entry.translatedKeyword()
+                    )
+                }
+                let intBase = visibleIndex * Int64(14)
+                let pointerBase = visibleIndex * Int64(7)
+                unsafe {
+                    integers.write(intBase, pngCClassicTextCompression(entry.kind))
+                    pointers.write(pointerBase + Int64(1), keyword)
+                    pointers.write(pointerBase + Int64(2), text)
+                    sizes.write(pointerBase + Int64(3), UIntNative(textBytes.size))
+                    sizes.write(
+                        pointerBase + Int64(4),
+                        if (entry.kind == Utf8Uncompressed ||
+                            entry.kind == Utf8Compressed) {
+                            UIntNative(textBytes.size)
+                        } else {
+                            UIntNative(0)
+                        }
+                    )
+                    pointers.write(pointerBase + Int64(5), language)
+                    pointers.write(pointerBase + Int64(6), translated)
+                }
+                visibleIndex += Int64(1)
+            }
+            textIndex += Int64(1)
+        }
+    }
+
+    let unknowns = metadata.unknownChunks()
+    var visibleUnknownCount = Int64(0)
+    var unknownIndex = Int64(0)
+    while (unknownIndex < unknowns.size) {
+        if (unknowns[unknownIndex].location != AfterIdat) {
+            visibleUnknownCount += Int64(1)
+        }
+        unknownIndex += Int64(1)
+    }
+    result.unknownChunkCount = Int32(visibleUnknownCount)
+    if (visibleUnknownCount > Int64(0)) {
+        result.unknownChunks = pngCClassicTrackMetadataBlock(
+            pngPtr, state, allocator, allocations,
+            UIntNative(visibleUnknownCount * Int64(32))
+        )
+        let bytes = unsafe { CPointer<UInt8>(result.unknownChunks) }
+        let pointers = unsafe { CPointer<CPointer<Unit>>(result.unknownChunks) }
+        let sizes = unsafe { CPointer<UIntNative>(result.unknownChunks) }
+        unknownIndex = Int64(0)
+        var visibleIndex = Int64(0)
+        while (unknownIndex < unknowns.size) {
+            let entry = unknowns[unknownIndex]
+            if (entry.location != AfterIdat) {
+                let name = entry.chunkType()
+                let payload = entry.payload()
+                let data = if (payload.size > Int64(0)) {
+                    let pointer = pngCClassicTrackMetadataBlock(
+                        pngPtr, state, allocator, allocations,
+                        UIntNative(payload.size)
+                    )
+                    pngCClassicCopyMetadataBytes(pointer, payload)
+                    pointer
+                } else {
+                    CPointer<Unit>()
+                }
+                let byteBase = visibleIndex * Int64(32)
+                let pointerBase = visibleIndex * Int64(4)
+                var nameIndex = Int64(0)
+                while (nameIndex < name.size && nameIndex < Int64(4)) {
+                    unsafe { bytes.write(byteBase + nameIndex, name[nameIndex]) }
+                    nameIndex += Int64(1)
+                }
+                unsafe {
+                    pointers.write(pointerBase + Int64(1), data)
+                    sizes.write(pointerBase + Int64(2), UIntNative(payload.size))
+                    bytes.write(
+                        byteBase + Int64(24),
+                        pngCClassicUnknownLocation(entry.location)
+                    )
+                }
+                visibleIndex += Int64(1)
+            }
+            unknownIndex += Int64(1)
+        }
+    }
+        result
+    } catch (error: Exception) {
+        pngCClassicFreeMetadataBlocks(
+            pngPtr, state, allocator, allocations.toArray()
+        )
+        throw error
+    }
+}
+
 private func pngCClassicBuildMetadataBacking(
     pngPtr: CPointer<Unit>,
     state: PngCClassicReadState,
@@ -377,6 +816,7 @@ private func pngCClassicBuildMetadataBacking(
     var significantBits = CPointer<Unit>()
     var background = CPointer<Unit>()
     var transparentColor = CPointer<Unit>()
+    var extended = PngCClassicExtendedBackingValues()
     let metadata = decoded.metadata
     let paletteBytes = metadata.palette()
     let alphaBytes = metadata.paletteAlpha()
@@ -436,6 +876,9 @@ private func pngCClassicBuildMetadataBacking(
                 metadata.transparentGray
             )
         }
+        extended = pngCClassicBuildExtendedMetadataBacking(
+            pngPtr, state, allocator, metadata
+        )
         PngCClassicMetadataBacking(
             signature,
             palette,
@@ -450,9 +893,32 @@ private func pngCClassicBuildMetadataBacking(
             },
             significantBits,
             background,
-            transparentColor
+            transparentColor,
+            extended.exif,
+            extended.exifLength,
+            extended.histogram,
+            extended.iccName,
+            extended.iccProfile,
+            extended.iccProfileLength,
+            extended.calibrationPurpose,
+            extended.calibrationUnits,
+            extended.calibrationParameters,
+            extended.calibrationParameterCount,
+            extended.scaleWidth,
+            extended.scaleHeight,
+            extended.suggestedPalettes,
+            extended.suggestedPaletteCount,
+            extended.modificationTime,
+            extended.textEntries,
+            extended.textEntryCount,
+            extended.unknownChunks,
+            extended.unknownChunkCount,
+            extended.allocations.toArray()
         )
     } catch (error: Exception) {
+        pngCClassicFreeMetadataBlocks(
+            pngPtr, state, allocator, extended.allocations.toArray()
+        )
         pngCClassicFreeWith(pngPtr, state, allocator, transparentColor)
         pngCClassicFreeWith(pngPtr, state, allocator, background)
         pngCClassicFreeWith(pngPtr, state, allocator, significantBits)
@@ -468,6 +934,10 @@ private func pngCClassicFreeMetadataBacking(
 ): Unit {
     match (infoState.metadataBacking) {
         case Some(backing) =>
+            pngCClassicFreeMetadataBlocks(
+                owner, infoState.readState, infoState.allocator,
+                backing.extendedAllocations
+            )
             pngCClassicFreeWith(
                 owner, infoState.readState, infoState.allocator,
                 backing.transparentColor
@@ -534,7 +1004,7 @@ private func pngCClassicDefaultDiagnostic(
     }
 }
 
-private func pngCClassicWarningText(
+func pngCClassicWarningText(
     handle: CPointer<Unit>, message: String
 ): Unit {
     let text = unsafe { LibC.mallocCString(message) }
@@ -545,7 +1015,7 @@ private func pngCClassicWarningText(
     }
 }
 
-private func pngCClassicErrorText(
+func pngCClassicErrorText(
     handle: CPointer<Unit>, message: String
 ): Unit {
     let text = unsafe { LibC.mallocCString(message) }
@@ -765,7 +1235,7 @@ private func pngCClassicEndReadInfo(
     }
 }
 
-private class PngCClassicMetadataAccess {
+class PngCClassicMetadataAccess {
     let state: PngCClassicReadState
     let ihdr: PngIhdr
     let metadata: PngReadMetadata
@@ -784,7 +1254,7 @@ private class PngCClassicMetadataAccess {
     }
 }
 
-private func pngCClassicBeginMetadataAccess(
+func pngCClassicBeginMetadataAccess(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): Option<PngCClassicMetadataAccess> {
     if (pngPtr.isNull() || infoPtr.isNull()) { return None }
@@ -817,7 +1287,7 @@ private func pngCClassicBeginMetadataAccess(
     }
 }
 
-private func pngCClassicEndMetadataAccess(
+func pngCClassicEndMetadataAccess(
     state: PngCClassicReadState
 ): Unit {
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
