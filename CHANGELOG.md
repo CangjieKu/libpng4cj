@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add `PngRowWriteSession`, a copy-owned row-at-a-time write lifecycle with
+  exact row count/shape accounting, non-interlaced and Adam7 finalization,
+  deterministic failure states, and memory/custom-sink output parity.
 - Add copy-owned unknown-chunk write injection with explicit after-IHDR,
   after-PLTE, and after-IDAT regions, safe-to-copy/ancillary/all policies,
   recognized-chunk conflict and reserved-bit validation, metadata limits, and

@@ -1657,8 +1657,23 @@ LP-S006G adds native unknown-chunk write injection:
 - memory and custom-sink output share the same framed unknown-chunk plan, CRC,
   byte accounting, failure state, and ownership behavior
 
-This write path is whole-image and supports non-interlaced or Adam7 output.
-Progressive row-at-a-time writing, raw C callback trampolines, simplified API,
+LP-S006H adds a native row-at-a-time write lifecycle:
+
+- `PngRowWriteSession` freezes the existing writer configuration at
+  construction and accepts complete source rows in strict image order
+- each accepted row is shape-checked and copy-owned immediately, with exact
+  expected, accepted, remaining, and source-row-byte accounting
+- early finish, malformed or excess rows, callback reentrancy, and post-
+  terminal operations have deterministic failed/closed behavior
+- finalization reuses the existing non-interlaced/Adam7 transform, filter,
+  compression, metadata, unknown-chunk, and shared memory/custom-sink core
+- the current row lifecycle buffers accepted rows until finalization;
+  incremental deflate and early IDAT/sink emission remain later write-fidelity
+  work
+
+These write paths finalize a complete image and support non-interlaced or
+Adam7 output.
+Incremental row compression/output, raw C callback trampolines, simplified API,
 and complete libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work. ICC
 profile bytes are validated and emitted, but ICC pixel conversion is outside
 libpng's scope.

@@ -1123,6 +1123,23 @@ main(): Int64 {
         println("libpng4cj Adam7 packed write consumer check failed")
         return 1
     }
+    let rowWriteSession = PngRowWriteSession(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha, Adam7,
+        Array<Byte>(), writeMetadata, WriteFilterAdaptive, Int32(6),
+        PngWriteLimits()
+    )
+    for (row in writeRows) {
+        rowWriteSession.writeRow(row)
+    }
+    let rowWrittenDecoded = decodePng(rowWriteSession.finish(), RetainAncillary)
+    if (rowWriteSession.state() != WriteCompleted ||
+        rowWriteSession.acceptedRowCount() != UInt32(2) ||
+        rowWriteSession.remainingRowCount() != UInt32(0) ||
+        rowWrittenDecoded.rows() != writeRows ||
+        rowWrittenDecoded.metadata.unknownChunkCount() != Int64(1)) {
+        println("libpng4cj row-at-a-time write consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }

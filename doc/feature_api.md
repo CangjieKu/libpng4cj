@@ -35,6 +35,8 @@ import libpng4cj.*
   exact byte/emission receipts, live callback replacement, and final flush
 - copy-owned unknown-chunk write injection with explicit legal regions,
   safe-to-copy/ancillary/all policies, and retained round-trip support
+- a copy-owned row-at-a-time writer lifecycle with exact row accounting and
+  non-interlaced/Adam7 memory or custom-sink finalization
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -136,6 +138,31 @@ Write and flush callbacks may be replaced while emission is active; the next
 callback observes the replacement. Callback input is copy-owned. Sink or flush
 exceptions, including reentrant write/close attempts, move the session to
 `WriteFailed`. Output limits are checked before the first sink callback.
+
+`PngRowWriteSession` accepts one complete source row at a time through
+`writeRow`. The constructor freezes the same metadata, palette, transform,
+filter, compression, interlace, and limit configuration as `PngWriteSession`.
+Each row is validated against `expectedRowBytes()` and copied immediately.
+`expectedRowCount()`, `acceptedRowCount()`, and `remainingRowCount()` expose
+the intake state.
+
+```cangjie
+let writer = PngRowWriteSession(
+    width, height, UInt8(8), TruecolorAlpha, Adam7,
+    Array<Byte>(), PngWriteMetadata(), WriteFilterAdaptive, Int32(6),
+    PngWriteLimits()
+)
+for (row in rows) {
+    writer.writeRow(row)
+}
+let png = writer.finish()
+```
+
+`finish()` returns memory output and `finishTo(sink)` uses the same custom-sink
+contract as the whole-image writer. Both require exactly the configured number
+of rows and reuse the existing transform/filter/compression/metadata pipeline.
+The current row lifecycle buffers accepted rows until finalization; incremental
+deflate and early IDAT/sink emission remain later work.
 
 `PngWriteMetadata.addUnknownChunk` accepts a public copy-owned
 `PngUnknownChunk`. Locations map to the frozen upstream write regions:
