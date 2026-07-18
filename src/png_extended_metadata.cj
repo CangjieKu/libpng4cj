@@ -200,7 +200,7 @@ public class PngUnknownChunk {
     private let ownedType: Array<Byte>
     private let ownedData: Array<Byte>
 
-    init(chunkType: Array<Byte>, data: Array<Byte>, location: PngUnknownChunkLocation) {
+    public init(chunkType: Array<Byte>, data: Array<Byte>, location: PngUnknownChunkLocation) {
         ownedType = chunkType.clone()
         ownedData = data.clone()
         this.location = location

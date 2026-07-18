@@ -33,6 +33,8 @@ import libpng4cj.*
   byte swap, significant-bit shift, alpha order/inversion, BGR, and invert mono
 - native custom write sinks with copy-owned signature/framed-chunk delivery,
   exact byte/emission receipts, live callback replacement, and final flush
+- copy-owned unknown-chunk write injection with explicit legal regions,
+  safe-to-copy/ancillary/all policies, and retained round-trip support
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -135,6 +137,36 @@ callback observes the replacement. Callback input is copy-owned. Sink or flush
 exceptions, including reentrant write/close attempts, move the session to
 `WriteFailed`. Output limits are checked before the first sink callback.
 
+`PngWriteMetadata.addUnknownChunk` accepts a public copy-owned
+`PngUnknownChunk`. Locations map to the frozen upstream write regions:
+
+- `AfterIhdr`: immediately after IHDR and before known pre-PLTE metadata
+- `AfterPlte`: after known pre-IDAT metadata and PLTE when present
+- `AfterIdat`: after known trailing metadata and before IEND
+
+The default `WriteUnknownSafeToCopy` policy emits chunks whose fourth type byte
+has the PNG safe-to-copy bit. `WriteUnknownAncillary` emits all ancillary
+unknown chunks, and `WriteUnknownAll` also permits critical unknown chunks.
+Configured chunks are validated before output for four ASCII letters, an
+uppercase reserved bit, non-collision with every recognized core/standard
+metadata type, and 31-bit payload size. Policy-filtered chunks still receive
+those structural checks but are not emitted; emitted chunks also consume the
+metadata and final-output budgets.
+
+```cangjie
+let metadata = PngWriteMetadata()
+metadata.setUnknownChunkPolicy(WriteUnknownAncillary)
+metadata.addUnknownChunk(PngUnknownChunk(
+    [UInt8(0x76), UInt8(0x70), UInt8(0x41), UInt8(0x67)],
+    [UInt8(1), UInt8(2), UInt8(3)], AfterIhdr
+))
+```
+
+`PngWriteMetadata(readMetadata, colorType)` copies retained unknown chunks and
+selects `WriteUnknownAll` so an explicitly retained decode-write-decode flow
+does not silently discard them. Memory output and custom sinks use the same
+framed chunk plan.
+
 `PngWriteMetadata` emits typed tRNS, gAMA, cHRM, sRGB, sBIT, bKGD, pHYs,
 iCCP, tEXt/zTXt/iTXt, tIME, cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL,
 sCAL, and ordered sPLT chunks. The writer freezes the upstream pre-PLTE,
@@ -143,9 +175,8 @@ before/after-IDAT placement. `PngWriteMetadata(readMetadata, colorType)` copies
 the standard read model into canonical pre-IDAT write placement for
 decode-write-decode workflows.
 
-Unknown-chunk injection, progressive row-at-a-time writing, raw C callback
-trampolines, simplified `png_image_write_*`, and full C ABI write parity remain
-later work.
+Progressive row-at-a-time writing, raw C callback trampolines, simplified
+`png_image_write_*`, and full C ABI write parity remain later work.
 ICC support retains and emits profile bytes; it does not perform ICC pixel
 conversion.
 

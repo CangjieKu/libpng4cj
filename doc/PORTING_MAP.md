@@ -1639,8 +1639,26 @@ LP-S006F adds the native Cangjie custom write-sink route:
 - reentrant write or close attempts during either emission or flush are
   rejected by the existing Finalizing lifecycle guard
 
+LP-S006G adds native unknown-chunk write injection:
+
+- `PngUnknownChunk` is a public copy-owned write/read model with explicit
+  after-IHDR, after-PLTE, or after-IDAT placement
+- unknown chunks retain caller order within each region and follow the frozen
+  upstream position relative to known metadata and IEND
+- the default policy writes safe-to-copy chunks; explicit ancillary and all-
+  unknown policies widen emission, including critical chunks only in the all
+  policy unless their safe-to-copy bit applies
+- every configured chunk is validated before output for type letters, reserved
+  bit, recognized standard/core type collision, and 31-bit payload size, even
+  when policy later filters it from emission; emitted chunks also consume the
+  metadata and final-output budgets
+- `PngWriteMetadata(PngReadMetadata, colorType)` preserves explicitly retained
+  unknown chunks for decode-write-decode use
+- memory and custom-sink output share the same framed unknown-chunk plan, CRC,
+  byte accounting, failure state, and ownership behavior
+
 This write path is whole-image and supports non-interlaced or Adam7 output.
-Unknown-chunk injection, progressive row-at-a-time writing, raw C callback
-trampolines, simplified API, and complete libpng16 write ABI remain later
-LP-S006/LP-S007/LP-S008 work. ICC profile bytes are validated and emitted, but
-ICC pixel conversion is outside libpng's scope.
+Progressive row-at-a-time writing, raw C callback trampolines, simplified API,
+and complete libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work. ICC
+profile bytes are validated and emitted, but ICC pixel conversion is outside
+libpng's scope.

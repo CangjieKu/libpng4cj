@@ -191,6 +191,41 @@ private func pngCloneTransparency(value: PngWriteTransparency): PngWriteTranspar
     }
 }
 
+private func pngCloneUnknownChunk(value: PngUnknownChunk): PngUnknownChunk {
+    PngUnknownChunk(value.chunkType(), value.payload(), value.location)
+}
+
+public enum PngWriteUnknownChunkPolicy <:
+    Equatable<PngWriteUnknownChunkPolicy> & ToString {
+    | WriteUnknownSafeToCopy
+    | WriteUnknownAncillary
+    | WriteUnknownAll
+
+    public operator func ==(right: PngWriteUnknownChunkPolicy): Bool {
+        ordinalValue() == right.ordinalValue()
+    }
+
+    public operator func !=(right: PngWriteUnknownChunkPolicy): Bool {
+        !(this == right)
+    }
+
+    private func ordinalValue(): Int64 {
+        match (this) {
+            case WriteUnknownSafeToCopy => Int64(0)
+            case WriteUnknownAncillary => Int64(1)
+            case WriteUnknownAll => Int64(2)
+        }
+    }
+
+    public func toString(): String {
+        match (this) {
+            case WriteUnknownSafeToCopy => "SAFE_TO_COPY"
+            case WriteUnknownAncillary => "ANCILLARY"
+            case WriteUnknownAll => "ALL"
+        }
+    }
+}
+
 public class PngWriteMetadata {
     var hasTransparencyValue: Bool = false
     var transparencyValue: PngWriteTransparency = PngWriteTransparency(Array<Byte>())
@@ -228,8 +263,10 @@ public class PngWriteMetadata {
     var hasModificationTimeValue: Bool = false
     var modificationTimeValue: PngModificationTime = PngModificationTime()
     var modificationTimePlacementValue: PngWriteMetadataPlacement = WriteBeforeIdat
+    var unknownChunkPolicyValue: PngWriteUnknownChunkPolicy = WriteUnknownSafeToCopy
     private let suggestedPalettesValue = ArrayList<PngSuggestedPalette>()
     private let textEntriesValue = ArrayList<PngPlacedWriteText>()
+    private let unknownChunksValue = ArrayList<PngUnknownChunk>()
 
     public init() {}
 
@@ -281,6 +318,14 @@ public class PngWriteMetadata {
             addText(read.textEntry(textIndex), WriteBeforeIdat)
             textIndex += Int64(1)
         }
+        if (read.unknownChunkCount() > Int64(0)) {
+            setUnknownChunkPolicy(WriteUnknownAll)
+            var unknownIndex: Int64 = Int64(0)
+            while (unknownIndex < read.unknownChunkCount()) {
+                addUnknownChunk(read.unknownChunk(unknownIndex))
+                unknownIndex += Int64(1)
+            }
+        }
     }
 
     init(other: PngWriteMetadata) {
@@ -315,6 +360,12 @@ public class PngWriteMetadata {
             let placed = other.textEntriesValue[textIndex]
             addText(placed.entry, placed.placement)
             textIndex += Int64(1)
+        }
+        setUnknownChunkPolicy(other.unknownChunkPolicyValue)
+        var unknownIndex: Int64 = Int64(0)
+        while (unknownIndex < other.unknownChunksValue.size) {
+            addUnknownChunk(other.unknownChunksValue[unknownIndex])
+            unknownIndex += Int64(1)
         }
     }
 
@@ -439,6 +490,28 @@ public class PngWriteMetadata {
         textEntriesValue.add(PngPlacedWriteText(value, placement))
     }
 
+    public func setUnknownChunkPolicy(policy: PngWriteUnknownChunkPolicy): Unit {
+        unknownChunkPolicyValue = policy
+    }
+
+    public func addUnknownChunk(value: PngUnknownChunk): Unit {
+        unknownChunksValue.add(pngCloneUnknownChunk(value))
+    }
+
+    public func unknownChunkCount(): Int64 {
+        unknownChunksValue.size
+    }
+
+    public func unknownChunk(index: Int64): PngUnknownChunk {
+        if (index < Int64(0) || index >= unknownChunksValue.size) {
+            throw PngFormatException(
+                InvalidArgument, index,
+                "PNG write unknown chunk index is out of bounds"
+            )
+        }
+        pngCloneUnknownChunk(unknownChunksValue[index])
+    }
+
     func suggestedPalettes(): Array<PngSuggestedPalette> {
         let source = suggestedPalettesValue.toArray()
         if (source.size == Int64(0)) { return Array<PngSuggestedPalette>() }
@@ -464,6 +537,21 @@ public class PngWriteMetadata {
         var index: Int64 = Int64(0)
         while (index < source.size) {
             out[index] = PngPlacedWriteText(source[index].entry, source[index].placement)
+            index += Int64(1)
+        }
+        out
+    }
+
+    func unknownChunks(): Array<PngUnknownChunk> {
+        let source = unknownChunksValue.toArray()
+        if (source.size == Int64(0)) { return Array<PngUnknownChunk>() }
+        let out = Array<PngUnknownChunk>(
+            source.size,
+            repeat: pngCloneUnknownChunk(source[0])
+        )
+        var index: Int64 = Int64(0)
+        while (index < source.size) {
+            out[index] = pngCloneUnknownChunk(source[index])
             index += Int64(1)
         }
         out
@@ -999,6 +1087,96 @@ private func chargeFixedMetadataChunk(budget: PngWriteMetadataBudget, chunk: Arr
     chunk
 }
 
+private func isRecognizedWriteChunkType(chunkType: Array<Byte>): Bool {
+    sameBytes(chunkType, PNG_CHUNK_IHDR) ||
+        sameBytes(chunkType, PNG_CHUNK_PLTE) ||
+        sameBytes(chunkType, PNG_CHUNK_IDAT) ||
+        sameBytes(chunkType, PNG_CHUNK_IEND) ||
+        sameBytes(chunkType, PNG_CHUNK_tRNS) ||
+        sameBytes(chunkType, PNG_CHUNK_gAMA) ||
+        sameBytes(chunkType, PNG_CHUNK_cHRM) ||
+        sameBytes(chunkType, PNG_CHUNK_sRGB) ||
+        sameBytes(chunkType, PNG_CHUNK_sBIT) ||
+        sameBytes(chunkType, PNG_CHUNK_bKGD) ||
+        sameBytes(chunkType, PNG_CHUNK_pHYs) ||
+        sameBytes(chunkType, PNG_CHUNK_iCCP) ||
+        sameBytes(chunkType, PNG_CHUNK_tEXt) ||
+        sameBytes(chunkType, PNG_CHUNK_zTXt) ||
+        sameBytes(chunkType, PNG_CHUNK_iTXt) ||
+        sameBytes(chunkType, PNG_CHUNK_tIME) ||
+        sameBytes(chunkType, PNG_CHUNK_cICP) ||
+        sameBytes(chunkType, PNG_CHUNK_cLLI) ||
+        sameBytes(chunkType, PNG_CHUNK_mDCV) ||
+        sameBytes(chunkType, PNG_CHUNK_eXIf) ||
+        sameBytes(chunkType, PNG_CHUNK_hIST) ||
+        sameBytes(chunkType, PNG_CHUNK_oFFs) ||
+        sameBytes(chunkType, PNG_CHUNK_pCAL) ||
+        sameBytes(chunkType, PNG_CHUNK_sCAL) ||
+        sameBytes(chunkType, PNG_CHUNK_sPLT)
+}
+
+private func shouldWriteUnknownChunk(
+    chunk: PngUnknownChunk,
+    policy: PngWriteUnknownChunkPolicy
+): Bool {
+    match (policy) {
+        case WriteUnknownSafeToCopy => chunk.isSafeToCopy()
+        case WriteUnknownAncillary => !isCriticalChunk(chunk.chunkType())
+        case WriteUnknownAll => true
+    }
+}
+
+private func addUnknownWriteChunks(
+    plan: PngWriteMetadataPlan,
+    budget: PngWriteMetadataBudget,
+    chunks: Array<PngUnknownChunk>,
+    policy: PngWriteUnknownChunkPolicy,
+    location: PngUnknownChunkLocation
+): Unit {
+    var index: Int64 = Int64(0)
+    while (index < chunks.size) {
+        let chunk = chunks[index]
+        if (chunk.location == location) {
+            let chunkType = chunk.chunkType()
+            let payload = chunk.payload()
+            if (!isValidChunkType(chunkType)) {
+                throw PngFormatException(
+                    InvalidChunkType, -1,
+                    "PNG write unknown chunk type must contain four ASCII letters"
+                )
+            }
+            if ((chunkType[2] & UInt8(0x20)) != UInt8(0)) {
+                throw PngFormatException(
+                    InvalidChunkType, -1,
+                    "PNG write unknown chunk type has a lowercase reserved bit"
+                )
+            }
+            if (isRecognizedWriteChunkType(chunkType)) {
+                throw PngFormatException(
+                    DuplicateMetadata, -1,
+                    "PNG write unknown chunk duplicates a recognized chunk type"
+                )
+            }
+            if (payload.size > Int64(PNG_UINT_31_MAX)) {
+                throw PngFormatException(
+                    ChunkTooLarge, -1,
+                    "PNG write unknown chunk payload exceeds 31 bits"
+                )
+            }
+            if (shouldWriteUnknownChunk(chunk, policy)) {
+                budget.chargeRaw(UInt64(payload.size))
+                let framed = makeWriteChunk(chunkType, payload)
+                match (location) {
+                    case AfterIhdr => plan.addBeforePalette(framed)
+                    case AfterPlte => plan.addAfterPalette(framed)
+                    case AfterIdat => plan.addAfterIdat(framed)
+                }
+            }
+        }
+        index += Int64(1)
+    }
+}
+
 func planPngWriteMetadata(
     metadata: PngWriteMetadata,
     ihdr: PngIhdr,
@@ -1009,6 +1187,11 @@ func planPngWriteMetadata(
 ): PngWriteMetadataPlan {
     let plan = PngWriteMetadataPlan()
     let budget = PngWriteMetadataBudget(maxRawBytes, maxCompressedBytes)
+    let unknownChunks = metadata.unknownChunks()
+
+    addUnknownWriteChunks(
+        plan, budget, unknownChunks, metadata.unknownChunkPolicyValue, AfterIhdr
+    )
 
     if (metadata.hasSignificantBitsValue) {
         plan.addBeforePalette(chargeFixedMetadataChunk(
@@ -1114,6 +1297,10 @@ func planPngWriteMetadata(
         textIndex += Int64(1)
     }
 
+    addUnknownWriteChunks(
+        plan, budget, unknownChunks, metadata.unknownChunkPolicyValue, AfterPlte
+    )
+
     if (metadata.hasModificationTimeValue && metadata.modificationTimePlacementValue == WriteAfterIdat) {
         plan.addAfterIdat(chargeFixedMetadataChunk(
             budget, makeTimeWriteChunk(metadata.modificationTimeValue)
@@ -1132,5 +1319,8 @@ func planPngWriteMetadata(
             budget, makeExifWriteChunk(metadata.exifValue)
         ))
     }
+    addUnknownWriteChunks(
+        plan, budget, unknownChunks, metadata.unknownChunkPolicyValue, AfterIdat
+    )
     plan
 }

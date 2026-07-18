@@ -1075,11 +1075,15 @@ main(): Int64 {
         [UInt8(0x43), UInt8(0x61), UInt8(0x6e), UInt8(0x67), UInt8(0x6a), UInt8(0x69), UInt8(0x65)],
         Array<Byte>(), Array<Byte>()
     ), WriteBeforeIdat)
+    writeMetadata.addUnknownChunk(PngUnknownChunk(
+        [UInt8(0x76), UInt8(0x70), UInt8(0x41), UInt8(0x67)],
+        [UInt8(1), UInt8(2), UInt8(3)], AfterIhdr
+    ))
     let metadataWritten = encodePngPacked(
         UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha,
         writeRows, writeMetadata
     )
-    let metadataDecoded = decodePngNonInterlaced(metadataWritten)
+    let metadataDecoded = decodePngNonInterlaced(metadataWritten, RetainAncillary)
     let metadataRewritten = decodePngNonInterlaced(encodePngPacked(
         metadataDecoded.ihdr.width,
         metadataDecoded.ihdr.height,
@@ -1087,14 +1091,19 @@ main(): Int64 {
         metadataDecoded.ihdr.colorType,
         metadataDecoded.rows(),
         PngWriteMetadata(metadataDecoded.metadata, metadataDecoded.ihdr.colorType)
-    ))
+    ), RetainAncillary)
     if (!metadataDecoded.metadata.hasGamma ||
         metadataDecoded.metadata.gamma != UInt32(45455) ||
         !metadataDecoded.metadata.hasPhysicalDimensions ||
         metadataDecoded.metadata.textEntryCount() != Int64(1) ||
         metadataDecoded.metadata.textEntry(0).kind != Latin1Compressed ||
+        metadataDecoded.metadata.unknownChunkCount() != Int64(1) ||
+        metadataDecoded.metadata.unknownChunk(0).payload() != [
+            UInt8(1), UInt8(2), UInt8(3)
+        ] ||
         !metadataDecoded.metadata.hasModificationTime ||
         metadataRewritten.metadata.gamma != UInt32(45455) ||
+        metadataRewritten.metadata.unknownChunkCount() != Int64(1) ||
         metadataRewritten.metadata.textEntry(0).text() != [
             UInt8(0x43), UInt8(0x61), UInt8(0x6e), UInt8(0x67),
             UInt8(0x6a), UInt8(0x69), UInt8(0x65)

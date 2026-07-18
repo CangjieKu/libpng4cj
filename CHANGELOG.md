@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add copy-owned unknown-chunk write injection with explicit after-IHDR,
+  after-PLTE, and after-IDAT regions, safe-to-copy/ancillary/all policies,
+  recognized-chunk conflict and reserved-bit validation, metadata limits, and
+  retained decode-write-decode parity.
 - Add a native Cangjie custom write sink that receives copy-owned signature and
   complete framed-chunk emissions with sequence, chunk type, byte-offset, and
   final-IEND context; route memory output through the same emission core and
