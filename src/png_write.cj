@@ -232,7 +232,7 @@ func makeWriteChunk(chunkType: Array<Byte>, data: Array<Byte>): Array<Byte> {
     out.toArray()
 }
 
-private func makeWriteIhdr(ihdr: PngIhdr): Array<Byte> {
+func makeWriteIhdr(ihdr: PngIhdr): Array<Byte> {
     let data = ArrayList<Byte>()
     appendWriteBytes(data, writeUInt32Be(ihdr.width))
     appendWriteBytes(data, writeUInt32Be(ihdr.height))
@@ -630,71 +630,69 @@ public class PngWriteSession {
         transformInitialization
     }
 
-    public func write(rows: Array<Array<Byte>>): Array<Byte> {
+    private func requireOpenForWrite(): Unit {
         if (stateValue == WriteClosed) {
             throw PngFormatException(SessionClosed, -1, "PNG writer is closed")
         }
         if (stateValue != WriteOpen) {
-            throw PngFormatException(InvalidArgument, -1, "PNG writer cannot write in ${stateValue.toString()} state")
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "PNG writer cannot write in ${stateValue.toString()} state"
+            )
         }
+    }
+
+    private func prepareWriteOutput(
+        rows: Array<Array<Byte>>
+    ): PngPreparedWriteOutput {
+        let metadataPlan = planPngWriteMetadata(
+            metadata, ihdr, palette, compressionLevel,
+            limits.maxMetadataBytes, limits.maxMetadataCompressedBytes
+        )
+        let filtered = buildFilteredWriteRows(
+            ihdr, rows, transformInitialization, strategy,
+            limits.maxTransformedBytes, limits.maxFilteredBytes,
+            palette.size / Int64(3)
+        )
+        let compressed = compressPngZlib(
+            filtered, compressionLevel, limits.maxCompressedBytes
+        )
+        let expectedOutput = expectedWriteOutputSize(
+            UInt64(palette.size), metadataPlan.framedBytes,
+            UInt64(compressed.size), limits.idatChunkBytes,
+            limits.maxOutputBytes
+        )
+        PngPreparedWriteOutput(
+            ihdr, palette, metadataPlan, compressed,
+            limits.idatChunkBytes, expectedOutput
+        )
+    }
+
+    public func write(rows: Array<Array<Byte>>): Array<Byte> {
+        requireOpenForWrite()
         stateValue = WriteFinalizing
         try {
-            let metadataPlan = planPngWriteMetadata(
-                metadata, ihdr, palette, compressionLevel,
-                limits.maxMetadataBytes, limits.maxMetadataCompressedBytes
-            )
-            let filtered = buildFilteredWriteRows(
-                ihdr, rows, transformInitialization, strategy,
-                limits.maxTransformedBytes, limits.maxFilteredBytes,
-                palette.size / Int64(3)
-            )
-            let compressed = compressPngZlib(filtered, compressionLevel, limits.maxCompressedBytes)
-            let expectedOutput = expectedWriteOutputSize(
-                UInt64(palette.size), metadataPlan.framedBytes,
-                UInt64(compressed.size), limits.idatChunkBytes,
-                limits.maxOutputBytes
-            )
-            let out = ArrayList<Byte>()
-            appendWriteBytes(out, PNG_SIGNATURE)
-            appendWriteBytes(out, makeWriteIhdr(ihdr))
-            let beforePalette = metadataPlan.beforePalette()
-            var metadataIndex: Int64 = Int64(0)
-            while (metadataIndex < beforePalette.size) {
-                appendWriteBytes(out, beforePalette[metadataIndex])
-                metadataIndex += Int64(1)
-            }
-            if (palette.size > Int64(0)) {
-                appendWriteBytes(out, makeWriteChunk(PNG_CHUNK_PLTE, palette))
-            }
-            let afterPalette = metadataPlan.afterPalette()
-            metadataIndex = Int64(0)
-            while (metadataIndex < afterPalette.size) {
-                appendWriteBytes(out, afterPalette[metadataIndex])
-                metadataIndex += Int64(1)
-            }
-            var offset: Int64 = Int64(0)
-            while (offset < compressed.size) {
-                let remaining = compressed.size - offset
-                let take = if (remaining < Int64(limits.idatChunkBytes)) {
-                    remaining
-                } else {
-                    Int64(limits.idatChunkBytes)
-                }
-                appendWriteBytes(out, makeWriteChunk(PNG_CHUNK_IDAT, copyByteRange(compressed, offset, take)))
-                offset += take
-            }
-            let afterIdat = metadataPlan.afterIdat()
-            metadataIndex = Int64(0)
-            while (metadataIndex < afterIdat.size) {
-                appendWriteBytes(out, afterIdat[metadataIndex])
-                metadataIndex += Int64(1)
-            }
-            appendWriteBytes(out, makeWriteChunk(PNG_CHUNK_IEND, Array<Byte>()))
-            if (UInt64(out.size) != expectedOutput) {
-                throw PngFormatException(InvalidArgument, -1, "encoded PNG size does not match planned chunk structure")
-            }
+            let out = collectPreparedPngWriteOutput(prepareWriteOutput(rows))
             stateValue = WriteCompleted
-            out.toArray()
+            out
+        } catch (error: Exception) {
+            stateValue = WriteFailed
+            throw error
+        }
+    }
+
+    public func writeTo(
+        rows: Array<Array<Byte>>,
+        sink: PngWriteSink
+    ): PngWriteSinkResult {
+        requireOpenForWrite()
+        stateValue = WriteFinalizing
+        try {
+            let result = writePreparedPngOutputToSink(
+                prepareWriteOutput(rows), sink
+            )
+            stateValue = WriteCompleted
+            result
         } catch (error: Exception) {
             stateValue = WriteFailed
             throw error

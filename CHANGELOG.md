@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a native Cangjie custom write sink that receives copy-owned signature and
+  complete framed-chunk emissions with sequence, chunk type, byte-offset, and
+  final-IEND context; route memory output through the same emission core and
+  flush exactly once after final size validation.
 - Add native Cangjie write user-transform registration before the default
   transform stages, with copy-owned rows, full-image row/interlace context,
   identity and live replacement behavior, exact source-shape validation, and

@@ -1624,8 +1624,23 @@ LP-S006E adds the native Cangjie write user-transform route:
 - malformed callback output or callback failure moves the writer to Failed
   through the existing session boundary
 
+LP-S006F adds the native Cangjie custom write-sink route:
+
+- `PngWriteSession.write()` and `writeTo()` share one prepared-output emission
+  core, preserving byte-for-byte memory output parity
+- each callback receives one copy-owned signature or complete framed chunk,
+  with sequence, kind, chunk type, byte offsets, and final-IEND context
+- exact output limits are preflighted before the first callback, and the final
+  planned size is verified after IEND before flushing
+- write and flush callbacks use live lookup, so replacement is visible to the
+  next emission or final flush; no-callback registration remains a no-op sink
+- the final flush runs exactly once after IEND, while sink failure skips flush
+  and sink/flush exceptions move the session to Failed
+- reentrant write or close attempts during either emission or flush are
+  rejected by the existing Finalizing lifecycle guard
+
 This write path is whole-image and supports non-interlaced or Adam7 output.
-Unknown-chunk injection, custom/progressive sinks, raw C callback trampolines,
-simplified API, and complete libpng16 write ABI remain later LP-S006/LP-S007/
-LP-S008 work. ICC profile bytes are validated and emitted, but ICC pixel
-conversion is outside libpng's scope.
+Unknown-chunk injection, progressive row-at-a-time writing, raw C callback
+trampolines, simplified API, and complete libpng16 write ABI remain later
+LP-S006/LP-S007/LP-S008 work. ICC profile bytes are validated and emitted, but
+ICC pixel conversion is outside libpng's scope.

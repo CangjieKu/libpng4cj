@@ -31,6 +31,8 @@ import libpng4cj.*
   CRC, zlib compression, fixed filters, and deterministic adaptive filtering
 - lifecycle-frozen write transforms for packing, pack swap, filler stripping,
   byte swap, significant-bit shift, alpha order/inversion, BGR, and invert mono
+- native custom write sinks with copy-owned signature/framed-chunk delivery,
+  exact byte/emission receipts, live callback replacement, and final flush
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -114,6 +116,25 @@ enables an identity stage. The callback may be enabled or replaced after session
 initialization; replacement is observed by the next complete row. Adam7 invokes
 the callback exactly once per full-image row before seven-pass gathering.
 
+`PngWriteSession.writeTo(rows, sink)` routes the same prepared PNG used by
+`write(rows)` through a native `PngWriteSink`. The write callback receives one
+copy-owned emission for the signature or one complete framed chunk, plus
+`PngWriteOutputContext` containing its sequence number, output kind, chunk
+type, byte offsets, and final-IEND flag. The flush callback receives final byte
+and emission counts exactly once after IEND and output-size validation.
+
+```cangjie
+let sink = PngWriteSink()
+sink.setWriteCallback({ context, bytes => output.write(bytes) })
+sink.setFlushCallback({ context => output.flush() })
+let receipt = session.writeTo(rows, sink)
+```
+
+Write and flush callbacks may be replaced while emission is active; the next
+callback observes the replacement. Callback input is copy-owned. Sink or flush
+exceptions, including reentrant write/close attempts, move the session to
+`WriteFailed`. Output limits are checked before the first sink callback.
+
 `PngWriteMetadata` emits typed tRNS, gAMA, cHRM, sRGB, sBIT, bKGD, pHYs,
 iCCP, tEXt/zTXt/iTXt, tIME, cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL,
 sCAL, and ordered sPLT chunks. The writer freezes the upstream pre-PLTE,
@@ -122,8 +143,9 @@ before/after-IDAT placement. `PngWriteMetadata(readMetadata, colorType)` copies
 the standard read model into canonical pre-IDAT write placement for
 decode-write-decode workflows.
 
-Unknown-chunk injection, custom/progressive sinks, raw C callback trampolines,
-simplified `png_image_write_*`, and full C ABI write parity remain later work.
+Unknown-chunk injection, progressive row-at-a-time writing, raw C callback
+trampolines, simplified `png_image_write_*`, and full C ABI write parity remain
+later work.
 ICC support retains and emits profile bytes; it does not perform ICC pixel
 conversion.
 

@@ -49,6 +49,28 @@ private func consumerByteRange(source: Array<Byte>, start: Int64, length: Int64)
     out
 }
 
+private class ConsumerWriteSinkProbe {
+    var bytes: Array<Byte> = Array<Byte>()
+    var emissionCount: UInt64 = UInt64(0)
+    var flushCount: UInt64 = UInt64(0)
+    var finalIendSeen: Bool = false
+
+    func receive(context: PngWriteOutputContext, emission: Array<Byte>): Unit {
+        bytes = joinConsumerBytes(bytes, emission)
+        emissionCount += UInt64(1)
+        if (context.finalOutput && context.chunkType() == PNG_CHUNK_IEND) {
+            finalIendSeen = true
+        }
+    }
+
+    func flush(context: PngWriteFlushContext): Unit {
+        if (context.bytesWritten == UInt64(bytes.size) &&
+            context.emissionCount == emissionCount) {
+            flushCount += UInt64(1)
+        }
+    }
+}
+
 private func makeConsumerChunk(
     chunkType: Array<Byte>,
     data: Array<Byte>
@@ -1017,6 +1039,26 @@ main(): Int64 {
     )
     if (decodePngNonInterlaced(userWritten).rows() != [[UInt8(42)]]) {
         println("libpng4cj write user transform consumer check failed")
+        return 1
+    }
+    let writeSinkProbe = ConsumerWriteSinkProbe()
+    let writeSink = PngWriteSink()
+    writeSink.setWriteCallback({ context, bytes =>
+        writeSinkProbe.receive(context, bytes)
+    })
+    writeSink.setFlushCallback({ context => writeSinkProbe.flush(context) })
+    let writeSinkSession = PngWriteSession(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha,
+        Array<Byte>(), WriteFilterAdaptive, Int32(6), PngWriteLimits()
+    )
+    let writeSinkResult = writeSinkSession.writeTo(writeRows, writeSink)
+    if (writeSinkSession.state() != WriteCompleted ||
+        writeSinkResult.bytesWritten != UInt64(writeSinkProbe.bytes.size) ||
+        writeSinkResult.emissionCount != writeSinkProbe.emissionCount ||
+        writeSinkResult.flushCount != UInt64(1) ||
+        writeSinkProbe.flushCount != UInt64(1) || !writeSinkProbe.finalIendSeen ||
+        decodePngNonInterlaced(writeSinkProbe.bytes).rows() != writeRows) {
+        println("libpng4cj custom write sink consumer check failed")
         return 1
     }
     let writeMetadata = PngWriteMetadata()
