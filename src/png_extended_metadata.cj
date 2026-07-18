@@ -223,6 +223,7 @@ class ParsedExtendedMetadata {
     var hasIccProfile: Bool = false
     var iccProfile: PngIccProfile = PngIccProfile()
     var hasModificationTime: Bool = false
+    var modificationTimeBeforeIdat: Bool = false
     var modificationTime: PngModificationTime = PngModificationTime()
     private let text = ArrayList<PngTextEntry>()
     private let unknown = ArrayList<PngUnknownChunk>()
@@ -471,6 +472,7 @@ func handleExtendedMetadataChunk(
         }
         parsed.modificationTime = parseModificationTime(chunk)
         parsed.hasModificationTime = true
+        parsed.modificationTimeBeforeIdat = !seenIdat
         return true
     }
     false

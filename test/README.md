@@ -28,4 +28,8 @@ relocated execution. The metadata consumer freezes the eight fixed/core getter
 signatures and `PNG_INFO_*` values, compares vendored upstream sample values,
 checks stable PLTE/tRNS/sBIT/bKGD pointers, indexed and non-indexed tRNS output
 combinations, wrong-owner/spare/stale handles, allocator balance, and original
-plus relocated execution.
+plus relocated execution. The easy-access consumer freezes sixteen exact
+signatures, compares get-valid, pHYs/oFFs fixed conversions, dpi, and signature
+values with an independent libpng 1.6.58 oracle, verifies primary-info versus
+post-IDAT visibility, mutates chunk payloads with valid CRCs for unit gates,
+and repeats ownership, allocator, original, and relocated checks.

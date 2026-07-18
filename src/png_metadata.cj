@@ -239,6 +239,7 @@ public class PngReadMetadata {
     public let hasMasteringDisplayColorVolume: Bool
     public let masteringDisplayColorVolume: PngMasteringDisplayColorVolume
     public let hasExif: Bool
+    let exifBeforeIdat: Bool
     public let hasHistogram: Bool
     public let hasImageOffset: Bool
     public let imageOffset: PngImageOffset
@@ -249,6 +250,7 @@ public class PngReadMetadata {
     public let hasIccProfile: Bool
     public let iccProfile: PngIccProfile
     public let hasModificationTime: Bool
+    let modificationTimeBeforeIdat: Bool
     public let modificationTime: PngModificationTime
     public let transparentGray: UInt16
     public let transparentRed: UInt16
@@ -290,6 +292,7 @@ public class PngReadMetadata {
         hasMasteringDisplayColorVolume = parsed.ancillary.hasMasteringDisplay
         masteringDisplayColorVolume = parsed.ancillary.masteringDisplay
         hasExif = parsed.ancillary.hasExif
+        exifBeforeIdat = parsed.ancillary.exifBeforeIdat
         ownedExif = parsed.ancillary.exif.clone()
         hasHistogram = parsed.ancillary.hasHistogram
         ownedHistogram = parsed.ancillary.histogram.clone()
@@ -303,6 +306,7 @@ public class PngReadMetadata {
         hasIccProfile = parsed.extended.hasIccProfile
         iccProfile = parsed.extended.iccProfile
         hasModificationTime = parsed.extended.hasModificationTime
+        modificationTimeBeforeIdat = parsed.extended.modificationTimeBeforeIdat
         modificationTime = parsed.extended.modificationTime
         ownedTextEntries = parsed.extended.textEntries()
         ownedUnknownChunks = parsed.extended.unknownChunks()

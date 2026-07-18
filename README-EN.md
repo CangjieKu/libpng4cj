@@ -23,7 +23,7 @@ release, or a cross-platform binary distribution.
 | Progressive reading | Incremental input, early info/row callbacks, Adam7 pass context, pause, and resume |
 | PNG encoding | Whole-image, row-at-a-time, incremental IDAT, Adam7, filter/compression controls, metadata, and unknown chunks |
 | Simplified API | Memory, files, and caller-managed streams with direct8, linear16, colormap, and positive/negative strides |
-| C ABI | Preview facade, `png_image` memory/file/stdio subset, classic utilities/read handles, custom/stdio `png_read_info`, core IHDR and fixed metadata getters, and raw row/image/read-end subset on macOS arm64 |
+| C ABI | Preview facade, `png_image` memory/file/stdio subset, classic utilities/read handles, custom/stdio `png_read_info`, core IHDR/fixed metadata/easy-access getters, and raw row/image/read-end subset on macOS arm64 |
 | ICC | iCCP profiles are retained and validated; ICC pixel color conversion is not performed |
 
 See the [Compatibility and Dependency Matrix](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)
@@ -162,7 +162,9 @@ It performs the following checks:
   stateless classic utilities, read/info handle lifecycle, warning callbacks,
   fatal error subprocess boundaries, custom allocator ownership, and
   custom/stdio `png_read_info`, core IHDR getters, fixed
-  gAMA/cHRM/sRGB/sBIT/bKGD/pHYs/PLTE/tRNS getters, and raw row/image/read-end
+  gAMA/cHRM/sRGB/sBIT/bKGD/pHYs/PLTE/tRNS getters,
+  get-valid/signature/fixed pHYs-oFFs conversion getters, and raw
+  row/image/read-end
 - relocates the dylib and reruns every consumer on the same host
 
 A C process must initialize and finalize the Cangjie runtime as required by the

@@ -423,6 +423,7 @@ class ParsedPngAncillaryMetadata {
     var hasMasteringDisplay: Bool = false
     var masteringDisplay: PngMasteringDisplayColorVolume = PngMasteringDisplayColorVolume()
     var hasExif: Bool = false
+    var exifBeforeIdat: Bool = false
     var exif: Array<Byte> = Array<Byte>()
     var hasHistogram: Bool = false
     var histogram: Array<UInt16> = Array<UInt16>()
@@ -513,6 +514,7 @@ class ParsedPngAncillaryMetadata {
             }
             exif = data.clone()
             hasExif = true
+            exifBeforeIdat = !seenIdat
             return true
         }
         if (chunk.isType(PNG_CHUNK_hIST)) {

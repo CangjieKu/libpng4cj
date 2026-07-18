@@ -1938,10 +1938,23 @@ Porting milestone S008K projects the retained fixed/core metadata cluster:
   absent-output preservation, pointer stability, wrong-owner/spare/stale handle,
   strict C11 layout/signature, original, and relocated proof
 
+Porting milestone S008L adds the non-floating classic easy-access cluster:
+
+- direct Cangjie exports for `png_get_valid`, `png_get_signature`, pHYs
+  pixels-per-meter/inch and fixed aspect helpers, oFFs pixel/micron/fixed-inch
+  helpers, and `png_get_pHYs_dpi`
+- complete retained standard metadata validity mapping with primary-info
+  visibility kept separate from post-IDAT eXIf/tIME retention
+- source-equivalent unit gates, fixed multiply/divide rounding and overflow,
+  output-dependent dpi return bits, and stable info-owned signature backing
+- frozen sixteen-symbol manifest plus independent libpng 1.6.58 oracle,
+  CRC-valid pHYs/oFFs mutation, wrong-owner/spare/stale handle, allocator,
+  strict C11 exact-signature, original, and relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor
-timing, floating/XYZ and extended classic metadata, broader read-end metadata/
+timing, floating easy-access/XYZ and extended classic metadata, broader read-end metadata/
 write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

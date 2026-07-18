@@ -6,8 +6,9 @@
  * covers opaque read/info ownership, caller-context retention, warning/error
  * callback invocation, fatal fallback termination, custom-allocation
  * ownership, custom/stdio read-info input, core IHDR and fixed metadata getters,
- * raw row delivery, and read-end sealing. Longjmp and transformed/pass-progress
- * row IO are not yet implemented.
+ * raw row delivery, read-end sealing, retained metadata, validity, fixed
+ * physical conversions, and signature access. Longjmp and transformed/pass-
+ * progress row IO are not yet implemented.
  */
 
 #include <stddef.h>
@@ -116,8 +117,25 @@ typedef struct png_color_8_struct {
 #define PNG_INFO_PLTE 0x0008u
 #define PNG_INFO_tRNS 0x0010u
 #define PNG_INFO_bKGD 0x0020u
+#define PNG_INFO_hIST 0x0040u
 #define PNG_INFO_pHYs 0x0080u
+#define PNG_INFO_oFFs 0x0100u
+#define PNG_INFO_tIME 0x0200u
+#define PNG_INFO_pCAL 0x0400u
 #define PNG_INFO_sRGB 0x0800u
+#define PNG_INFO_iCCP 0x1000u
+#define PNG_INFO_sPLT 0x2000u
+#define PNG_INFO_sCAL 0x4000u
+#define PNG_INFO_IDAT 0x8000u
+#define PNG_INFO_eXIf 0x10000u
+#define PNG_INFO_cICP 0x20000u
+#define PNG_INFO_cLLI 0x40000u
+#define PNG_INFO_mDCV 0x80000u
+
+#define PNG_RESOLUTION_UNKNOWN 0
+#define PNG_RESOLUTION_METER 1
+#define PNG_OFFSET_PIXEL 0
+#define PNG_OFFSET_MICROMETER 1
 
 #define PNG_FORMAT_FLAG_ALPHA 0x01u
 #define PNG_FORMAT_FLAG_COLOR 0x02u
@@ -291,6 +309,74 @@ png_uint_32 png_get_IHDR(
     int *interlace_method,
     int *compression_method,
     int *filter_method
+);
+png_uint_32 png_get_valid(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_uint_32 flag
+);
+png_uint_32 png_get_pixels_per_meter(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_x_pixels_per_meter(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_y_pixels_per_meter(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_fixed_point png_get_pixel_aspect_ratio_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_int_32 png_get_x_offset_pixels(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_int_32 png_get_y_offset_pixels(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_int_32 png_get_x_offset_microns(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_int_32 png_get_y_offset_microns(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_const_bytep png_get_signature(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_pixels_per_inch(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_x_pixels_per_inch(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_y_pixels_per_inch(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_fixed_point png_get_x_offset_inches_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_fixed_point png_get_y_offset_inches_fixed(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr
+);
+png_uint_32 png_get_pHYs_dpi(
+    png_const_structp png_ptr,
+    png_const_infop info_ptr,
+    png_uint_32 *res_x,
+    png_uint_32 *res_y,
+    int *unit_type
 );
 png_uint_32 png_get_gAMA_fixed(
     png_const_structp png_ptr,

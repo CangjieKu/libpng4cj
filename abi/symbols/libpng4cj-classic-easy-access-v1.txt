@@ -1,0 +1,16 @@
+png_get_pHYs_dpi
+png_get_pixel_aspect_ratio_fixed
+png_get_pixels_per_inch
+png_get_pixels_per_meter
+png_get_signature
+png_get_valid
+png_get_x_offset_inches_fixed
+png_get_x_offset_microns
+png_get_x_offset_pixels
+png_get_x_pixels_per_inch
+png_get_x_pixels_per_meter
+png_get_y_offset_inches_fixed
+png_get_y_offset_microns
+png_get_y_offset_pixels
+png_get_y_pixels_per_inch
+png_get_y_pixels_per_meter

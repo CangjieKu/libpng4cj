@@ -26,6 +26,8 @@ CLASSIC_ROW_READ_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-row-read-v1.txt"
 CLASSIC_ROW_READ_ACTUAL="$OUT/libpng4cj-classic-row-read-v1.actual.txt"
 CLASSIC_METADATA_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-metadata-v1.txt"
 CLASSIC_METADATA_ACTUAL="$OUT/libpng4cj-classic-metadata-v1.actual.txt"
+CLASSIC_EASY_ACCESS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-easy-access-v1.txt"
+CLASSIC_EASY_ACCESS_ACTUAL="$OUT/libpng4cj-classic-easy-access-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -116,6 +118,25 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_METADATA_ACTUAL"
 diff -u "$CLASSIC_METADATA_EXPECTED" "$CLASSIC_METADATA_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_get_pHYs_dpi" || \
+        $3 == "_png_get_pixel_aspect_ratio_fixed" || \
+        $3 == "_png_get_pixels_per_inch" || \
+        $3 == "_png_get_pixels_per_meter" || \
+        $3 == "_png_get_signature" || $3 == "_png_get_valid" || \
+        $3 == "_png_get_x_offset_inches_fixed" || \
+        $3 == "_png_get_x_offset_microns" || \
+        $3 == "_png_get_x_offset_pixels" || \
+        $3 == "_png_get_x_pixels_per_inch" || \
+        $3 == "_png_get_x_pixels_per_meter" || \
+        $3 == "_png_get_y_offset_inches_fixed" || \
+        $3 == "_png_get_y_offset_microns" || \
+        $3 == "_png_get_y_offset_pixels" || \
+        $3 == "_png_get_y_pixels_per_inch" || \
+        $3 == "_png_get_y_pixels_per_meter") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_EASY_ACCESS_ACTUAL"
+diff -u "$CLASSIC_EASY_ACCESS_EXPECTED" "$CLASSIC_EASY_ACCESS_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -277,6 +298,27 @@ cc "$ROOT/test/abi_consumer/png_classic_metadata.c" \
     "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbwn3p08.png" \
     "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbrn2c08.png"
 
+cc "$ROOT/test/abi_consumer/png_classic_easy_access.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-easy-access-consumer"
+
+"$OUT/png-classic-easy-access-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/vendor/libpng-1.6.58/pngtest.png" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
+    "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbwn3p08.png"
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
@@ -286,6 +328,7 @@ cp "$OUT/png-classic-read-handle-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-core-info-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-row-read-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-metadata-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-easy-access-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -319,4 +362,9 @@ cp "$OUT/png-classic-metadata-consumer" "$RELOCATED/"
     "$ROOT/vendor/libpng-1.6.58/pngtest.png" \
     "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbwn3p08.png" \
     "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbrn2c08.png"
+"$RELOCATED/png-classic-easy-access-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/vendor/libpng-1.6.58/pngtest.png" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
+    "$ROOT/vendor/libpng-1.6.58/contrib/pngsuite/ftbwn3p08.png"
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

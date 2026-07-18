@@ -25,6 +25,8 @@ The generated directory contains:
 - `png-classic-row-read-consumer`: strict C11 raw row/image/read-end proof
 - `png-classic-metadata-consumer`: strict C11 fixed/core retained-metadata
   getter and allocator-lifecycle proof
+- `png-classic-easy-access-consumer`: strict C11 validity, fixed physical
+  conversion, and stable signature-pointer proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -207,9 +209,30 @@ combinations, pointer stability, structure layout, absent-output preservation,
 wrong-owner/spare/stale handles, custom allocator balance, exact signatures,
 and original/relocated loading.
 
+The classic easy-access milestone adds sixteen getters frozen in
+`abi/symbols/libpng4cj-classic-easy-access-v1.txt`:
+
+- `png_get_valid` and `png_get_signature`
+- pixels-per-meter/inch scalar getters and fixed pixel-aspect ratio
+- pixel/micron offsets and fixed inch conversions
+- `png_get_pHYs_dpi`
+
+The validity mask follows the populated primary-info phase instead of treating
+all eagerly retained metadata as immediately visible; post-IDAT eXIf/tIME stay
+retained for later end-info work but do not leak into primary `png_get_valid`.
+The physical helpers preserve libpng unit gates, fixed multiply/divide
+rounding, overflow fallback, and `png_get_pHYs_dpi` output-dependent return
+flags. The PNG signature lives in stable info-owned native backing and follows
+the same allocator snapshot and operation guard as the retained metadata
+pointers. The strict consumer compares vendored `pngtest.png` values with an
+independent system-libpng 1.6.58 oracle, mutates pHYs/oFFs payloads with valid
+CRCs for unit-gate coverage, checks absent/wrong-owner/spare/stale handles,
+allocator balance, exact signatures, and original/relocated loading.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
-pass-progress/display combination, exact callback/cursor timing, floating/XYZ
+pass-progress/display combination, exact callback/cursor timing, floating
+easy-access/XYZ
 and extended metadata getters, broader read-end metadata/write state, remaining
 callback families and public symbols, and non-macOS ABI packaging remain
 outside this checkpoint.

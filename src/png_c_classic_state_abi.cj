@@ -91,6 +91,7 @@ private class PngCClassicInfoState {
 }
 
 private class PngCClassicMetadataBacking {
+    let signature: CPointer<Unit>
     let palette: CPointer<Unit>
     let paletteCount: Int32
     let transparency: CPointer<Unit>
@@ -100,6 +101,7 @@ private class PngCClassicMetadataBacking {
     let transparentColor: CPointer<Unit>
 
     init(
+        signature: CPointer<Unit>,
         palette: CPointer<Unit>,
         paletteCount: Int32,
         transparency: CPointer<Unit>,
@@ -108,6 +110,7 @@ private class PngCClassicMetadataBacking {
         background: CPointer<Unit>,
         transparentColor: CPointer<Unit>
     ) {
+        this.signature = signature
         this.palette = palette
         this.paletteCount = paletteCount
         this.transparency = transparency
@@ -346,6 +349,7 @@ private func pngCClassicBuildMetadataBacking(
     allocator: PngCClassicAllocatorSnapshot,
     decoded: PngDecodedRows
 ): PngCClassicMetadataBacking {
+    var signature = CPointer<Unit>()
     var palette = CPointer<Unit>()
     var transparency = CPointer<Unit>()
     var significantBits = CPointer<Unit>()
@@ -355,6 +359,10 @@ private func pngCClassicBuildMetadataBacking(
     let paletteBytes = metadata.palette()
     let alphaBytes = metadata.paletteAlpha()
     try {
+        signature = pngCClassicAllocateMetadataBlock(
+            pngPtr, state, allocator, UIntNative(PNG_SIGNATURE.size)
+        )
+        pngCClassicCopyMetadataBytes(signature, PNG_SIGNATURE)
         if (paletteBytes.size > Int64(0)) {
             palette = pngCClassicAllocateMetadataBlock(
                 pngPtr, state, allocator, UIntNative(paletteBytes.size)
@@ -407,6 +415,7 @@ private func pngCClassicBuildMetadataBacking(
             )
         }
         PngCClassicMetadataBacking(
+            signature,
             palette,
             Int32(paletteBytes.size / Int64(3)),
             transparency,
@@ -427,6 +436,7 @@ private func pngCClassicBuildMetadataBacking(
         pngCClassicFreeWith(pngPtr, state, allocator, significantBits)
         pngCClassicFreeWith(pngPtr, state, allocator, transparency)
         pngCClassicFreeWith(pngPtr, state, allocator, palette)
+        pngCClassicFreeWith(pngPtr, state, allocator, signature)
         throw error
     }
 }
@@ -455,6 +465,10 @@ private func pngCClassicFreeMetadataBacking(
             pngCClassicFreeWith(
                 owner, infoState.readState, infoState.allocator,
                 backing.palette
+            )
+            pngCClassicFreeWith(
+                owner, infoState.readState, infoState.allocator,
+                backing.signature
             )
         case None => ()
     }
@@ -1528,8 +1542,377 @@ private let PNG_C_INFO_cHRM = UInt32(0x0004)
 private let PNG_C_INFO_PLTE = UInt32(0x0008)
 private let PNG_C_INFO_tRNS = UInt32(0x0010)
 private let PNG_C_INFO_bKGD = UInt32(0x0020)
+private let PNG_C_INFO_hIST = UInt32(0x0040)
 private let PNG_C_INFO_pHYs = UInt32(0x0080)
+private let PNG_C_INFO_oFFs = UInt32(0x0100)
+private let PNG_C_INFO_tIME = UInt32(0x0200)
+private let PNG_C_INFO_pCAL = UInt32(0x0400)
 private let PNG_C_INFO_sRGB = UInt32(0x0800)
+private let PNG_C_INFO_iCCP = UInt32(0x1000)
+private let PNG_C_INFO_sPLT = UInt32(0x2000)
+private let PNG_C_INFO_sCAL = UInt32(0x4000)
+private let PNG_C_INFO_eXIf = UInt32(0x10000)
+private let PNG_C_INFO_cICP = UInt32(0x20000)
+private let PNG_C_INFO_cLLI = UInt32(0x40000)
+private let PNG_C_INFO_mDCV = UInt32(0x80000)
+private let PNG_C_RESOLUTION_METER = UInt8(1)
+private let PNG_C_OFFSET_PIXEL = UInt8(0)
+private let PNG_C_OFFSET_MICROMETER = UInt8(1)
+private let PNG_C_UINT31_MAX = UInt32(0x7fff_ffff)
+
+private func pngCClassicRetainedValidMask(
+    access: PngCClassicMetadataAccess
+): UInt32 {
+    let metadata = access.metadata
+    var valid = UInt32(0)
+    if (metadata.hasGamma) { valid |= PNG_C_INFO_gAMA }
+    if (metadata.hasSignificantBits) { valid |= PNG_C_INFO_sBIT }
+    if (metadata.hasChromaticities) { valid |= PNG_C_INFO_cHRM }
+    if (metadata.hasPalette) { valid |= PNG_C_INFO_PLTE }
+    if (metadata.hasTransparency &&
+        access.backing.transparencyCount > Int32(0)) {
+        valid |= PNG_C_INFO_tRNS
+    }
+    if (metadata.hasBackground) { valid |= PNG_C_INFO_bKGD }
+    if (metadata.hasHistogram) { valid |= PNG_C_INFO_hIST }
+    if (metadata.hasPhysicalDimensions) { valid |= PNG_C_INFO_pHYs }
+    if (metadata.hasImageOffset) { valid |= PNG_C_INFO_oFFs }
+    if (metadata.hasModificationTime && metadata.modificationTimeBeforeIdat) {
+        valid |= PNG_C_INFO_tIME
+    }
+    if (metadata.hasPixelCalibration) { valid |= PNG_C_INFO_pCAL }
+    if (metadata.hasSrgb) { valid |= PNG_C_INFO_sRGB }
+    if (metadata.hasIccProfile) { valid |= PNG_C_INFO_iCCP }
+    if (metadata.suggestedPaletteCount() > Int64(0)) {
+        valid |= PNG_C_INFO_sPLT
+    }
+    if (metadata.hasPhysicalScale) { valid |= PNG_C_INFO_sCAL }
+    if (metadata.hasExif && metadata.exifBeforeIdat) {
+        valid |= PNG_C_INFO_eXIf
+    }
+    if (metadata.hasCodingIndependentCodePoints) { valid |= PNG_C_INFO_cICP }
+    if (metadata.hasContentLightLevel) { valid |= PNG_C_INFO_cLLI }
+    if (metadata.hasMasteringDisplayColorVolume) { valid |= PNG_C_INFO_mDCV }
+    valid
+}
+
+private func pngCClassicPixelsPerMeter(
+    metadata: PngReadMetadata, axis: UInt8
+): UInt32 {
+    if (!metadata.hasPhysicalDimensions) { return UInt32(0) }
+    let value = metadata.physicalDimensions
+    if (value.unit != PNG_C_RESOLUTION_METER) { return UInt32(0) }
+    if (axis == UInt8(1)) { return value.pixelsPerUnitX }
+    if (axis == UInt8(2)) { return value.pixelsPerUnitY }
+    if (value.pixelsPerUnitX == value.pixelsPerUnitY) {
+        value.pixelsPerUnitX
+    } else {
+        UInt32(0)
+    }
+}
+
+private func pngCClassicPixelsPerInch(ppm: UInt32): UInt32 {
+    if (ppm > PNG_C_UINT31_MAX) { return UInt32(0) }
+    let converted = pngMulDivFixed(Int32(ppm), Int32(127), Int32(5000))
+    if (converted.success && converted.value >= Int32(0)) {
+        UInt32(converted.value)
+    } else {
+        UInt32(0)
+    }
+}
+
+private func pngCClassicDpiFromPpm(ppm: UInt32): UInt32 {
+    let scaled = UInt64(ppm) * UInt64(127) + UInt64(2500)
+    UInt32(scaled / UInt64(5000))
+}
+
+private func pngCClassicOffset(
+    metadata: PngReadMetadata, axis: UInt8, unit: UInt8
+): Int32 {
+    if (!metadata.hasImageOffset || metadata.imageOffset.unit != unit) {
+        return Int32(0)
+    }
+    if (axis == UInt8(1)) {
+        metadata.imageOffset.x
+    } else {
+        metadata.imageOffset.y
+    }
+}
+
+private func pngCClassicOffsetInchesFixed(
+    pngPtr: CPointer<Unit>, microns: Int32
+): Int32 {
+    let converted = pngMulDivFixed(microns, Int32(500), Int32(127))
+    if (converted.success) { return converted.value }
+    pngCClassicWarningText(pngPtr, "fixed point overflow ignored")
+    Int32(0)
+}
+
+@C
+public func png_get_valid(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>, flag: UInt32
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicRetainedValidMask(access) & flag
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_pixels_per_meter(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicPixelsPerMeter(access.metadata, UInt8(0))
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_x_pixels_per_meter(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicPixelsPerMeter(access.metadata, UInt8(1))
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_y_pixels_per_meter(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicPixelsPerMeter(access.metadata, UInt8(2))
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
+
+@C
+public func png_get_pixel_aspect_ratio_fixed(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                let metadata = access.metadata
+                if (!metadata.hasPhysicalDimensions) { return Int32(0) }
+                let value = metadata.physicalDimensions
+                if (value.pixelsPerUnitX == UInt32(0) ||
+                    value.pixelsPerUnitY == UInt32(0) ||
+                    value.pixelsPerUnitX > PNG_C_UINT31_MAX ||
+                    value.pixelsPerUnitY > PNG_C_UINT31_MAX) {
+                    return Int32(0)
+                }
+                let converted = pngMulDivFixed(
+                    Int32(value.pixelsPerUnitY), PNG_FP_1,
+                    Int32(value.pixelsPerUnitX)
+                )
+                if (converted.success) { converted.value } else { Int32(0) }
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => Int32(0)
+    }
+}
+
+@C
+public func png_get_x_offset_pixels(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicOffset(
+                    access.metadata, UInt8(1), PNG_C_OFFSET_PIXEL
+                )
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => Int32(0)
+    }
+}
+
+@C
+public func png_get_y_offset_pixels(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicOffset(
+                    access.metadata, UInt8(2), PNG_C_OFFSET_PIXEL
+                )
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => Int32(0)
+    }
+}
+
+@C
+public func png_get_x_offset_microns(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicOffset(
+                    access.metadata, UInt8(1), PNG_C_OFFSET_MICROMETER
+                )
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => Int32(0)
+    }
+}
+
+@C
+public func png_get_y_offset_microns(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                pngCClassicOffset(
+                    access.metadata, UInt8(2), PNG_C_OFFSET_MICROMETER
+                )
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => Int32(0)
+    }
+}
+
+@C
+public func png_get_signature(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): CPointer<UInt8> {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                unsafe { CPointer<UInt8>(access.backing.signature) }
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => CPointer<UInt8>()
+    }
+}
+
+@C
+public func png_get_pixels_per_inch(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): UInt32 {
+    pngCClassicPixelsPerInch(unsafe {
+        png_get_pixels_per_meter(pngPtr, infoPtr)
+    })
+}
+
+@C
+public func png_get_x_pixels_per_inch(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): UInt32 {
+    pngCClassicPixelsPerInch(unsafe {
+        png_get_x_pixels_per_meter(pngPtr, infoPtr)
+    })
+}
+
+@C
+public func png_get_y_pixels_per_inch(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): UInt32 {
+    pngCClassicPixelsPerInch(unsafe {
+        png_get_y_pixels_per_meter(pngPtr, infoPtr)
+    })
+}
+
+@C
+public func png_get_x_offset_inches_fixed(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    pngCClassicOffsetInchesFixed(
+        pngPtr, unsafe { png_get_x_offset_microns(pngPtr, infoPtr) }
+    )
+}
+
+@C
+public func png_get_y_offset_inches_fixed(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Int32 {
+    pngCClassicOffsetInchesFixed(
+        pngPtr, unsafe { png_get_y_offset_microns(pngPtr, infoPtr) }
+    )
+}
+
+@C
+public func png_get_pHYs_dpi(
+    pngPtr: CPointer<Unit>,
+    infoPtr: CPointer<Unit>,
+    resolutionX: CPointer<UInt32>,
+    resolutionY: CPointer<UInt32>,
+    unitType: CPointer<Int32>
+): UInt32 {
+    match (pngCClassicBeginMetadataAccess(pngPtr, infoPtr)) {
+        case Some(access) =>
+            try {
+                if (!access.metadata.hasPhysicalDimensions) {
+                    return UInt32(0)
+                }
+                let value = access.metadata.physicalDimensions
+                var result = UInt32(0)
+                unsafe {
+                    if (!resolutionX.isNull()) {
+                        resolutionX.write(value.pixelsPerUnitX)
+                        result |= PNG_C_INFO_pHYs
+                    }
+                    if (!resolutionY.isNull()) {
+                        resolutionY.write(value.pixelsPerUnitY)
+                        result |= PNG_C_INFO_pHYs
+                    }
+                    if (!unitType.isNull()) {
+                        unitType.write(Int32(value.unit))
+                        result |= PNG_C_INFO_pHYs
+                        if (value.unit == PNG_C_RESOLUTION_METER) {
+                            if (!resolutionX.isNull()) {
+                                resolutionX.write(pngCClassicDpiFromPpm(
+                                    value.pixelsPerUnitX
+                                ))
+                            }
+                            if (!resolutionY.isNull()) {
+                                resolutionY.write(pngCClassicDpiFromPpm(
+                                    value.pixelsPerUnitY
+                                ))
+                            }
+                        }
+                    }
+                }
+                result
+            } finally {
+                pngCClassicEndMetadataAccess(access.state)
+            }
+        case None => UInt32(0)
+    }
+}
 
 @C
 public func png_get_gAMA_fixed(
