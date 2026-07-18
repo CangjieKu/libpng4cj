@@ -630,6 +630,21 @@ public class PngWriteSession {
         transformInitialization
     }
 
+    func incrementalWriteHeader(): PngIhdr {
+        ihdr
+    }
+
+    func incrementalWritePalette(): Array<Byte> {
+        palette.clone()
+    }
+
+    func incrementalWriteMetadataPlan(): PngWriteMetadataPlan {
+        planPngWriteMetadata(
+            metadata, ihdr, palette, compressionLevel,
+            limits.maxMetadataBytes, limits.maxMetadataCompressedBytes
+        )
+    }
+
     private func requireOpenForWrite(): Unit {
         if (stateValue == WriteClosed) {
             throw PngFormatException(SessionClosed, -1, "PNG writer is closed")

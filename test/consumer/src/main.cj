@@ -53,11 +53,16 @@ private class ConsumerWriteSinkProbe {
     var bytes: Array<Byte> = Array<Byte>()
     var emissionCount: UInt64 = UInt64(0)
     var flushCount: UInt64 = UInt64(0)
+    var idatCount: UInt64 = UInt64(0)
     var finalIendSeen: Bool = false
 
     func receive(context: PngWriteOutputContext, emission: Array<Byte>): Unit {
         bytes = joinConsumerBytes(bytes, emission)
         emissionCount += UInt64(1)
+        if (context.kind == WriteOutputChunk &&
+            context.chunkType() == PNG_CHUNK_IDAT) {
+            idatCount += UInt64(1)
+        }
         if (context.finalOutput && context.chunkType() == PNG_CHUNK_IEND) {
             finalIendSeen = true
         }
@@ -1138,6 +1143,38 @@ main(): Int64 {
         rowWrittenDecoded.rows() != writeRows ||
         rowWrittenDecoded.metadata.unknownChunkCount() != Int64(1)) {
         println("libpng4cj row-at-a-time write consumer check failed")
+        return 1
+    }
+    let incrementalProbe = ConsumerWriteSinkProbe()
+    let incrementalSink = PngWriteSink()
+    incrementalSink.setWriteCallback({ context, bytes =>
+        incrementalProbe.receive(context, bytes)
+    })
+    incrementalSink.setFlushCallback({ context => incrementalProbe.flush(context) })
+    let incrementalSession = PngRowWriteSession(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha,
+        Array<Byte>(), writeMetadata, WriteFilterAdaptive, Int32(6),
+        PngWriteLimits(UInt64(4096), UInt64(4096), UInt64(4096), UInt32(1))
+    )
+    incrementalSession.startTo(incrementalSink)
+    incrementalSession.writeRow(writeRows[0])
+    if (incrementalProbe.idatCount == UInt64(0) ||
+        incrementalProbe.flushCount != UInt64(0)) {
+        println("libpng4cj early IDAT write consumer check failed")
+        return 1
+    }
+    incrementalSession.writeRow(writeRows[1])
+    let incrementalResult = incrementalSession.finishTo()
+    let incrementalDecoded = decodePngNonInterlaced(
+        incrementalProbe.bytes, RetainAncillary
+    )
+    if (incrementalSession.state() != WriteCompleted ||
+        incrementalResult.bytesWritten != UInt64(incrementalProbe.bytes.size) ||
+        incrementalResult.flushCount != UInt64(1) ||
+        incrementalProbe.flushCount != UInt64(1) ||
+        incrementalDecoded.rows() != writeRows ||
+        incrementalDecoded.metadata.unknownChunkCount() != Int64(1)) {
+        println("libpng4cj incremental row write consumer check failed")
         return 1
     }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")

@@ -2,11 +2,21 @@ package libpng4cj
 
 import std.collection.ArrayList
 
+private func pngNoopMissingStreamingOutput(): Unit {}
+
 public class PngRowWriteSession {
     private let writer: PngWriteSession
+    private let ihdr: PngIhdr
+    private let initialization: PngWriteTransformInitialization
+    private let strategy: PngWriteFilterStrategy
+    private let compressionLevel: Int32
+    private let limits: PngWriteLimits
+    private let paletteEntryCount: Int64
     private let expectedRowsValue: UInt32
     private let expectedRowBytesValue: UInt64
     private let rowsValue = ArrayList<Array<Byte>>()
+    private var previousRowValue: Array<Byte>
+    private var streamingOutputValue: ?PngIncrementalWriteOutput = None
     private var acceptedRowsValue: UInt32 = UInt32(0)
     private var stateValue: PngWriteState = WriteOpen
 
@@ -27,8 +37,15 @@ public class PngRowWriteSession {
             width, height, bitDepth, colorType, interlaceMethod, palette,
             metadata, transforms, strategy, compressionLevel, limits
         )
+        ihdr = writer.incrementalWriteHeader()
+        initialization = writer.initializedTransforms()
+        this.strategy = strategy
+        this.compressionLevel = compressionLevel
+        this.limits = limits
+        paletteEntryCount = palette.size / Int64(3)
         expectedRowsValue = height
-        expectedRowBytesValue = writer.initializedTransforms().sourceRowBytes(width)
+        expectedRowBytesValue = initialization.sourceRowBytes(width)
+        previousRowValue = Array<Byte>(Int64(ihdr.rowBytes), repeat: UInt8(0))
     }
 
     public init(
@@ -150,6 +167,94 @@ public class PngRowWriteSession {
         }
     }
 
+    private func validateStreamingGeometry(): Unit {
+        let transformedRowBytes = initialization.outputRowBytes(ihdr.width)
+        if (UInt64(ihdr.height) > limits.maxTransformedBytes / transformedRowBytes) {
+            throw PngFormatException(
+                DecodeLimitExceeded, -1,
+                "transformed PNG rows exceed configured transformed-byte limit"
+            )
+        }
+        let filteredRowBytes = ihdr.rowBytes + UInt64(1)
+        if (UInt64(ihdr.height) > limits.maxFilteredBytes / filteredRowBytes) {
+            throw PngFormatException(
+                DecodeLimitExceeded, -1,
+                "filtered PNG rows exceed configured input limit"
+            )
+        }
+    }
+
+    private func output(): PngIncrementalWriteOutput {
+        match (streamingOutputValue) {
+            case Some(value) => value
+            case None => throw PngFormatException(
+                InvalidArgument, -1, "incremental PNG sink is not started"
+            )
+        }
+    }
+
+    private func hasStreamingOutput(): Bool {
+        match (streamingOutputValue) {
+            case Some(_) => true
+            case None => false
+        }
+    }
+
+    private func beginStreaming(sink: PngWriteSink): Unit {
+        validateStreamingGeometry()
+        let next = PngIncrementalWriteOutput(
+            ihdr, writer.incrementalWritePalette(),
+            writer.incrementalWriteMetadataPlan(), compressionLevel, limits,
+            sink
+        )
+        streamingOutputValue = Some(next)
+    }
+
+    public func startTo(sink: PngWriteSink): Unit {
+        requireOpen("start streaming output")
+        if (acceptedRowsValue != UInt32(0)) {
+            stateValue = WriteFailed
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "PNG row writer must start its sink before accepting rows"
+            )
+        }
+        if (ihdr.interlaceMethod != None) {
+            stateValue = WriteFailed
+            throw PngFormatException(
+                UnsupportedInterlace, -1,
+                "early row sink output currently requires non-interlaced PNG"
+            )
+        }
+        stateValue = WriteFinalizing
+        try {
+            beginStreaming(sink)
+            stateValue = WriteOpen
+        } catch (error: Exception) {
+            stateValue = WriteFailed
+            throw error
+        }
+    }
+
+    private func pushStreamingRow(row: Array<Byte>, rowIndex: UInt32): Unit {
+        let transformed = applyInitializedPngWriteTransforms(
+            initialization, ihdr.width, row,
+            PngWriteUserTransformContext(rowIndex, ihdr.interlaceMethod)
+        ).row()
+        validateWritePaletteRow(
+            ihdr, transformed, paletteEntryCount, Int64(rowIndex)
+        )
+        let selected = selectWriteFilter(
+            strategy, transformed, previousRowValue,
+            pngFilterBytesPerPixel(ihdr)
+        )
+        let frame = ArrayList<Byte>()
+        frame.add(selected.filterType)
+        appendWriteBytes(frame, selected.bytes)
+        output().pushFilteredFrame(frame.toArray())
+        previousRowValue = transformed.clone()
+    }
+
     public func writeRow(row: Array<Byte>): Unit {
         requireOpen("accept rows")
         if (acceptedRowsValue >= expectedRowsValue) {
@@ -166,8 +271,23 @@ public class PngRowWriteSession {
                 "PNG row writer input row length does not match the configured source shape"
             )
         }
-        rowsValue.add(row.clone())
-        acceptedRowsValue += UInt32(1)
+        let owned = row.clone()
+        match (streamingOutputValue) {
+            case Some(_) =>
+                stateValue = WriteFinalizing
+                try {
+                    pushStreamingRow(owned, acceptedRowsValue)
+                    acceptedRowsValue += UInt32(1)
+                    stateValue = WriteOpen
+                } catch (error: Exception) {
+                    output().close()
+                    stateValue = WriteFailed
+                    throw error
+                }
+            case None =>
+                rowsValue.add(owned)
+                acceptedRowsValue += UInt32(1)
+        }
     }
 
     private func requireAllRows(): Unit {
@@ -183,23 +303,97 @@ public class PngRowWriteSession {
     public func finish(): Array<Byte> {
         requireOpen("finish")
         requireAllRows()
+        if (ihdr.interlaceMethod == Adam7) {
+            stateValue = WriteFinalizing
+            try {
+                let output = writer.write(rowsValue.toArray())
+                stateValue = WriteCompleted
+                return output
+            } catch (error: Exception) {
+                stateValue = WriteFailed
+                throw error
+            }
+        }
+        if (hasStreamingOutput()) {
+            stateValue = WriteFailed
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "PNG row writer with a started sink must finish through finishTo()"
+            )
+        }
+        let bytes = ArrayList<Byte>()
+        let sink = PngWriteSink()
+        sink.setWriteCallback({ _, emitted => appendWriteBytes(bytes, emitted) })
         stateValue = WriteFinalizing
         try {
-            let output = writer.write(rowsValue.toArray())
+            beginStreaming(sink)
+            var rowIndex: Int64 = Int64(0)
+            while (rowIndex < rowsValue.size) {
+                pushStreamingRow(rowsValue[rowIndex], UInt32(rowIndex))
+                rowIndex += Int64(1)
+            }
+            output().finish()
             stateValue = WriteCompleted
-            output
+            bytes.toArray()
         } catch (error: Exception) {
             stateValue = WriteFailed
             throw error
         }
     }
 
+    public func finishTo(): PngWriteSinkResult {
+        requireOpen("finish")
+        requireAllRows()
+        match (streamingOutputValue) {
+            case Some(_) =>
+                stateValue = WriteFinalizing
+                try {
+                    let result = output().finish()
+                    stateValue = WriteCompleted
+                    result
+                } catch (error: Exception) {
+                    stateValue = WriteFailed
+                    throw error
+                }
+            case None =>
+                stateValue = WriteFailed
+                throw PngFormatException(
+                    InvalidArgument, -1,
+                    "PNG row writer has no started sink to finish"
+                )
+        }
+    }
+
     public func finishTo(sink: PngWriteSink): PngWriteSinkResult {
         requireOpen("finish")
         requireAllRows()
+        if (hasStreamingOutput()) {
+            stateValue = WriteFailed
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "PNG row writer sink is already started; use finishTo()"
+            )
+        }
+        if (ihdr.interlaceMethod == Adam7) {
+            stateValue = WriteFinalizing
+            try {
+                let result = writer.writeTo(rowsValue.toArray(), sink)
+                stateValue = WriteCompleted
+                return result
+            } catch (error: Exception) {
+                stateValue = WriteFailed
+                throw error
+            }
+        }
         stateValue = WriteFinalizing
         try {
-            let result = writer.writeTo(rowsValue.toArray(), sink)
+            beginStreaming(sink)
+            var rowIndex: Int64 = Int64(0)
+            while (rowIndex < rowsValue.size) {
+                pushStreamingRow(rowsValue[rowIndex], UInt32(rowIndex))
+                rowIndex += Int64(1)
+            }
+            let result = output().finish()
             stateValue = WriteCompleted
             result
         } catch (error: Exception) {
@@ -214,6 +408,10 @@ public class PngRowWriteSession {
                 InvalidArgument, -1,
                 "cannot close PNG row writer while write callbacks are active"
             )
+        }
+        match (streamingOutputValue) {
+            case Some(output) => output.close()
+            case None => pngNoopMissingStreamingOutput()
         }
         writer.close()
         stateValue = WriteClosed

@@ -37,6 +37,8 @@ import libpng4cj.*
   safe-to-copy/ancillary/all policies, and retained round-trip support
 - a copy-owned row-at-a-time writer lifecycle with exact row accounting and
   non-interlaced/Adam7 memory or custom-sink finalization
+- genuine non-interlaced incremental deflate with `startTo(sink)`, bounded IDAT
+  chunk emission during row intake, and exact-once final IEND/flush
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -137,7 +139,9 @@ let receipt = session.writeTo(rows, sink)
 Write and flush callbacks may be replaced while emission is active; the next
 callback observes the replacement. Callback input is copy-owned. Sink or flush
 exceptions, including reentrant write/close attempts, move the session to
-`WriteFailed`. Output limits are checked before the first sink callback.
+`WriteFailed`. Whole-image output limits are checked before the first sink
+callback; incremental row output enforces the same limit before every emitted
+signature/chunk callback because the final compressed size is not known yet.
 
 `PngRowWriteSession` accepts one complete source row at a time through
 `writeRow`. The constructor freezes the same metadata, palette, transform,
@@ -159,10 +163,30 @@ let png = writer.finish()
 ```
 
 `finish()` returns memory output and `finishTo(sink)` uses the same custom-sink
-contract as the whole-image writer. Both require exactly the configured number
-of rows and reuse the existing transform/filter/compression/metadata pipeline.
-The current row lifecycle buffers accepted rows until finalization; incremental
-deflate and early IDAT/sink emission remain later work.
+contract as the whole-image writer. For non-interlaced output both paths now
+feed rows through the same incremental deflate and IDAT framing core.
+
+To receive output during row intake, attach the sink before the first row:
+
+```cangjie
+writer.startTo(sink)
+for (row in rows) {
+    writer.writeRow(row)
+}
+let receipt = writer.finishTo()
+```
+
+`startTo` emits the signature, IHDR, palette, and legal pre-IDAT metadata at
+startup. Each subsequent non-interlaced `writeRow` applies the frozen user and
+default transforms, selects the configured filter, feeds one framed row into a
+bounded `z_stream`, and emits every complete configured IDAT chunk immediately.
+Trailing metadata, IEND, and the exact-once flush are emitted by the no-argument
+`finishTo()`. Callback replacement, copy ownership, output/compressed limits,
+and failed-state rules match the existing sink contract.
+
+Adam7 row intake remains on the compatible buffered finalization path because
+later passes revisit earlier source rows. Calling `startTo` for Adam7 is rejected
+explicitly; `finish()` and `finishTo(sink)` continue to support Adam7.
 
 `PngWriteMetadata.addUnknownChunk` accepts a public copy-owned
 `PngUnknownChunk`. Locations map to the frozen upstream write regions:
@@ -202,8 +226,9 @@ before/after-IDAT placement. `PngWriteMetadata(readMetadata, colorType)` copies
 the standard read model into canonical pre-IDAT write placement for
 decode-write-decode workflows.
 
-Progressive row-at-a-time writing, raw C callback trampolines, simplified
-`png_image_write_*`, and full C ABI write parity remain later work.
+Early Adam7 row output, raw C callback trampolines, simplified
+`png_image_write_*`, compression-policy parity, and full C ABI write parity
+remain later work.
 ICC support retains and emits profile bytes; it does not perform ICC pixel
 conversion.
 

@@ -1667,13 +1667,31 @@ LP-S006H adds a native row-at-a-time write lifecycle:
   terminal operations have deterministic failed/closed behavior
 - finalization reuses the existing non-interlaced/Adam7 transform, filter,
   compression, metadata, unknown-chunk, and shared memory/custom-sink core
-- the current row lifecycle buffers accepted rows until finalization;
-  incremental deflate and early IDAT/sink emission remain later write-fidelity
-  work
+- Adam7 retains buffered accepted rows until finalization because later passes
+  revisit prior source rows
+
+LP-S006I adds genuine non-interlaced incremental write output:
+
+- `PngIncrementalDeflater` reuses the verified direct LP64/Windows-LLP64
+  `z_stream` layout with `deflateInit_`, fragmented input, bounded output
+  windows, deterministic progress checks, and exact close ownership
+- `PngRowWriteSession.startTo(sink)` emits the signature, IHDR, palette, and
+  legal pre-IDAT metadata before the first row
+- each accepted non-interlaced row is transformed, palette-checked, filtered,
+  and fed directly into the live deflater without whole-image row buffering
+- compressed bytes are accumulated only to the configured IDAT chunk boundary;
+  complete CRC-framed IDAT chunks reach the sink during row intake
+- memory `finish()`, deferred `finishTo(sink)`, and early `startTo` output share
+  the same incremental deflate and framing core and produce identical bytes
+- trailing metadata, IEND, final accounting, and flush retain exact-once sink
+  behavior; callback reentrancy and compressed/output limits enter failed state
+- Adam7 keeps the LP-S006H buffered compatibility path and rejects `startTo`
+  until a pass-spool design can avoid unbounded source-row retention
 
 These write paths finalize a complete image and support non-interlaced or
 Adam7 output.
-Incremental row compression/output, raw C callback trampolines, simplified API,
-and complete libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work. ICC
+Early Adam7 output, raw C callback trampolines, simplified API, compression
+policy parity, and complete libpng16 write ABI remain later LP-S006/LP-S007/
+LP-S008 work. ICC
 profile bytes are validated and emitted, but ICC pixel conversion is outside
 libpng's scope.

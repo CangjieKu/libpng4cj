@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add `PngIncrementalDeflater` and non-interlaced
+  `PngRowWriteSession.startTo(sink)` so transformed and filtered rows feed a
+  bounded live zlib stream and complete IDAT chunks reach custom sinks during
+  row intake; keep memory, deferred-sink, and early-sink bytes identical and
+  preserve exact IEND/flush, callback failure, metadata, and unknown-chunk
+  behavior while Adam7 retains its buffered compatibility path.
 - Add `PngRowWriteSession`, a copy-owned row-at-a-time write lifecycle with
   exact row count/shape accounting, non-interlaced and Adam7 finalization,
   deterministic failure states, and memory/custom-sink output parity.

@@ -149,19 +149,22 @@ class PngPreparedWriteOutput {
     }
 }
 
-private class PngWriteEmissionCursor {
+class PngWriteEmissionCursor {
     private let writeAction: (PngWriteOutputContext, Array<Byte>) -> Unit
     private let flushAction: (PngWriteFlushContext) -> Unit
+    private let maxOutputBytes: UInt64
     private var bytesWrittenValue: UInt64 = UInt64(0)
     private var emissionCountValue: UInt64 = UInt64(0)
     private var flushCountValue: UInt64 = UInt64(0)
 
     init(
         writeAction: (PngWriteOutputContext, Array<Byte>) -> Unit,
-        flushAction: (PngWriteFlushContext) -> Unit
+        flushAction: (PngWriteFlushContext) -> Unit,
+        maxOutputBytes: UInt64
     ) {
         this.writeAction = writeAction
         this.flushAction = flushAction
+        this.maxOutputBytes = maxOutputBytes
     }
 
     func emit(
@@ -171,6 +174,12 @@ private class PngWriteEmissionCursor {
         finalOutput: Bool
     ): Unit {
         let before = bytesWrittenValue
+        if (UInt64(bytes.size) > maxOutputBytes - before) {
+            throw PngFormatException(
+                DecodeLimitExceeded, -1,
+                "encoded PNG output exceeds configured output limit"
+            )
+        }
         let after = before + UInt64(bytes.size)
         let context = PngWriteOutputContext(
             emissionCountValue, kind, chunkType, before, after, finalOutput
@@ -190,7 +199,7 @@ private class PngWriteEmissionCursor {
     }
 }
 
-private func emitWriteMetadataRegion(
+func emitWriteMetadataRegion(
     cursor: PngWriteEmissionCursor,
     chunks: Array<Array<Byte>>
 ): Unit {
@@ -207,26 +216,69 @@ private func emitWriteMetadataRegion(
     }
 }
 
+func emitPngWritePrefix(
+    cursor: PngWriteEmissionCursor,
+    ihdr: PngIhdr,
+    palette: Array<Byte>,
+    metadataPlan: PngWriteMetadataPlan
+): Unit {
+    cursor.emit(
+        WriteOutputSignature, Array<Byte>(), PNG_SIGNATURE, false
+    )
+    cursor.emit(
+        WriteOutputChunk, PNG_CHUNK_IHDR, makeWriteIhdr(ihdr), false
+    )
+    emitWriteMetadataRegion(cursor, metadataPlan.beforePalette())
+    if (palette.size > Int64(0)) {
+        cursor.emit(
+            WriteOutputChunk, PNG_CHUNK_PLTE,
+            makeWriteChunk(PNG_CHUNK_PLTE, palette), false
+        )
+    }
+    emitWriteMetadataRegion(cursor, metadataPlan.afterPalette())
+}
+
+func emitPngWriteIdat(
+    cursor: PngWriteEmissionCursor,
+    payload: Array<Byte>
+): Unit {
+    cursor.emit(
+        WriteOutputChunk, PNG_CHUNK_IDAT,
+        makeWriteChunk(PNG_CHUNK_IDAT, payload), false
+    )
+}
+
+func emitPngWriteSuffix(
+    cursor: PngWriteEmissionCursor,
+    metadataPlan: PngWriteMetadataPlan
+): Unit {
+    emitWriteMetadataRegion(cursor, metadataPlan.afterIdat())
+    cursor.emit(
+        WriteOutputChunk, PNG_CHUNK_IEND,
+        makeWriteChunk(PNG_CHUNK_IEND, Array<Byte>()), true
+    )
+}
+
+func finishPngWriteEmission(
+    cursor: PngWriteEmissionCursor,
+    metadataPlan: PngWriteMetadataPlan
+): PngWriteSinkResult {
+    emitPngWriteSuffix(cursor, metadataPlan)
+    cursor.flush()
+    cursor.result()
+}
+
 private func emitPreparedPngWriteOutput(
     prepared: PngPreparedWriteOutput,
     writeAction: (PngWriteOutputContext, Array<Byte>) -> Unit,
     flushAction: (PngWriteFlushContext) -> Unit
 ): PngWriteSinkResult {
-    let cursor = PngWriteEmissionCursor(writeAction, flushAction)
-    cursor.emit(
-        WriteOutputSignature, Array<Byte>(), PNG_SIGNATURE, false
+    let cursor = PngWriteEmissionCursor(
+        writeAction, flushAction, prepared.expectedOutput
     )
-    cursor.emit(
-        WriteOutputChunk, PNG_CHUNK_IHDR, makeWriteIhdr(prepared.ihdr), false
+    emitPngWritePrefix(
+        cursor, prepared.ihdr, prepared.palette, prepared.metadataPlan
     )
-    emitWriteMetadataRegion(cursor, prepared.metadataPlan.beforePalette())
-    if (prepared.palette.size > Int64(0)) {
-        cursor.emit(
-            WriteOutputChunk, PNG_CHUNK_PLTE,
-            makeWriteChunk(PNG_CHUNK_PLTE, prepared.palette), false
-        )
-    }
-    emitWriteMetadataRegion(cursor, prepared.metadataPlan.afterPalette())
 
     var offset: Int64 = Int64(0)
     while (offset < prepared.compressed.size) {
@@ -236,22 +288,14 @@ private func emitPreparedPngWriteOutput(
         } else {
             Int64(prepared.idatChunkBytes)
         }
-        cursor.emit(
-            WriteOutputChunk, PNG_CHUNK_IDAT,
-            makeWriteChunk(
-                PNG_CHUNK_IDAT,
-                copyByteRange(prepared.compressed, offset, take)
-            ),
-            false
+        emitPngWriteIdat(
+            cursor,
+            copyByteRange(prepared.compressed, offset, take)
         )
         offset += take
     }
-    emitWriteMetadataRegion(cursor, prepared.metadataPlan.afterIdat())
-    cursor.emit(
-        WriteOutputChunk, PNG_CHUNK_IEND,
-        makeWriteChunk(PNG_CHUNK_IEND, Array<Byte>()), true
-    )
 
+    emitPngWriteSuffix(cursor, prepared.metadataPlan)
     let beforeFlush = cursor.result()
     if (beforeFlush.bytesWritten != prepared.expectedOutput) {
         throw PngFormatException(
