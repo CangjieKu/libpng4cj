@@ -39,6 +39,9 @@ import libpng4cj.*
   non-interlaced/Adam7 memory or custom-sink finalization
 - genuine non-interlaced incremental deflate with `startTo(sink)`, bounded IDAT
   chunk emission during row intake, and exact-once final IEND/flush
+- Adam7 `startTo(sink)` with immediate prefix emission, one-time complete-row
+  transforms, bounded seven-pass spooling, and canonical pass-order IDAT output
+  during `finishTo()`
 - lifecycle-frozen `PngWriteControlState` configuration for filter subsets,
   compression level/memory/window/method/strategy, and deflate output-buffer
   sizing across whole-image, row, sink, and Adam7 write paths
@@ -226,9 +229,13 @@ Trailing metadata, IEND, and the exact-once flush are emitted by the no-argument
 `finishTo()`. Callback replacement, copy ownership, output/compressed limits,
 and failed-state rules match the existing sink contract.
 
-Adam7 row intake remains on the compatible buffered finalization path because
-later passes revisit earlier source rows. Calling `startTo` for Adam7 is rejected
-explicitly; `finish()` and `finishTo(sink)` continue to support Adam7.
+For Adam7, `startTo` emits the same prefix immediately. Each accepted complete
+image row is transformed once and gathered into only the pass rows to which it
+contributes. `finishTo()` then resets filter history per non-empty pass and
+feeds those bounded pass-local rows through the same configured deflater and
+IDAT framing core. Because PNG requires pass order while callers provide image
+row order, Adam7 IDAT starts during `finishTo()`, not during `writeRow`; the
+session does not retain both the original and transformed complete image.
 
 `PngWriteMetadata.addUnknownChunk` accepts a public copy-owned
 `PngUnknownChunk`. Locations map to the frozen upstream write regions:
@@ -268,8 +275,8 @@ before/after-IDAT placement. `PngWriteMetadata(readMetadata, colorType)` copies
 the standard read model into canonical pre-IDAT write placement for
 decode-write-decode workflows.
 
-Early Adam7 row output, raw C callback trampolines, simplified
-`png_image_write_*`, and full C ABI write parity remain later work.
+Raw C callback trampolines, simplified `png_image_write_*`, and full C ABI
+write parity remain later work.
 ICC support retains and emits profile bytes; it does not perform ICC pixel
 conversion.
 

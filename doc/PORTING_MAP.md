@@ -1685,8 +1685,9 @@ LP-S006I adds genuine non-interlaced incremental write output:
   the same incremental deflate and framing core and produce identical bytes
 - trailing metadata, IEND, final accounting, and flush retain exact-once sink
   behavior; callback reentrancy and compressed/output limits enter failed state
-- Adam7 keeps the LP-S006H buffered compatibility path and rejects `startTo`
-  until a pass-spool design can avoid unbounded source-row retention
+- at the LP-S006I checkpoint, Adam7 still kept the LP-S006H buffered
+  compatibility path and rejected `startTo`; LP-S006K below replaces that
+  checkpoint behavior with bounded pass-local spooling
 
 LP-S006J translates the bounded write compression and filter control surface:
 
@@ -1709,9 +1710,29 @@ LP-S006J translates the bounded write compression and filter control surface:
   translated heuristic identity is retained without fabricating a weighting
   algorithm beyond the deterministic existing filtered-byte score
 
+LP-S006K removes the Adam7 early-sink rejection through bounded pass spooling:
+
+- `PngRowWriteSession.startTo(sink)` emits the signature, Adam7 IHDR, palette,
+  and legal pre-IDAT metadata before row intake
+- each accepted complete image row runs the frozen user/default transform chain
+  exactly once, validates palette indexes, and gathers only the pass-local rows
+  selected by the shared seven-pass geometry
+- the session does not retain the original complete rows after they are
+  transformed; pass-local storage is preflighted through the exact Adam7
+  filtered-byte budget, including packed-row padding and empty passes
+- `finishTo()` walks passes in canonical order, resets previous-row filter state
+  for every non-empty pass, and pushes framed rows through the existing
+  configured incremental deflater and IDAT chunk writer
+- packed 1-bit and 8/16-bit channel output, narrow/empty passes, memory/deferred/
+  early byte parity, sink failure, no-flush-after-failure, and transformed-row
+  callback once-per-image-row behavior are covered directly
+- Adam7 cannot emit IDAT during `writeRow` because callers provide image-row
+  order while PNG requires pass order; only the prefix is emitted before
+  `finishTo()`, where pass-order IDAT begins
+
 These write paths finalize a complete image and support non-interlaced or
 Adam7 output.
-Early Adam7 output, raw C callback trampolines, simplified API, and complete
-libpng16 write ABI remain later LP-S006/LP-S007/LP-S008 work. ICC
+Raw C callback trampolines, simplified API, and complete libpng16 write ABI
+remain later LP-S007/LP-S008 work. ICC
 profile bytes are validated and emitted, but ICC pixel conversion is outside
 libpng's scope.

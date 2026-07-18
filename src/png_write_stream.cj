@@ -138,7 +138,9 @@ class PngIncrementalWriteOutput {
             closedValue = true
             result
         } catch (error: Exception) {
-            close()
+            try {
+                close()
+            } catch (_: Exception) {}
             throw error
         }
     }

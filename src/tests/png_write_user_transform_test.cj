@@ -181,6 +181,51 @@ public class PngWriteUserTransformTestSuite {
     }
 
     @TestCase
+    public func streamsAdam7UserTransformOnceDuringRowIntake(): Unit {
+        let recorder = WriteUserTransformRecorder()
+        let state = PngWriteTransformState(UInt8(8), Grayscale)
+        let callback: (
+            PngWriteUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngWriteUserTransformResult = {
+            context, info, row =>
+                recorder.record(context)
+                row[0] = UInt8(UInt16(row[0]) + UInt16(context.rowNumber))
+                PngWriteUserTransformResult(info, row)
+        }
+        @Assert(state.setWriteUserTransform(callback), true)
+        let session = PngRowWriteSession(
+            UInt32(1), UInt32(8), UInt8(8), Grayscale, Adam7,
+            Array<Byte>(), PngWriteMetadata(), state, WriteFilterNone,
+            Int32(6), PngWriteLimits()
+        )
+        let bytes = ArrayList<Byte>()
+        let sink = PngWriteSink()
+        sink.setWriteCallback({ _, emitted =>
+            for (value in emitted) {
+                bytes.add(value)
+            }
+        })
+        session.startTo(sink)
+        var rowNumber: UInt32 = UInt32(0)
+        while (rowNumber < UInt32(8)) {
+            session.writeRow([UInt8(1)])
+            @Assert(recorder.size(), Int64(rowNumber) + Int64(1))
+            rowNumber += UInt32(1)
+        }
+        session.finishTo()
+        let decoded = decodePng(bytes.toArray()).rows()
+        var index: Int64 = Int64(0)
+        while (index < Int64(8)) {
+            @Assert(decoded[index], [UInt8(UInt16(1) + UInt16(index))])
+            @Assert(recorder.context(index).rowNumber, UInt32(index))
+            @Assert(recorder.context(index).interlaceMethod, Adam7)
+            index += Int64(1)
+        }
+    }
+
+    @TestCase
     public func rejectsMalformedCallbackResultsAndMarksFailure(): Unit {
         let state = PngWriteTransformState(UInt8(8), Grayscale)
         let callback: (

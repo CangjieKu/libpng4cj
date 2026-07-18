@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add Adam7 support to `PngRowWriteSession.startTo(sink)` through bounded
+  pass-local spooling: transform each accepted complete row once, gather only
+  its seven-pass material, then filter and incrementally deflate in canonical
+  pass order while preserving memory/deferred/early byte parity, exact limits,
+  IEND, failure, and flush behavior.
 - Add lifecycle-frozen `PngWriteControlState` configuration for filter subsets,
   libpng-compatible one-pixel/default filter resolution, compression level,
   memory level, window bits, method, strategy, and deflate output-buffer size;
@@ -13,7 +18,8 @@
   bounded live zlib stream and complete IDAT chunks reach custom sinks during
   row intake; keep memory, deferred-sink, and early-sink bytes identical and
   preserve exact IEND/flush, callback failure, metadata, and unknown-chunk
-  behavior while Adam7 retains its buffered compatibility path.
+  behavior; Adam7 uses bounded pass-local spooling before canonical pass-order
+  IDAT emission.
 - Add `PngRowWriteSession`, a copy-owned row-at-a-time write lifecycle with
   exact row count/shape accounting, non-interlaced and Adam7 finalization,
   deterministic failure states, and memory/custom-sink output parity.

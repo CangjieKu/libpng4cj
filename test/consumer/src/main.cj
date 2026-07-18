@@ -1159,13 +1159,43 @@ main(): Int64 {
     for (row in writeRows) {
         rowWriteSession.writeRow(row)
     }
-    let rowWrittenDecoded = decodePng(rowWriteSession.finish(), RetainAncillary)
+    let rowWrittenBytes = rowWriteSession.finish()
+    let rowWrittenDecoded = decodePng(rowWrittenBytes, RetainAncillary)
     if (rowWriteSession.state() != WriteCompleted ||
         rowWriteSession.acceptedRowCount() != UInt32(2) ||
         rowWriteSession.remainingRowCount() != UInt32(0) ||
         rowWrittenDecoded.rows() != writeRows ||
         rowWrittenDecoded.metadata.unknownChunkCount() != Int64(1)) {
         println("libpng4cj row-at-a-time write consumer check failed")
+        return 1
+    }
+    let adam7StreamProbe = ConsumerWriteSinkProbe()
+    let adam7StreamSink = PngWriteSink()
+    adam7StreamSink.setWriteCallback({ context, bytes =>
+        adam7StreamProbe.receive(context, bytes)
+    })
+    adam7StreamSink.setFlushCallback({ context => adam7StreamProbe.flush(context) })
+    let adam7StreamSession = PngRowWriteSession(
+        UInt32(2), UInt32(2), UInt8(8), TruecolorAlpha, Adam7,
+        Array<Byte>(), writeMetadata, WriteFilterAdaptive, Int32(6),
+        PngWriteLimits()
+    )
+    adam7StreamSession.startTo(adam7StreamSink)
+    for (row in writeRows) {
+        adam7StreamSession.writeRow(row)
+    }
+    if (adam7StreamProbe.idatCount != UInt64(0)) {
+        println("libpng4cj Adam7 pass spool emitted IDAT before finish")
+        return 1
+    }
+    let adam7StreamResult = adam7StreamSession.finishTo()
+    if (adam7StreamSession.state() != WriteCompleted ||
+        adam7StreamProbe.bytes != rowWrittenBytes ||
+        adam7StreamProbe.idatCount == UInt64(0) ||
+        adam7StreamProbe.flushCount != UInt64(1) ||
+        adam7StreamResult.bytesWritten != UInt64(adam7StreamProbe.bytes.size) ||
+        decodePng(adam7StreamProbe.bytes, RetainAncillary).rows() != writeRows) {
+        println("libpng4cj Adam7 early sink consumer check failed")
         return 1
     }
     let incrementalProbe = ConsumerWriteSinkProbe()

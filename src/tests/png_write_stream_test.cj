@@ -189,16 +189,26 @@ public class PngWriteStreamTestSuite {
     }
 
     @TestCase
-    public func keepsAdam7OnTheBufferedCompatibilityPath(): Unit {
+    public func startsAdam7SinkAndFinishesThroughPassSpooling(): Unit {
         let session = PngRowWriteSession(
             UInt32(1), UInt32(1), UInt8(8), Grayscale, Adam7,
             Array<Byte>(), PngWriteMetadata(), WriteFilterNone, Int32(6),
             PngWriteLimits()
         )
-        expectIncrementalWriteFailure({ =>
-            session.startTo(PngWriteSink())
-        }, UnsupportedInterlace)
-        @Assert(session.state(), WriteFailed)
+        let probe = IncrementalWriteProbe()
+        let sink = PngWriteSink()
+        sink.setWriteCallback({ context, bytes => probe.receive(context, bytes) })
+        sink.setFlushCallback({ context => probe.flush(context) })
+        session.startTo(sink)
+        @Assert(probe.output.size > Int64(0), true)
+        @Assert(probe.idatCount, UInt64(0))
+        session.writeRow([UInt8(17)])
+        @Assert(probe.idatCount, UInt64(0))
+        let result = session.finishTo()
+        @Assert(probe.idatCount > UInt64(0), true)
+        @Assert(probe.flushCount, UInt64(1))
+        @Assert(result.bytesWritten, UInt64(probe.output.size))
+        @Assert(decodePng(probe.output.toArray()).rows(), [[UInt8(17)]])
 
         let compatible = PngRowWriteSession(
             UInt32(1), UInt32(1), UInt8(8), Grayscale, Adam7,

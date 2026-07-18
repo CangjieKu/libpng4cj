@@ -16,6 +16,7 @@ public class PngRowWriteSession {
     private let rowsValue = ArrayList<Array<Byte>>()
     private var previousRowValue: Array<Byte>
     private var streamingOutputValue: ?PngIncrementalWriteOutput = None
+    private var adam7SpoolValue: ?PngAdam7WriteSpool = None
     private var acceptedRowsValue: UInt32 = UInt32(0)
     private var stateValue: PngWriteState = WriteOpen
 
@@ -226,12 +227,16 @@ public class PngRowWriteSession {
                 "transformed PNG rows exceed configured transformed-byte limit"
             )
         }
-        let filteredRowBytes = ihdr.rowBytes + UInt64(1)
-        if (UInt64(ihdr.height) > limits.maxFilteredBytes / filteredRowBytes) {
-            throw PngFormatException(
-                DecodeLimitExceeded, -1,
-                "filtered PNG rows exceed configured input limit"
-            )
+        if (ihdr.interlaceMethod == Adam7) {
+            expectedAdam7FilteredWriteSize(ihdr, limits.maxFilteredBytes)
+        } else {
+            let filteredRowBytes = ihdr.rowBytes + UInt64(1)
+            if (UInt64(ihdr.height) > limits.maxFilteredBytes / filteredRowBytes) {
+                throw PngFormatException(
+                    DecodeLimitExceeded, -1,
+                    "filtered PNG rows exceed configured input limit"
+                )
+            }
         }
     }
 
@@ -251,8 +256,32 @@ public class PngRowWriteSession {
         }
     }
 
+    private func closeStreamingOutputAfterFailure(): Unit {
+        match (streamingOutputValue) {
+            case Some(value) =>
+                try {
+                    value.close()
+                } catch (_: Exception) {}
+            case None => pngNoopMissingStreamingOutput()
+        }
+    }
+
+    private func adam7Spool(): PngAdam7WriteSpool {
+        match (adam7SpoolValue) {
+            case Some(value) => value
+            case None => throw PngFormatException(
+                InvalidArgument, -1, "Adam7 write spool is not started"
+            )
+        }
+    }
+
     private func beginStreaming(sink: PngWriteSink): Unit {
         validateStreamingGeometry()
+        if (ihdr.interlaceMethod == Adam7) {
+            adam7SpoolValue = Some(PngAdam7WriteSpool(
+                ihdr, writeControls, limits.maxFilteredBytes
+            ))
+        }
         let next = PngIncrementalWriteOutput(
             ihdr, writer.incrementalWritePalette(),
             writer.incrementalWriteMetadataPlan(), writeControls, limits,
@@ -268,13 +297,6 @@ public class PngRowWriteSession {
             throw PngFormatException(
                 InvalidArgument, -1,
                 "PNG row writer must start its sink before accepting rows"
-            )
-        }
-        if (ihdr.interlaceMethod != None) {
-            stateValue = WriteFailed
-            throw PngFormatException(
-                UnsupportedInterlace, -1,
-                "early row sink output currently requires non-interlaced PNG"
             )
         }
         stateValue = WriteFinalizing
@@ -306,6 +328,20 @@ public class PngRowWriteSession {
         previousRowValue = transformed.clone()
     }
 
+    private func spoolStreamingAdam7Row(
+        row: Array<Byte>,
+        rowIndex: UInt32
+    ): Unit {
+        let transformed = applyInitializedPngWriteTransforms(
+            initialization, ihdr.width, row,
+            PngWriteUserTransformContext(rowIndex, ihdr.interlaceMethod)
+        ).row()
+        validateWritePaletteRow(
+            ihdr, transformed, paletteEntryCount, Int64(rowIndex)
+        )
+        adam7Spool().addTransformedRow(transformed, rowIndex)
+    }
+
     public func writeRow(row: Array<Byte>): Unit {
         requireOpen("accept rows")
         if (acceptedRowsValue >= expectedRowsValue) {
@@ -327,11 +363,15 @@ public class PngRowWriteSession {
             case Some(_) =>
                 stateValue = WriteFinalizing
                 try {
-                    pushStreamingRow(owned, acceptedRowsValue)
+                    if (ihdr.interlaceMethod == Adam7) {
+                        spoolStreamingAdam7Row(owned, acceptedRowsValue)
+                    } else {
+                        pushStreamingRow(owned, acceptedRowsValue)
+                    }
                     acceptedRowsValue += UInt32(1)
                     stateValue = WriteOpen
                 } catch (error: Exception) {
-                    output().close()
+                    closeStreamingOutputAfterFailure()
                     stateValue = WriteFailed
                     throw error
                 }
@@ -399,10 +439,14 @@ public class PngRowWriteSession {
             case Some(_) =>
                 stateValue = WriteFinalizing
                 try {
+                    if (ihdr.interlaceMethod == Adam7) {
+                        adam7Spool().pushFilteredFrames(output())
+                    }
                     let result = output().finish()
                     stateValue = WriteCompleted
                     result
                 } catch (error: Exception) {
+                    closeStreamingOutputAfterFailure()
                     stateValue = WriteFailed
                     throw error
                 }
