@@ -61,6 +61,7 @@ public enum PngWriteFillerLocation <: Equatable<PngWriteFillerLocation> & ToStri
 }
 
 public enum PngWriteTransformStage <: Equatable<PngWriteTransformStage> & ToString {
+    | WriteStageUserTransform
     | WriteStageStripFiller
     | WriteStagePackSwap
     | WriteStagePack
@@ -81,20 +82,22 @@ public enum PngWriteTransformStage <: Equatable<PngWriteTransformStage> & ToStri
 
     private func ordinalValue(): Int64 {
         match (this) {
-            case WriteStageStripFiller => 0
-            case WriteStagePackSwap => 1
-            case WriteStagePack => 2
-            case WriteStageByteSwap => 3
-            case WriteStageShift => 4
-            case WriteStageSwapAlpha => 5
-            case WriteStageInvertAlpha => 6
-            case WriteStageBgr => 7
-            case WriteStageInvertMono => 8
+            case WriteStageUserTransform => 0
+            case WriteStageStripFiller => 1
+            case WriteStagePackSwap => 2
+            case WriteStagePack => 3
+            case WriteStageByteSwap => 4
+            case WriteStageShift => 5
+            case WriteStageSwapAlpha => 6
+            case WriteStageInvertAlpha => 7
+            case WriteStageBgr => 8
+            case WriteStageInvertMono => 9
         }
     }
 
     public func toString(): String {
         match (this) {
+            case WriteStageUserTransform => "USER_TRANSFORM"
             case WriteStageStripFiller => "STRIP_FILLER"
             case WriteStagePackSwap => "PACK_SWAP"
             case WriteStagePack => "PACK"
@@ -125,6 +128,8 @@ public class PngWriteTransformState {
     private var byteSwapValue: Bool = false
     private var stripFillerValue: Bool = false
     private var fillerLocationValue: PngWriteFillerLocation = WriteFillerAfter
+    private let writeUserTransformRegistrationValue =
+        PngWriteUserTransformRegistration()
 
     public init(bitDepth: UInt8, colorType: PngColorType) {
         targetBitDepth = bitDepth
@@ -221,6 +226,22 @@ public class PngWriteTransformState {
         accept()
     }
 
+    public func setWriteUserTransform(): Bool {
+        writeUserTransformRegistrationValue.enableIdentity()
+        accept()
+    }
+
+    public func setWriteUserTransform(
+        callback: (
+            PngWriteUserTransformContext,
+            PngReadRowInfo,
+            Array<Byte>
+        ) -> PngWriteUserTransformResult
+    ): Bool {
+        writeUserTransformRegistrationValue.setCallback(callback)
+        accept()
+    }
+
     func initializeFor(ihdr: PngIhdr): PngWriteTransformInitialization {
         if (initializedValue) {
             throw PngFormatException(
@@ -239,7 +260,7 @@ public class PngWriteTransformState {
             ihdr, packingValue, packSwapValue, invertMonoValue,
             shiftValue, shiftBitsValue, bgrValue, swapAlphaValue,
             invertAlphaValue, byteSwapValue, stripFillerValue,
-            fillerLocationValue
+            fillerLocationValue, writeUserTransformRegistrationValue
         )
     }
 }
@@ -260,6 +281,8 @@ public class PngWriteTransformInitialization {
     private let byteSwapValue: Bool
     private let stripFillerValue: Bool
     private let fillerLocationValue: PngWriteFillerLocation
+    private let writeUserTransformRegistrationValue:
+        PngWriteUserTransformRegistration
     private let stagesValue: Array<PngWriteTransformStage>
 
     init(
@@ -274,7 +297,8 @@ public class PngWriteTransformInitialization {
         invertAlpha: Bool,
         byteSwap: Bool,
         stripFiller: Bool,
-        fillerLocation: PngWriteFillerLocation
+        fillerLocation: PngWriteFillerLocation,
+        writeUserTransformRegistration: PngWriteUserTransformRegistration
     ) {
         targetBitDepth = ihdr.bitDepth
         targetColorType = ihdr.colorType
@@ -291,6 +315,7 @@ public class PngWriteTransformInitialization {
         byteSwapValue = byteSwap
         stripFillerValue = stripFiller
         fillerLocationValue = fillerLocation
+        writeUserTransformRegistrationValue = writeUserTransformRegistration
 
         let stages = ArrayList<PngWriteTransformStage>()
         if (stripFiller) { stages.add(WriteStageStripFiller) }
@@ -305,13 +330,28 @@ public class PngWriteTransformInitialization {
         stagesValue = stages.toArray()
     }
 
-    public func stageCount(): Int64 { stagesValue.size }
+    public func stageCount(): Int64 {
+        stagesValue.size + if (writeUserTransformEnabled()) { Int64(1) } else { Int64(0) }
+    }
 
     public func stage(index: Int64): PngWriteTransformStage {
-        if (index < Int64(0) || index >= stagesValue.size) {
+        if (index < Int64(0) || index >= stageCount()) {
             throw PngFormatException(InvalidArgument, index, "PNG write transform stage index is invalid")
         }
+        if (writeUserTransformEnabled()) {
+            if (index == Int64(0)) { return WriteStageUserTransform }
+            return stagesValue[index - Int64(1)]
+        }
         stagesValue[index]
+    }
+
+    public func hasStage(expected: PngWriteTransformStage): Bool {
+        var index: Int64 = Int64(0)
+        while (index < stageCount()) {
+            if (stage(index) == expected) { return true }
+            index += Int64(1)
+        }
+        false
     }
 
     public func sourceRowBytes(width: UInt32): UInt64 {
@@ -336,6 +376,22 @@ public class PngWriteTransformInitialization {
     func byteSwapEnabled(): Bool { byteSwapValue }
     func stripFillerEnabled(): Bool { stripFillerValue }
     func fillerLocation(): PngWriteFillerLocation { fillerLocationValue }
+    public func writeUserTransformEnabled(): Bool {
+        writeUserTransformRegistrationValue.enabled()
+    }
+    public func writeUserTransform(): (
+        PngWriteUserTransformContext,
+        PngReadRowInfo,
+        Array<Byte>
+    ) -> PngWriteUserTransformResult {
+        if (!writeUserTransformEnabled()) {
+            throw PngFormatException(
+                UnsupportedTransform, -1,
+                "write transform initialization has no user transform callback"
+            )
+        }
+        writeUserTransformRegistrationValue.callback()
+    }
 }
 
 private func cloneWriteSignificantBits(value: PngSignificantBits): PngSignificantBits {
@@ -531,14 +587,17 @@ private func pngWriteSwapAlpha(
 func applyInitializedPngWriteTransforms(
     initialization: PngWriteTransformInitialization,
     width: UInt32,
-    row: Array<Byte>
+    row: Array<Byte>,
+    context: PngWriteUserTransformContext
 ): PngReadTransformRow {
-    var transformed = PngReadTransformRow(
+    var transformed = applyPngWriteUserTransform(
+        initialization,
         PngReadRowInfo(
             width, initialization.sourceBitDepth,
             initialization.targetColorType, initialization.sourceChannels
         ),
-        row
+        row,
+        context
     )
     if (initialization.stripFillerEnabled()) {
         transformed = pngDoStripChannel(

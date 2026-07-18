@@ -1610,8 +1610,22 @@ LP-S006D adds the default write-transform route before filtering:
 - transformed bytes have a separate limit from filtered, compressed, metadata,
   and final output bytes, and caller rows remain copy-owned
 
+LP-S006E adds the native Cangjie write user-transform route:
+
+- `setWriteUserTransform(callback)` and the identity-registration overload keep
+  a live registration object visible after session initialization
+- the callback runs before filler stripping and every other default
+  `png_do_write_transformations` stage
+- callback input and result are copy-owned and must retain the configured source
+  width, depth, color type, channels, and row bytes before default transforms
+- context reports the full-image row number and interlace method
+- Adam7 now transforms each complete image row exactly once before pass gather,
+  so callbacks and later side-effecting stages are not replayed per pass
+- malformed callback output or callback failure moves the writer to Failed
+  through the existing session boundary
+
 This write path is whole-image and supports non-interlaced or Adam7 output.
-Unknown-chunk injection, custom/progressive sinks, user write callbacks,
+Unknown-chunk injection, custom/progressive sinks, raw C callback trampolines,
 simplified API, and complete libpng16 write ABI remain later LP-S006/LP-S007/
 LP-S008 work. ICC profile bytes are validated and emitted, but ICC pixel
 conversion is outside libpng's scope.

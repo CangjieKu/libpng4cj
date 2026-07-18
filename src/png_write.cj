@@ -442,6 +442,29 @@ private func validateWriteTransformedLimit(
     }
 }
 
+private func buildTransformedWriteRows(
+    ihdr: PngIhdr,
+    rows: Array<Array<Byte>>,
+    initialization: PngWriteTransformInitialization,
+    paletteEntryCount: Int64
+): Array<Array<Byte>> {
+    let transformedRows = ArrayList<Array<Byte>>()
+    var rowIndex: Int64 = Int64(0)
+    while (rowIndex < rows.size) {
+        let transformed = applyInitializedPngWriteTransforms(
+            initialization,
+            ihdr.width,
+            rows[rowIndex],
+            PngWriteUserTransformContext(UInt32(rowIndex), ihdr.interlaceMethod)
+        )
+        let row = transformed.row()
+        validateWritePaletteRow(ihdr, row, paletteEntryCount, rowIndex)
+        transformedRows.add(row)
+        rowIndex += Int64(1)
+    }
+    transformedRows.toArray()
+}
+
 private func buildFilteredWriteRows(
     ihdr: PngIhdr,
     rows: Array<Array<Byte>>,
@@ -453,10 +476,12 @@ private func buildFilteredWriteRows(
 ): Array<Byte> {
     validateWriteSourceRows(ihdr, rows, initialization)
     validateWriteTransformedLimit(ihdr, initialization, maxTransformedBytes)
+    let transformedRows = buildTransformedWriteRows(
+        ihdr, rows, initialization, paletteEntryCount
+    )
     if (ihdr.interlaceMethod == Adam7) {
         return buildFilteredAdam7WriteRows(
-            ihdr, rows, initialization, strategy, maxCompressedInput,
-            paletteEntryCount
+            ihdr, transformedRows, strategy, maxCompressedInput
         )
     }
     let frameBytes = ihdr.rowBytes + UInt64(1)
@@ -467,11 +492,8 @@ private func buildFilteredWriteRows(
     let bytesPerPixel = pngFilterBytesPerPixel(ihdr)
     var previous = Array<Byte>(Int64(ihdr.rowBytes), repeat: UInt8(0))
     var rowIndex: Int64 = Int64(0)
-    while (rowIndex < rows.size) {
-        let row = applyInitializedPngWriteTransforms(
-            initialization, ihdr.width, rows[rowIndex]
-        ).row()
-        validateWritePaletteRow(ihdr, row, paletteEntryCount, rowIndex)
+    while (rowIndex < transformedRows.size) {
+        let row = transformedRows[rowIndex]
         let selected = selectWriteFilter(strategy, row, previous, bytesPerPixel)
         out.add(selected.filterType)
         appendWriteBytes(out, selected.bytes)
@@ -680,6 +702,12 @@ public class PngWriteSession {
     }
 
     public func close(): Unit {
+        if (stateValue == WriteFinalizing) {
+            throw PngFormatException(
+                InvalidArgument, -1,
+                "cannot close PNG writer while write callbacks are active"
+            )
+        }
         stateValue = WriteClosed
     }
 }

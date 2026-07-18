@@ -993,6 +993,32 @@ main(): Int64 {
         println("libpng4cj initialized write transform consumer check failed")
         return 1
     }
+    let writeUserState = PngWriteTransformState(UInt8(8), Grayscale)
+    let writeUserCallback: (
+        PngWriteUserTransformContext,
+        PngReadRowInfo,
+        Array<Byte>
+    ) -> PngWriteUserTransformResult = {
+        context, info, row =>
+            if (context.rowNumber == UInt32(0) &&
+                context.interlaceMethod.encodedValue() == UInt8(0)) {
+                row[0] = UInt8(42)
+            }
+            PngWriteUserTransformResult(info, row)
+    }
+    if (!writeUserState.setWriteUserTransform(writeUserCallback)) {
+        println("libpng4cj write user transform setup failed")
+        return 1
+    }
+    let userWritten = encodePngPacked(
+        UInt32(1), UInt32(1), UInt8(8), Grayscale, [[UInt8(1)]],
+        Array<Byte>(), PngWriteMetadata(), writeUserState,
+        WriteFilterNone, Int32(6), PngWriteLimits()
+    )
+    if (decodePngNonInterlaced(userWritten).rows() != [[UInt8(42)]]) {
+        println("libpng4cj write user transform consumer check failed")
+        return 1
+    }
     let writeMetadata = PngWriteMetadata()
     writeMetadata.setGamma(UInt32(45455))
     writeMetadata.setPhysicalDimensions(PngPhysicalDimensions(

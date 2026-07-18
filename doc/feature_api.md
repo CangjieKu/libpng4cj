@@ -88,12 +88,31 @@ reporting Completed.
 
 `PngWriteTransformState` is configured for the target bit depth and color type,
 then frozen when a session is created. Its initialized execution order follows
-the default `pngwtran.c` pipeline: strip filler, pack swap, pack, 16-bit byte
+the default `pngwtran.c` pipeline: an optional native user transform, strip
+filler, pack swap, pack, 16-bit byte
 swap, significant-bit shift, alpha swap, alpha inversion, BGR, then monochrome
 inversion. Packing changes the accepted source row from packed 1/2/4-bit samples
 to one byte per sample; filler stripping accepts one extra channel before or
 after G/RGB. Both non-interlaced and Adam7 writers transform canonical full rows
 before filtering, while retaining caller ownership and exact IHDR output shape.
+
+`PngWriteTransformState.setWriteUserTransform(callback)` registers a native
+Cangjie callback with this shape:
+
+```cangjie
+(
+    PngWriteUserTransformContext,
+    PngReadRowInfo,
+    Array<Byte>
+) -> PngWriteUserTransformResult
+```
+
+The callback receives an owned complete source row plus its full-image row
+number and interlace method. It runs before the default write transforms and
+must return the configured source row shape. Registration without a callback
+enables an identity stage. The callback may be enabled or replaced after session
+initialization; replacement is observed by the next complete row. Adam7 invokes
+the callback exactly once per full-image row before seven-pass gathering.
 
 `PngWriteMetadata` emits typed tRNS, gAMA, cHRM, sRGB, sBIT, bKGD, pHYs,
 iCCP, tEXt/zTXt/iTXt, tIME, cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL,
@@ -103,7 +122,7 @@ before/after-IDAT placement. `PngWriteMetadata(readMetadata, colorType)` copies
 the standard read model into canonical pre-IDAT write placement for
 decode-write-decode workflows.
 
-Unknown-chunk injection, custom/progressive sinks, user write callbacks,
+Unknown-chunk injection, custom/progressive sinks, raw C callback trampolines,
 simplified `png_image_write_*`, and full C ABI write parity remain later work.
 ICC support retains and emits profile bytes; it does not perform ICC pixel
 conversion.

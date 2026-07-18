@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add native Cangjie write user-transform registration before the default
+  transform stages, with copy-owned rows, full-image row/interlace context,
+  identity and live replacement behavior, exact source-shape validation, and
+  one callback execution per complete Adam7 image row.
 - Add lifecycle-frozen default write transforms before filtering for packing,
   pack swap, filler stripping, 16-bit byte swap, significant-bit expansion,
   alpha swap/inversion, BGR, and monochrome inversion across non-interlaced and
