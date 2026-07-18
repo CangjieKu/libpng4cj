@@ -51,6 +51,15 @@ typedef struct allocator_context {
     png_structp expected_handle;
 } allocator_context;
 
+typedef struct read_context {
+    const unsigned char *bytes;
+    size_t size;
+    size_t offset;
+    int calls;
+    int ok;
+    png_structp expected_handle;
+} read_context;
+
 static const uint64_t ALLOCATION_MAGIC = UINT64_C(0x4c50303038470001);
 
 static void test_error(png_structp png_ptr, png_const_charp message) {
@@ -161,6 +170,24 @@ static void allocator_warning(
     ++allocator_warning_calls;
 }
 
+static void memory_read(
+    png_structp png_ptr,
+    png_bytep output,
+    size_t length
+) {
+    read_context *context = png_get_io_ptr(png_ptr);
+    if (context == NULL || output == NULL ||
+        png_ptr != context->expected_handle ||
+        length > context->size - context->offset) {
+        if (context != NULL) context->ok = 0;
+        png_error(png_ptr, "Read Error");
+        return;
+    }
+    memcpy(output, context->bytes + context->offset, length);
+    context->offset += length;
+    ++context->calls;
+}
+
 static int test_signatures(void) {
     png_structp (*create_fn)(png_const_charp, png_voidp, png_error_ptr,
         png_error_ptr) = png_create_read_struct;
@@ -186,6 +213,11 @@ static int test_signatures(void) {
         png_malloc_default;
     void (*free_fn)(png_const_structp, png_voidp) = png_free;
     void (*free_default_fn)(png_const_structp, png_voidp) = png_free_default;
+    void (*init_io_fn)(png_structp, FILE *) = png_init_io;
+    void (*set_read_fn)(png_structp, png_voidp, png_rw_ptr) = png_set_read_fn;
+    png_voidp (*get_io_fn)(png_const_structp) = png_get_io_ptr;
+    void (*set_sig_fn)(png_structp, int) = png_set_sig_bytes;
+    void (*read_info_fn)(png_structp, png_infop) = png_read_info;
     void (*warning_fn)(png_const_structp, png_const_charp) = png_warning;
     void (*error_api)(png_const_structp, png_const_charp) = png_error;
     return create_fn != NULL && create2_fn != NULL && info_fn != NULL &&
@@ -193,8 +225,86 @@ static int test_signatures(void) {
         set_error_fn != NULL && get_error_fn != NULL && set_mem_fn != NULL &&
         get_mem_fn != NULL && malloc_fn != NULL && calloc_fn != NULL &&
         malloc_warn_fn != NULL && malloc_default_fn != NULL &&
-        free_fn != NULL && free_default_fn != NULL && warning_fn != NULL &&
-        error_api != NULL;
+        free_fn != NULL && free_default_fn != NULL && init_io_fn != NULL &&
+        set_read_fn != NULL && get_io_fn != NULL && set_sig_fn != NULL &&
+        read_info_fn != NULL && warning_fn != NULL && error_api != NULL;
+}
+
+static unsigned char *read_file(const char *path, size_t *size_out) {
+    FILE *file = fopen(path, "rb");
+    if (file == NULL || fseek(file, 0, SEEK_END) != 0) {
+        if (file != NULL) fclose(file);
+        return NULL;
+    }
+    long length = ftell(file);
+    if (length <= 0 || fseek(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    unsigned char *bytes = malloc((size_t)length);
+    if (bytes == NULL ||
+        fread(bytes, 1u, (size_t)length, file) != (size_t)length) {
+        free(bytes);
+        fclose(file);
+        return NULL;
+    }
+    fclose(file);
+    *size_out = (size_t)length;
+    return bytes;
+}
+
+static int test_custom_read_info(const unsigned char *bytes, size_t size) {
+    read_context first = {
+        .bytes = bytes,
+        .size = size,
+        .ok = 1
+    };
+    read_context replacement = {
+        .bytes = bytes,
+        .size = size,
+        .offset = 4u,
+        .ok = 1
+    };
+    png_structp png_ptr = png_create_read_struct(
+        PNG_LIBPNG_VER_STRING, NULL, test_error, NULL
+    );
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (png_ptr == NULL || info_ptr == NULL) return 0;
+    first.expected_handle = png_ptr;
+    replacement.expected_handle = png_ptr;
+    png_set_read_fn(png_ptr, &first, memory_read);
+    png_set_read_fn(png_ptr, &replacement, memory_read);
+    if (png_get_io_ptr(png_ptr) != &replacement) return 0;
+    png_set_sig_bytes(png_ptr, 4);
+    png_read_info(png_ptr, info_ptr);
+    int ok = first.calls == 0 && first.ok != 0 && replacement.ok != 0 &&
+        replacement.calls > 0 && replacement.offset == size;
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    return ok && png_ptr == NULL && info_ptr == NULL;
+}
+
+static int test_stdio_read_info(const char *path) {
+    FILE *file = fopen(path, "rb");
+    if (file == NULL) return 0;
+    png_structp png_ptr = png_create_read_struct(
+        PNG_LIBPNG_VER_STRING, NULL, test_error, NULL
+    );
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    if (png_ptr == NULL || info_ptr == NULL) {
+        fclose(file);
+        return 0;
+    }
+    png_init_io(png_ptr, file);
+    if (png_get_io_ptr(png_ptr) != file) {
+        fclose(file);
+        return 0;
+    }
+    png_set_sig_bytes(png_ptr, -3);
+    png_read_info(png_ptr, info_ptr);
+    int ok = ferror(file) == 0;
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    ok = ok && png_ptr == NULL && info_ptr == NULL && fclose(file) == 0;
+    return ok;
 }
 
 static int test_versions(void) {
@@ -443,6 +553,61 @@ static int run_child_mode(const char *dylib, const char *mode) {
         expected_message = "Out of memory";
         (void)png_malloc(png_ptr, 41u);
         return 15;
+    } else if (strcmp(mode, "sig-too-many") == 0) {
+        if (signal(SIGABRT, fatal_abort_handler) == SIG_ERR) return 11;
+        png_structp png_ptr = png_create_read_struct(
+            PNG_LIBPNG_VER_STRING, &context, fatal_return_error, NULL
+        );
+        if (png_ptr == NULL) return 13;
+        expected_png_ptr = png_ptr;
+        expected_error_ptr = &context;
+        expected_message = "Too many bytes for PNG signature";
+        png_set_sig_bytes(png_ptr, 9);
+        return 16;
+    } else if (strcmp(mode, "read-truncated") == 0) {
+        if (signal(SIGABRT, fatal_abort_handler) == SIG_ERR) return 11;
+        static const unsigned char truncated[] = {0x89, 0x50, 0x4e, 0x47};
+        read_context input = {
+            .bytes = truncated,
+            .size = sizeof(truncated),
+            .ok = 1
+        };
+        png_structp png_ptr = png_create_read_struct(
+            PNG_LIBPNG_VER_STRING, &context, fatal_return_error, NULL
+        );
+        png_infop info_ptr = png_create_info_struct(png_ptr);
+        if (png_ptr == NULL || info_ptr == NULL) return 13;
+        input.expected_handle = png_ptr;
+        expected_png_ptr = png_ptr;
+        expected_error_ptr = &context;
+        expected_message = "Read Error";
+        png_set_read_fn(png_ptr, &input, memory_read);
+        png_read_info(png_ptr, info_ptr);
+        return 17;
+    } else if (strcmp(mode, "read-oversized") == 0) {
+        if (signal(SIGABRT, fatal_abort_handler) == SIG_ERR) return 11;
+        static const unsigned char oversized[] = {
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+            0x7f, 0xff, 0xff, 0xff, 0x49, 0x44, 0x41, 0x54
+        };
+        read_context input = {
+            .bytes = oversized,
+            .size = sizeof(oversized),
+            .ok = 1
+        };
+        png_structp png_ptr = png_create_read_struct(
+            PNG_LIBPNG_VER_STRING, &context, fatal_return_error, NULL
+        );
+        png_infop info_ptr = png_create_info_struct(png_ptr);
+        if (png_ptr == NULL || info_ptr == NULL) return 13;
+        input.expected_handle = png_ptr;
+        expected_png_ptr = png_ptr;
+        expected_error_ptr = &context;
+        expected_message =
+            "classic input exceeds the configured byte limit";
+        png_set_read_fn(png_ptr, &input, memory_read);
+        png_read_info(png_ptr, info_ptr);
+        return 18;
     } else {
         return 12;
     }
@@ -533,11 +698,23 @@ static int spawn_child_mode(
 }
 
 int main(int argc, char **argv) {
-    if (argc == 3) return run_child_mode(argv[1], argv[2]);
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s DYLIB\n", argv[0]);
+    if (argc == 3 && (
+        strcmp(argv[2], "fatal-exit") == 0 ||
+        strcmp(argv[2], "fatal-return") == 0 ||
+        strcmp(argv[2], "fatal-default") == 0 ||
+        strcmp(argv[2], "warning-default") == 0 ||
+        strcmp(argv[2], "malloc-fatal") == 0 ||
+        strcmp(argv[2], "sig-too-many") == 0 ||
+        strcmp(argv[2], "read-truncated") == 0 ||
+        strcmp(argv[2], "read-oversized") == 0
+    )) return run_child_mode(argv[1], argv[2]);
+    if (argc != 3) {
+        fprintf(stderr, "usage: %s DYLIB PNG\n", argv[0]);
         return 2;
     }
+    size_t png_size = 0;
+    unsigned char *png_bytes = read_file(argv[2], &png_size);
+    if (png_bytes == NULL) return 2;
     max_align_t runtime_params[64];
     memset(runtime_params, 0, sizeof(runtime_params));
     if (InitCJRuntime(runtime_params) != 0 ||
@@ -547,7 +724,10 @@ int main(int argc, char **argv) {
     }
     int ok = test_signatures() && test_versions() &&
         test_default_lifecycle() && test_context_lifecycle() &&
-        test_creation_allocation_failure() && test_warning_callbacks();
+        test_creation_allocation_failure() && test_warning_callbacks() &&
+        test_custom_read_info(png_bytes, png_size) &&
+        test_stdio_read_info(argv[2]);
+    free(png_bytes);
     if (FiniCJRuntime() != 0) ok = 0;
     if (ok) {
         ok = spawn_child_mode(
@@ -568,9 +748,21 @@ int main(int argc, char **argv) {
             spawn_child_mode(
                 argv[0], argv[1], "malloc-fatal", 75,
                 "libpng error: Out of memory"
+            ) &&
+            spawn_child_mode(
+                argv[0], argv[1], "sig-too-many", 75,
+                "libpng error: Too many bytes for PNG signature"
+            ) &&
+            spawn_child_mode(
+                argv[0], argv[1], "read-truncated", 75,
+                "libpng error: Read Error"
+            ) &&
+            spawn_child_mode(
+                argv[0], argv[1], "read-oversized", 75,
+                "libpng error: classic input exceeds the configured byte limit"
             );
     }
     if (!ok) return 4;
-    printf("libpng4cj classic read handle and error ABI: PASS\n");
+    printf("libpng4cj classic read handle, error, memory, and IO ABI: PASS\n");
     return 0;
 }

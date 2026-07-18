@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add direct Cangjie `png_init_io`, `png_set_read_fn`, `png_get_io_ptr`,
+  `png_set_sig_bytes`, and `png_read_info` exports with a frozen five-symbol
+  manifest and exact strict C11 signatures.
+- Connect custom callbacks and caller-owned stdio input to the existing
+  Cangjie decoder, with callback-side context lookup, signature-prefix
+  continuation, retained decoded state, fatal malformed-input proof, and
+  original/relocated execution.
 - Add direct Cangjie `png_malloc`, `png_calloc`, `png_malloc_warn`, `png_free`,
   `png_malloc_default`, and `png_free_default` exports with a frozen symbol
   manifest and strict C11 signature proof.

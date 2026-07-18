@@ -148,7 +148,24 @@ matching after replacement, creation and warn-return allocation failure,
 fatal allocation failure in an isolated process, duplicate-free suppression,
 and original/relocated loading.
 
+The classic read-IO milestone adds direct Cangjie exports for `png_init_io`,
+`png_set_read_fn`, `png_get_io_ptr`, `png_set_sig_bytes`, and `png_read_info`,
+frozen in `abi/symbols/libpng4cj-classic-read-io-v1.txt`. Custom callbacks are
+snapshotted under the registry mutex and invoked after unlock, so the callback
+can recover its current context through `png_get_io_ptr`. NULL read callbacks
+select caller-owned stdio input. Signature-prefix counts preserve the upstream
+negative-to-zero, `0..8`, and fatal `>8` behavior.
+
+The current `png_read_info` bridge requests exact signature and chunk-framing
+lengths through the selected input, captures through IEND, validates and
+decodes with the existing Cangjie PNG pipeline, and retains the decoded state
+on the classic read handle for later getter and row APIs. The strict consumer
+proves custom callback replacement, callback-side context lookup, four-byte
+signature prefix continuation, stdio input, truncated and excessive-prefix
+fatal paths, pre-allocation oversized-chunk rejection, exact symbols/signatures,
+and original/relocated loading.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. Setjmp/longjmp, chunk/custom IO callbacks, classic
-row/metadata/write state, remaining public symbols, and non-macOS ABI packaging
-remain outside this checkpoint.
+release, or an LTS artifact. Setjmp/longjmp, classic getters/rows/read-end,
+metadata/write state, remaining callback families and public symbols, and
+non-macOS ABI packaging remain outside this checkpoint.

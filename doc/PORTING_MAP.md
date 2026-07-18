@@ -1893,8 +1893,19 @@ Porting milestone S008G makes the classic memory boundary allocator-owned:
   `png_struct` and 352 bytes for `png_info`, plus exact six-symbol, strict C11,
   original/relocated proof
 
+Porting milestone S008H connects the classic read handle to real input:
+
+- direct Cangjie exports for `png_init_io`, `png_set_read_fn`,
+  `png_get_io_ptr`, `png_set_sig_bytes`, and `png_read_info`
+- lock-safe custom callback snapshots and invocation with callback-side IO
+  context lookup, live registration replacement, and caller-owned stdio input
+- exact signature-prefix and chunk-framing requests through IEND, followed by
+  reuse of the existing Cangjie decode pipeline and retained classic read state
+- frozen five-symbol manifest plus strict C11 custom/stdio, prefix, truncated,
+  fatal, original, and relocated proof
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
-parity, longjmp, chunk/custom IO callbacks, classic row and metadata/write
-state, complete public-symbol parity, and portable packaging remain later
+parity, longjmp, classic getters/rows/read-end and metadata/write state,
+remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.

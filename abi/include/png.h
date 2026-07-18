@@ -4,8 +4,9 @@
 /* Frozen libpng 1.6.58 simplified and classic API subset.
  * This is not the complete upstream png.h. The stateful surface currently
  * covers opaque read/info ownership, caller-context retention, warning/error
- * callback invocation, fatal fallback termination, and custom-allocation
- * ownership. Longjmp and row IO are not yet implemented.
+ * callback invocation, fatal fallback termination, custom-allocation
+ * ownership, and custom/stdio read-info input. Longjmp and row IO are not yet
+ * implemented.
  */
 
 #include <stddef.h>
@@ -48,6 +49,7 @@ typedef png_info **png_infopp;
 typedef void (*png_error_ptr)(png_structp, png_const_charp);
 typedef png_voidp (*png_malloc_ptr)(png_structp, png_alloc_size_t);
 typedef void (*png_free_ptr)(png_structp, png_voidp);
+typedef void (*png_rw_ptr)(png_structp, png_bytep, size_t);
 
 typedef void *png_controlp;
 typedef struct png_image {
@@ -173,6 +175,15 @@ void png_set_mem_fn(
     png_free_ptr free_fn
 );
 png_voidp png_get_mem_ptr(png_const_structp png_ptr);
+void png_init_io(png_structp png_ptr, FILE *fp);
+void png_set_read_fn(
+    png_structp png_ptr,
+    png_voidp io_ptr,
+    png_rw_ptr read_data_fn
+);
+png_voidp png_get_io_ptr(png_const_structp png_ptr);
+void png_set_sig_bytes(png_structp png_ptr, int num_bytes);
+void png_read_info(png_structp png_ptr, png_infop info_ptr);
 png_voidp png_malloc(
     png_const_structp png_ptr,
     png_alloc_size_t size

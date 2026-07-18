@@ -18,6 +18,8 @@ CLASSIC_ERROR_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-error-v1.txt"
 CLASSIC_ERROR_ACTUAL="$OUT/libpng4cj-classic-error-v1.actual.txt"
 CLASSIC_MEMORY_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-memory-v1.txt"
 CLASSIC_MEMORY_ACTUAL="$OUT/libpng4cj-classic-memory-v1.actual.txt"
+CLASSIC_READ_IO_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-read-io-v1.txt"
+CLASSIC_READ_IO_ACTUAL="$OUT/libpng4cj-classic-read-io-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -72,6 +74,13 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_MEMORY_ACTUAL"
 diff -u "$CLASSIC_MEMORY_EXPECTED" "$CLASSIC_MEMORY_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_init_io" || \
+        $3 == "_png_set_read_fn" || $3 == "_png_get_io_ptr" || \
+        $3 == "_png_set_sig_bytes" || $3 == "_png_read_info") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_READ_IO_ACTUAL"
+diff -u "$CLASSIC_READ_IO_EXPECTED" "$CLASSIC_READ_IO_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -168,7 +177,9 @@ cc "$ROOT/test/abi_consumer/png_classic_read_handle.c" \
     -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
     -o "$OUT/png-classic-read-handle-consumer"
 
-"$OUT/png-classic-read-handle-consumer" "$OUT/libpng4cj_preview.dylib"
+"$OUT/png-classic-read-handle-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
 
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
@@ -194,5 +205,6 @@ cp "$OUT/png-classic-read-handle-consumer" "$RELOCATED/"
 "$RELOCATED/png-classic-stateless-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib"
 "$RELOCATED/png-classic-read-handle-consumer" \
-    "$RELOCATED/libpng4cj_preview.dylib"
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

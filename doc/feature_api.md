@@ -214,8 +214,13 @@ boundary. Custom allocators own read/info handles and explicit
 `png_malloc`/`png_calloc` results; callbacks can query their memory context,
 default allocation can bypass user callbacks, and allocator replacement changes
 future allocations without changing the free owner of existing objects.
-Longjmp, chunk/custom IO callbacks, row processing, metadata state, and write
-handles remain outside this cluster.
+`png_init_io`, `png_set_read_fn`, `png_get_io_ptr`, `png_set_sig_bytes`, and
+`png_read_info` connect the handle to caller-owned stdio or a custom C read
+callback. Input callbacks run outside the registry mutex and may recover their
+context through `png_get_io_ptr`; the read-info bridge captures exact framed
+PNG bytes through IEND and retains the decoded Cangjie result for later classic
+getter and row APIs. Longjmp, row/read-end processing, metadata projection,
+write handles, and remaining callback families stay outside this cluster.
 
 ## Non-Interlaced Packed Write
 

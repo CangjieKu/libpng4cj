@@ -1,6 +1,6 @@
 package libpng4cj
 
-import std.collection.HashMap
+import std.collection.{ArrayList, HashMap}
 import std.sync.Mutex
 
 foreign func abort(): Unit
@@ -12,6 +12,11 @@ foreign func memset(
 
 private let PNG_C_CLASSIC_STRUCT_SIZE = UIntNative(1224)
 private let PNG_C_CLASSIC_INFO_SIZE = UIntNative(352)
+private let PNG_C_CLASSIC_MAX_INPUT_BYTES = UInt64(512_000_000)
+private let PNG_C_CLASSIC_SIGNATURE = [
+    UInt8(137), UInt8(80), UInt8(78), UInt8(71),
+    UInt8(13), UInt8(10), UInt8(26), UInt8(10)
+]
 
 private class PngCClassicAllocatorSnapshot {
     let memPtr: CPointer<Unit>
@@ -38,6 +43,11 @@ private class PngCClassicReadState {
     var freeFn: CPointer<Unit>
     var allocatorCallbackActive = false
     var allocatorCallbackMemPtr = CPointer<Unit>()
+    var ioPtr = CPointer<Unit>()
+    var readFn = CPointer<Unit>()
+    var sigBytes = UInt8(0)
+    var readOperationActive = false
+    var decodedRows: Option<PngDecodedRows> = None
     var destroying = false
     let allocatorMutex = Mutex()
     let selfAllocator: PngCClassicAllocatorSnapshot
@@ -434,7 +444,8 @@ private func pngCClassicReleaseRead(
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(handle.toUIntNative())) {
             case Some(state) =>
-                if (!state.destroying && !state.allocatorCallbackActive) {
+                if (!state.destroying && !state.allocatorCallbackActive &&
+                    !state.readOperationActive) {
                     state.destroying = true
                     unsafe { pngPtrPtr.write(CPointer<Unit>()) }
                     released = Some(state)
@@ -450,6 +461,163 @@ private func pngCClassicReleaseRead(
             pngCClassicRemoveReadAlias(handle)
         case None => ()
     }
+}
+
+private func pngCClassicBeginReadInfo(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Option<(
+    PngCClassicReadState, CPointer<Unit>, CPointer<Unit>, UInt8
+)> {
+    if (pngPtr.isNull() || infoPtr.isNull()) { return None }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                match (PNG_C_CLASSIC_INFO_REGISTRY.get(
+                    infoPtr.toUIntNative()
+                )) {
+                    case Some(infoState) =>
+                        if (infoState.owner != pngPtr.toUIntNative() ||
+                            state.destroying || state.readOperationActive ||
+                            state.decodedRows.isSome()) {
+                            None
+                        } else {
+                            state.readOperationActive = true
+                            Some((state, state.ioPtr, state.readFn, state.sigBytes))
+                        }
+                    case None => None
+                }
+            case None => None
+        }
+    }
+}
+
+private func pngCClassicEndReadInfo(
+    pngPtr: CPointer<Unit>,
+    state: PngCClassicReadState,
+    decoded: Option<PngDecodedRows>
+): Unit {
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(_) =>
+                match (decoded) {
+                    case Some(value) => state.decodedRows = Some(value)
+                    case None => ()
+                }
+                state.readOperationActive = false
+            case None => state.readOperationActive = false
+        }
+    }
+}
+
+private func pngCClassicReadExact(
+    pngPtr: CPointer<Unit>,
+    ioPtr: CPointer<Unit>,
+    readFn: CPointer<Unit>,
+    length: Int64
+): Array<Byte> {
+    if (length < Int64(0)) {
+        throw PngFormatException(
+            InvalidArgument, -1, "classic read length must be non-negative"
+        )
+    }
+    let bytes = Array<Byte>(length, repeat: UInt8(0))
+    if (length == Int64(0)) { return bytes }
+    unsafe {
+        let raw = acquireArrayRawData(bytes)
+        try {
+            if (!readFn.isNull()) {
+                let function = CFunc<(
+                    CPointer<Unit>, CPointer<UInt8>, UIntNative
+                ) -> Unit>(readFn)
+                function(pngPtr, raw.pointer, UIntNative(length))
+            } else {
+                if (ioPtr.isNull() || fread(
+                    raw.pointer, UIntNative(1), UIntNative(length), ioPtr
+                ) != UIntNative(length)) {
+                    throw PngFormatException(
+                        TruncatedInput, -1, "Read Error"
+                    )
+                }
+            }
+        } finally {
+            releaseArrayRawData(raw)
+        }
+    }
+    bytes
+}
+
+private func pngCClassicAppendInput(
+    output: ArrayList<Byte>, bytes: Array<Byte>, total: UInt64
+): UInt64 {
+    let next = total + UInt64(bytes.size)
+    if (next < total || next > PNG_C_CLASSIC_MAX_INPUT_BYTES) {
+        throw PngFormatException(
+            DecodeLimitExceeded, -1,
+            "classic input exceeds the configured byte limit"
+        )
+    }
+    var index: Int64 = Int64(0)
+    while (index < bytes.size) {
+        output.add(bytes[index])
+        index += Int64(1)
+    }
+    next
+}
+
+private func pngCClassicCaptureInput(
+    pngPtr: CPointer<Unit>,
+    ioPtr: CPointer<Unit>,
+    readFn: CPointer<Unit>,
+    sigBytes: UInt8
+): Array<Byte> {
+    let input = ArrayList<Byte>()
+    var total = UInt64(0)
+    var prefix: Int64 = Int64(0)
+    while (prefix < Int64(sigBytes)) {
+        input.add(PNG_C_CLASSIC_SIGNATURE[prefix])
+        prefix += Int64(1)
+        total += UInt64(1)
+    }
+    let signatureTail = pngCClassicReadExact(
+        pngPtr, ioPtr, readFn, Int64(8) - Int64(sigBytes)
+    )
+    total = pngCClassicAppendInput(input, signatureTail, total)
+
+    var done = false
+    while (!done) {
+        if (UInt64(8) > PNG_C_CLASSIC_MAX_INPUT_BYTES - total) {
+            throw PngFormatException(
+                DecodeLimitExceeded, -1,
+                "classic input exceeds the configured byte limit"
+            )
+        }
+        let header = pngCClassicReadExact(
+            pngPtr, ioPtr, readFn, Int64(8)
+        )
+        total = pngCClassicAppendInput(input, header, total)
+        let length = readUInt32Be(header, Int64(0))
+        if (length > PNG_UINT_31_MAX) {
+            throw PngFormatException(
+                ChunkTooLarge, -1, "PNG chunk length exceeds 31-bit limit"
+            )
+        }
+        let bodySize = UInt64(length) + UInt64(4)
+        if (bodySize > PNG_C_CLASSIC_MAX_INPUT_BYTES - total) {
+            throw PngFormatException(
+                DecodeLimitExceeded, -1,
+                "classic input exceeds the configured byte limit"
+            )
+        }
+        let payloadAndCrc = pngCClassicReadExact(
+            pngPtr, ioPtr, readFn, Int64(bodySize)
+        )
+        total = pngCClassicAppendInput(input, payloadAndCrc, total)
+        done = header[Int64(4)] == UInt8(73) &&
+            header[Int64(5)] == UInt8(69) &&
+            header[Int64(6)] == UInt8(78) &&
+            header[Int64(7)] == UInt8(68)
+    }
+    input.toArray()
 }
 
 private func pngCClassicAllocateTracked(
@@ -610,6 +778,98 @@ public func png_get_mem_ptr(
                 }
             case None => CPointer<Unit>()
         }
+    }
+}
+
+@C
+public func png_init_io(
+    pngPtr: CPointer<Unit>, file: CPointer<Unit>
+): Unit {
+    if (pngPtr.isNull()) { return }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (!state.destroying && !state.readOperationActive) {
+                    state.ioPtr = file
+                    state.readFn = CPointer<Unit>()
+                }
+            case None => ()
+        }
+    }
+}
+
+@C
+public func png_set_read_fn(
+    pngPtr: CPointer<Unit>,
+    ioPtr: CPointer<Unit>,
+    readDataFn: CPointer<Unit>
+): Unit {
+    if (pngPtr.isNull()) { return }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (!state.destroying && !state.readOperationActive) {
+                    state.ioPtr = ioPtr
+                    state.readFn = readDataFn
+                }
+            case None => ()
+        }
+    }
+}
+
+@C
+public func png_get_io_ptr(
+    pngPtr: CPointer<Unit>
+): CPointer<Unit> {
+    if (pngPtr.isNull()) { return CPointer<Unit>() }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) => state.ioPtr
+            case None => CPointer<Unit>()
+        }
+    }
+}
+
+@C
+public func png_set_sig_bytes(
+    pngPtr: CPointer<Unit>, numBytes: Int32
+): Unit {
+    if (pngPtr.isNull()) { return }
+    if (numBytes > Int32(8)) {
+        pngCClassicErrorText(pngPtr, "Too many bytes for PNG signature")
+        return
+    }
+    let count = if (numBytes < Int32(0)) { UInt8(0) } else {
+        UInt8(numBytes)
+    }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (!state.destroying && !state.readOperationActive) {
+                    state.sigBytes = count
+                }
+            case None => ()
+        }
+    }
+}
+
+@C
+public func png_read_info(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Unit {
+    match (pngCClassicBeginReadInfo(pngPtr, infoPtr)) {
+        case Some((state, ioPtr, readFn, sigBytes)) =>
+            try {
+                let input = pngCClassicCaptureInput(
+                    pngPtr, ioPtr, readFn, sigBytes
+                )
+                let decoded = decodePng(input)
+                pngCClassicEndReadInfo(pngPtr, state, Some(decoded))
+            } catch (error: Exception) {
+                pngCClassicEndReadInfo(pngPtr, state, None)
+                pngCClassicErrorText(pngPtr, error.message)
+            }
+        case None => ()
     }
 }
 

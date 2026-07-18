@@ -15,4 +15,7 @@ file and caller-owned `FILE*` read/write and failure cleanup, checks colorspace
 and untagged-16-bit flags, invokes warning callbacks with callback-side context
 lookup, proves callback-owned/default/returning fatal paths in separate
 processes, custom allocator ownership and replacement, and replays every
-executable after relocating the dylib.
+executable after relocating the dylib. The classic consumer also covers custom
+read callback replacement and context lookup, signature-prefix continuation,
+caller-owned stdio input, complete read-info decode retention, and isolated
+truncated/excessive-prefix/oversized-chunk fatal paths.
