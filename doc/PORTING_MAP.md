@@ -32,7 +32,7 @@ exceptions must be converted before control returns across the C ABI.
 
 ## Implemented Read Foundation
 
-LP-S002 maps the first parts of `png.c`, `pngerror.c`, and `pngrutil.c` into:
+Porting milestone S002 maps the first parts of `png.c`, `pngerror.c`, and `pngrutil.c` into:
 
 - `png_error.cj`: stable error categories and byte offsets
 - `png_chunk.cj`: owned read session, user limits, chunk framing, and CRC gate
@@ -44,7 +44,7 @@ architecture-specific transformed-row allocation gate remains later work.
 
 ## Implemented Non-Interlaced Rows
 
-LP-S003 extends the first parts of `pngread.c`, `pngrutil.c`, and `pngrtran.c`
+Porting milestone S003 extends the first parts of `pngread.c`, `pngrutil.c`, and `pngrtran.c`
 through these Cangjie-owned files:
 
 - `png_zlib.cj`: direct FFI to external zlib `uncompress2`, with exact output
@@ -53,7 +53,7 @@ through these Cangjie-owned files:
 - `png_decode.cj`: PLTE ordering checks, consecutive IDAT collection, IEND
   finalization, bounded inflate, and copy-owned non-interlaced raw rows
 
-The LP-S003 decoder entry returns packed file-format rows. By itself it does not
+The S003 porting milestone decoder entry returns packed file-format rows. By itself it does not
 expand palettes or sub-byte samples, swap 16-bit channels, apply
 transparency/background/gamma transforms, execute Adam7, expose progressive IO,
 or claim full read parity. Compressed and inflated data default to separate
@@ -61,7 +61,7 @@ or claim full read parity. Compressed and inflated data default to separate
 
 ## Implemented Adam7 Whole-Image Reconstruction
 
-LP-S005A extends the high-level `pngread.c` / `pngrutil.c` row path through
+Porting milestone S005A extends the high-level `pngread.c` / `pngrutil.c` row path through
 `png_adam7.cj` and the shared decoder:
 
 - `pngAdam7PassGeometry` exposes the frozen seven-pass start, step, width,
@@ -83,7 +83,7 @@ ABI callback trampolines remain later work.
 
 ## Implemented Incremental Progressive Feed Lifecycle
 
-LP-S005B established the callback lifecycle. LP-S005C replaces its finalize-only
+Porting milestone S005B established the callback lifecycle. Porting milestone S005C replaces its finalize-only
 buffer with the native incremental `pngpread.c`-facing path in
 `png_progressive.cj` and `png_zlib_stream.cj`:
 
@@ -106,11 +106,11 @@ buffer with the native incremental `pngpread.c`-facing path in
 
 This closes the native progressive read main circuit for the current packed-row
 surface. Custom IO, warning/error/allocator callbacks, pass-aware user
-transforms, and C ABI callback trampolines remain later packets.
+transforms, and C ABI callback trampolines remain later milestones.
 
 ## Implemented First Read Transforms
 
-LP-S004A maps the first palette and expansion parts of `pngrutil.c`,
+Porting milestone S004A maps the first palette and expansion parts of `pngrutil.c`,
 `pngrtran.c`, `pngget.c`, and `pngset.c` into:
 
 - `png_metadata.cj`: copy-owned PLTE/tRNS state, strict chunk contracts, palette
@@ -124,14 +124,14 @@ tRNS color keys while preserving existing grayscale-alpha and truecolor-alpha
 values. A separate 256,000,000-byte transformed-output limit prevents packed
 inputs from expanding without a caller-visible bound.
 
-LP-S004A is not the complete `pngrtran.c` surface. At that checkpoint the
+Porting milestone S004A is not the complete `pngrtran.c` surface. At that checkpoint the
 16-bit path, gamma/background/color-space handling, alpha composition,
 channel/filler and user transforms, remaining standard metadata, unknown
-chunks, Adam7, and progressive reading remained later packets.
+chunks, Adam7, and progressive reading remained later milestones.
 
 ## Implemented Bit-Depth Conversion
 
-LP-S004B extends `png_transform.cj` with a copy-owned RGBA16 surface and the
+Porting milestone S004B extends `png_transform.cj` with a copy-owned RGBA16 surface and the
 three libpng-aligned bit-depth operations:
 
 - 8-to-16 expansion uses byte replication, exactly `value * 257`
@@ -150,7 +150,7 @@ eight bytes per pixel against the transformed-output limit.
 
 ## Implemented Fixed Color And Display Metadata
 
-LP-S004C extends the `pngrutil.c`, `pngget.c`, and `pngset.c` translation with
+Porting milestone S004C extends the `pngrutil.c`, `pngget.c`, and `pngset.c` translation with
 immutable native representations for:
 
 - gAMA file gamma as PNG fixed-point UInt32
@@ -162,16 +162,16 @@ immutable native representations for:
 
 All six chunks are unique and pre-IDAT. gAMA, cHRM, sRGB, and sBIT additionally
 precede PLTE; indexed bKGD requires PLTE first. Metadata is retained unchanged
-through packed, RGBA8, and RGBA16 result surfaces. This packet deliberately
+through packed, RGBA8, and RGBA16 result surfaces. This milestone deliberately
 does not apply gamma precedence, gamma correction, or background composition.
 
 Gamma/background transforms, alpha composition, channel/filler and user
 transforms, compressed/text/time metadata, unknown chunks, Adam7, and
-progressive reading remained later packets at that checkpoint.
+progressive reading remained later milestones at that checkpoint.
 
 ## Implemented Compressed Text Time And Unknown Metadata
 
-LP-S004D extends `pngrutil.c`, `png.c`, `pngget.c`, and `pngset.c` translation
+Porting milestone S004D extends `pngrutil.c`, `png.c`, `pngget.c`, and `pngset.c` translation
 through `png_extended_metadata.cj` and the shared decode/zlib layers:
 
 - iCCP uses bounded unknown-length zlib inflate and validates the declared
@@ -190,14 +190,14 @@ the frozen reader's single application-level decompression limit. Recognized
 text and time chunks after IDAT close the consecutive-IDAT sequence. All new
 metadata is propagated through packed, RGBA8, and RGBA16 result surfaces.
 
-This packet does not apply ICC profiles, gamma, or backgrounds, and does not
+This milestone does not apply ICC profiles, gamma, or backgrounds, and does not
 retain eXIf, sPLT, hIST, oFFs, pCAL, or sCAL as recognized standard metadata.
 Advanced transforms, Adam7, progressive reading, write support, and C ABI
 compatibility remain later work.
 
 ## Implemented Late Channel Transforms
 
-LP-S004E maps the first low-coupling tail of `png_do_read_transformations` and
+Porting milestone S004E maps the first low-coupling tail of `png_do_read_transformations` and
 the shared `pngtrans.c` channel operations into `png_channel_transform.cj`:
 
 - `InvertMonochrome` affects grayscale-family source color channels without
@@ -212,15 +212,15 @@ the shared `pngtrans.c` channel operations into `png_channel_transform.cj`:
 `BGRA`, `ARGB`, or `ABGR`. Existing transform/decode calls select no channel
 operations and therefore remain `RGBA`. Explicit transform-array overloads
 apply operations while each already bounded output row is being created, so
-the packet does not add a second full transformed-image allocation.
+the milestone does not add a second full transformed-image allocation.
 
 sBIT unshift, strip-alpha/filler, RGB-to-gray, gamma/background/alpha-mode,
 quantization, packing/packswap, byte swap, and user callbacks were outside the
-LP-S004E packet; later sections record their current status.
+Porting milestone S004E; later sections record their current status.
 
 ## Implemented Row Shapes
 
-LP-S004F adds a generalized copy-owned output surface in
+Porting milestone S004F adds a generalized copy-owned output surface in
 `png_row_shape_transform.cj` for the strip-alpha and filler stages of
 `png_do_read_transformations`:
 
@@ -241,12 +241,12 @@ limit using the final three- or four-channel shape. Existing fixed RGBA8/RGBA16
 convenience APIs remain unchanged.
 
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
-swap, and user callbacks were outside the LP-S004F packet; later sections
+swap, and user callbacks were outside Porting milestone S004F; later sections
 record their current status.
 
 ## Implemented RGB-to-Gray Fixed Core
 
-LP-S004H maps the fixed-coefficient core of `png_do_rgb_to_gray` and its public
+Porting milestone S004H maps the fixed-coefficient core of `png_do_rgb_to_gray` and its public
 configuration behavior into `png_rgb_to_gray_transform.cj`:
 
 - the historical default uses red `6968`, green `23434`, and blue `2366` on
@@ -271,15 +271,15 @@ configuration behavior into `png_rgb_to_gray_transform.cj`:
 Palette, grayscale-family, native 8-bit, native UInt16, and explicit Strip/Scale
 inputs share the same output contract. Retained metadata remains unchanged.
 
-cHRM-derived default coefficients were outside LP-S004H and are now connected
-through LP-S004BL. Gamma linearization and lookup tables, background/alpha
+cHRM-derived default coefficients were outside Porting milestone S004H and are now connected
+through Porting milestone S004BL. Gamma linearization and lookup tables, background/alpha
 composition, warning callbacks, transformed metadata
 projection, quantization, packing/packswap, byte swap, and user callbacks were
-outside the LP-S004H packet; later sections record their current status.
+outside Porting milestone S004H; later sections record their current status.
 
 ## Translation-First Realignment
 
-LP-S004I adds `tools/update-pngrtran-inventory.sh`, the generated
+Porting milestone S004I adds `tools/update-pngrtran-inventory.sh`, the generated
 `libpng-1.6.58-pngrtran-functions.tsv`, and
 `PNG_RTRAN_TRANSLATION_LEDGER.md`. The inventory freezes 45 top-level
 `pngrtran.c` functions with source lines and fails if the count drifts.
@@ -293,12 +293,12 @@ The first structural realignment covers:
 - explicit separation between translated row behavior and still-partial
   setter/state/metadata/compile-guard parity
 
-Future transform packets should advance entries in the translation ledger and
+Future transform milestones should advance entries in the translation ledger and
 prove them against the frozen source before Cangjie-specific optimization.
 
 ## Implemented Read Transform State
 
-LP-S004J adds `png_read_transform_state.cj` as the first translated
+Porting milestone S004J adds `png_read_transform_state.cj` as the first translated
 `png_struct`-shaped read-transform state carrier:
 
 - `png_rtran_ok` rejects setters after row initialization, rejects
@@ -318,7 +318,7 @@ remain later translation work.
 
 ## Implemented Non-Gamma Read Initialization
 
-LP-S004K adds `png_read_transform_init.cj` as the bounded stateful anchor for
+Porting milestone S004K adds `png_read_transform_init.cj` as the bounded stateful anchor for
 the non-gamma portions of the three read initializer functions:
 
 - palette initialization ignores all-opaque tRNS entries, distinguishes binary
@@ -335,16 +335,16 @@ the non-gamma portions of the three read initializer functions:
 - initialization is one-shot, marks row state initialized, and therefore makes
   subsequent setters fail through the translated `png_rtran_ok` lifecycle
 
-The initializer ledger entries remain partial: later packets connected
+The initializer ledger entries remain partial: later milestones connected
 background and alpha-mode optimization, Gamma, cHRM-derived RGB coefficients,
 and palette initialization, while complete row dispatch and transformed info
 projection still remain open.
 
 ## Implemented Initialized Non-Gamma Read Pipeline
 
-LP-S004AF adds `png_initialized_read_pipeline.cj` as the first combined row and
-decoded-image entry over the translated initialization snapshot. LP-S004AG,
-LP-S004AH, LP-S004AI, and LP-S004AJ extend the same entry through the translated
+Porting milestone S004AF adds `png_initialized_read_pipeline.cj` as the first combined row and
+decoded-image entry over the translated initialization snapshot. Porting milestone S004AG,
+Porting milestone S004AH, Porting milestone S004AI, and Porting milestone S004AJ extend the same entry through the translated
 late-channel stages:
 
 - one-shot initialization retains an immutable copy of the fixed RGB-to-gray
@@ -376,7 +376,7 @@ and progressive input remain outside this combined path.
 
 ## Implemented Read Packing Setter And Initialized Unpack
 
-LP-S004AJ connects the direct packed-row body to translated read state:
+Porting milestone S004AJ connects the direct packed-row body to translated read state:
 
 - `setPacking()` requires a known IHDR and enables only for 1/2/4-bit source
   rows, matching the read-side branch of `pngtrans.c::png_set_packing`
@@ -390,14 +390,14 @@ LP-S004AJ connects the direct packed-row body to translated read state:
   stage selection, and whole-image transformed-byte limits include unpack growth
 - `projectPngReadTransformInfo` now projects active packing to 8-bit row shape
 
-PackSwap is connected by LP-S004AK, read-side byte swap by LP-S004AL, and
-palette-index diagnosis by LP-S004AM. User callbacks, write packing,
+PackSwap is connected by Porting milestone S004AK, read-side byte swap by Porting milestone S004AL, and
+palette-index diagnosis by Porting milestone S004AM. User callbacks, write packing,
 gamma/background, Adam7, progressive IO, C ABI, and release packaging remain
 separate work.
 
 ## Implemented Read PackSwap Setter And Initialized Stage
 
-LP-S004AK translates `pngtrans.c::png_set_packswap` and
+Porting milestone S004AK translates `pngtrans.c::png_set_packswap` and
 `pngtrans.c::png_do_packswap` into read state and direct row execution:
 
 - `setPackSwap()` requires a known IHDR and enables only for source bit depths
@@ -415,14 +415,14 @@ LP-S004AK translates `pngtrans.c::png_set_packswap` and
 - whole-image initialized execution uses the same stage and existing final-row
   transformed-byte limit
 
-Palette-index diagnostics and read-side byte swap are connected by LP-S004AM
-and LP-S004AL. The native read user callback is connected later by LP-S004AN;
+Palette-index diagnostics and read-side byte swap are connected by Porting milestone S004AM
+and Porting milestone S004AL. The native read user callback is connected later by Porting milestone S004AN;
 write-side PackSwap, gamma/background, Adam7, progressive IO, C ABI, and release
 packaging remain separate work.
 
 ## Implemented Read Byte Swap Setter And Initialized Stage
 
-LP-S004AL translates `pngtrans.c::png_set_swap` and
+Porting milestone S004AL translates `pngtrans.c::png_set_swap` and
 `pngtrans.c::png_do_swap` into read state and direct row execution:
 
 - `setSwap()` requires a known IHDR and enables only for source bit depth 16
@@ -433,7 +433,7 @@ LP-S004AL translates `pngtrans.c::png_set_swap` and
   copy-owned
 - malformed row lengths fail before stage selection or bit-depth checks
 - immutable initialization appends Byte Swap after Filler and Swap Alpha and
-  before the user-transform stage connected by LP-S004AN
+  before the user-transform stage connected by Porting milestone S004AN
 - added alpha is moved first by Swap Alpha, then every resulting 16-bit
   component has its two bytes exchanged
 - when Scale16 or Strip16 runs first, output depth is already 8 and Byte Swap
@@ -441,14 +441,14 @@ LP-S004AL translates `pngtrans.c::png_set_swap` and
 - whole-image initialized execution uses the same stage and existing final-row
   transformed-byte limit
 
-The native read callback is connected by LP-S004AN. C ABI callback trampolines,
+The native read callback is connected by Porting milestone S004AN. C ABI callback trampolines,
 write-side byte swap, palette-expansion zero-fill compatibility, benign-error
 callback delivery, gamma/background, Adam7, progressive IO, and release
 packaging remain separate work.
 
 ## Implemented Invalid Palette Index Diagnostic Stage
 
-LP-S004AM translates `pngset.c::png_set_check_for_invalid_index` and
+Porting milestone S004AM translates `pngset.c::png_set_check_for_invalid_index` and
 `pngtrans.c::png_do_check_palette_indexes` into immutable read diagnosis:
 
 - checking is enabled by default; positive/true enables it and zero, negative,
@@ -470,14 +470,14 @@ LP-S004AM translates `pngset.c::png_set_check_for_invalid_index` and
 The read-end benign-error callback, zero-filled palette expansion for invalid
 indexes, write-side index diagnosis, gamma/background, Adam7, progressive IO,
 C ABI, and release packaging remain separate work. The native read user
-transform is connected by LP-S004AN.
+transform is connected by Porting milestone S004AN.
 
 ## Implemented Native Read User Transform Registration And Stage
 
-LP-S004AN establishes the native Cangjie portion of
+Porting milestone S004AN establishes the native Cangjie portion of
 `png_set_read_user_transform_fn`, `png_set_user_transform_info`, the
 user-transform branch of `png_read_transform_info`, and the final read row hook.
-LP-S004BP completes the native registration behavior:
+Porting milestone S004BP completes the native registration behavior:
 
 - typed `setReadUserTransform(callback)` and no-argument
   `setReadUserTransform()` both unconditionally enable the user-transform stage
@@ -506,7 +506,7 @@ execution, C ABI export, and release packaging remain separate work.
 
 ## Implemented Floating RGB To Gray Facade
 
-LP-S004AO translates `png_set_rgb_to_gray` and its `png_fixed` dependency into
+Porting milestone S004AO translates `png_set_rgb_to_gray` and its `png_fixed` dependency into
 the existing read-transform state:
 
 - `setRgbToGray` accepts `Float64` red/green weights and delegates converted
@@ -526,7 +526,7 @@ remain separate work.
 
 ## Implemented Gamma Threshold Fixed Substrate
 
-LP-S004AP translates the first frozen gamma substrate:
+Porting milestone S004AP translates the first frozen gamma substrate:
 
 - `pngMulDivFixed` mirrors the default floating-arithmetic `png_muldiv` branch
   for signed 32-bit inputs and output
@@ -537,13 +537,13 @@ LP-S004AP translates the first frozen gamma substrate:
 - divide-by-zero, positive overflow, negative overflow, zero products,
   reciprocal products, and exact significance edges are covered directly
 
-This packet does not add gamma setter state, file-gamma precedence, table
+This milestone does not add gamma setter state, file-gamma precedence, table
 generation, gamma-aware RGB-to-gray, pixel-row correction, background/alpha
 mode, or C ABI wrappers.
 
 ## Implemented File Gamma Resolution
 
-LP-S004AQ translates the frozen fixed reciprocal and file-gamma precedence:
+Porting milestone S004AQ translates the frozen fixed reciprocal and file-gamma precedence:
 
 - `pngReciprocalFixed` calculates `100000 * 100000 / value` through the
   accepted multiply/divide substrate and returns zero on divide/overflow
@@ -556,13 +556,13 @@ LP-S004AQ translates the frozen fixed reciprocal and file-gamma precedence:
 - signed nonzero behavior, reciprocal rounding/failure, every precedence
   branch, zero state, and input immutability are covered directly
 
-This packet does not add gamma setters, read-state mutation,
+This milestone does not add gamma setters, read-state mutation,
 `png_init_gamma_values`, tables, pixel-row correction, background/alpha mode,
 or C ABI wrappers.
 
 ## Implemented Gamma Value Initialization
 
-LP-S004AR translates `png_init_gamma_values` without opening mutable read state:
+Porting milestone S004AR translates `png_init_gamma_values` without opening mutable read state:
 
 - `pngInitGammaValues` resolves file gamma through the AQ precedence helper
 - positive file and screen values evaluate the AP gamma threshold
@@ -574,12 +574,12 @@ LP-S004AR translates `png_init_gamma_values` without opening mutable read state:
 - threshold overflow, reciprocal fallback/failure, signed nonpositive input,
   every branch, and source immutability are covered directly
 
-This packet does not add gamma setters, read-state mutation, gamma tables,
+This milestone does not add gamma setters, read-state mutation, gamma tables,
 pixel-row correction, background/alpha mode, or C ABI wrappers.
 
 ## Implemented Fixed Gamma Setter State
 
-LP-S004AS translates `png_set_gamma_fixed` and its immediate validation helpers:
+Porting milestone S004AS translates `png_set_gamma_fixed` and its immediate validation helpers:
 
 - sRGB `-1/-100000` and old-Mac `-2/-50000` aliases map to the frozen
   screen/file constants by role
@@ -597,7 +597,7 @@ records the initialization snapshot integration.
 
 ## Implemented Floating Gamma Setter Facade
 
-LP-S004AT translates `convert_gamma_value` and floating `png_set_gamma`:
+Porting milestone S004AT translates `convert_gamma_value` and floating `png_set_gamma`:
 
 - positive values below `128` are multiplied by `PNG_FP_1`
 - other finite values remain already-fixed or negative flag-shaped inputs
@@ -613,7 +613,7 @@ snapshot integration.
 
 ## Implemented State-Driven Gamma Initialization Snapshot
 
-LP-S004AU connects accepted gamma setter state and retained gAMA metadata to
+Porting milestone S004AU connects accepted gamma setter state and retained gAMA metadata to
 the existing immutable initializer:
 
 - explicit configured file and screen gamma are snapshotted before row
@@ -635,7 +635,7 @@ palette mutation, callback delivery, and C ABI wrappers remain separate.
 
 ## Implemented 8-Bit Gamma Correction And Table Substrate
 
-LP-S004AV translates the frozen floating-arithmetic 8-bit correction path:
+Porting milestone S004AV translates the frozen floating-arithmetic 8-bit correction path:
 
 - `pngGamma8BitCorrect` preserves exact zero/255 endpoints
 - interior samples use frozen `pow` scaling and `floor(... + 0.5)` rounding
@@ -644,14 +644,14 @@ LP-S004AV translates the frozen floating-arithmetic 8-bit correction path:
 - significant gamma applies the scalar correction to every entry
 - exhaustive identity and table/scalar equivalence tests cover all 256 values
 
-LP-S004AV alone did not attach this substrate to read initialization. LP-S004AW
+Porting milestone S004AV alone did not attach this substrate to read initialization. Porting milestone S004AW
 below adds the bounded 8-bit attachment; 16-bit tables, `png_do_gamma`,
 gamma-aware RGB-to-gray row arithmetic, background/alpha mode, and C ABI
 wrappers remain separate.
 
 ## Implemented Initialized 8-Bit Gamma Table Snapshot
 
-LP-S004AW translates frozen `png_reciprocal2` and the 8-bit branch of
+Porting milestone S004AW translates frozen `png_reciprocal2` and the 8-bit branch of
 `png_build_gamma_table`:
 
 - direct correction uses exact reciprocal2 nearest rounding
@@ -664,13 +664,13 @@ LP-S004AW translates frozen `png_reciprocal2` and the 8-bit branch of
   or linear RGB-to-gray processing needs them
 - existing row-stage ordinals remain unchanged
 
-LP-S004AW itself retained tables without executable row gamma. LP-S004AX below
+Porting milestone S004AW itself retained tables without executable row gamma. Porting milestone S004AX below
 adds the bounded packed/8-bit row path; gamma-aware RGB-to-gray row arithmetic,
 16-bit tables, background/alpha mode, and C ABI wrappers remain separate.
 
 ## Implemented Packed And 8-Bit Gamma Row Body
 
-LP-S004AX translates the non-16-bit branches of frozen `png_do_gamma`:
+Porting milestone S004AX translates the non-16-bit branches of frozen `png_do_gamma`:
 
 - 8-bit Gray, GrayAlpha, RGB, and RGBA correct color samples only
 - alpha bytes remain unchanged
@@ -678,7 +678,7 @@ LP-S004AX translates the non-16-bit branches of frozen `png_do_gamma`:
   high-bit masking, repacking, and final-byte padding behavior
 - 1-bit grayscale remains a copy-owned no-op, matching the absent upstream
   branch
-- palette and 16-bit rows remain bounded no-ops in this packet
+- palette and 16-bit rows remain bounded no-ops in this milestone
 - initialized Gamma dispatch is suppressed when palette initialization or
   RGB-to-gray owns gamma processing
 - Gamma executes after Gray-to-RGB and before 16-to-8 reduction while retaining
@@ -689,7 +689,7 @@ RGB-to-gray row arithmetic remain separate.
 
 ## Implemented 16-Bit Direct Gamma Table Substrate
 
-LP-S004AY translates the frozen floating-arithmetic 16-bit correction and
+Porting milestone S004AY translates the frozen floating-arithmetic 16-bit correction and
 `png_build_16bit_table` helpers from `png.c`:
 
 - `pngGamma16BitCorrect` preserves exact zero/65535 endpoints and frozen
@@ -711,7 +711,7 @@ snapshot, 16-bit `png_do_gamma`, and gamma-aware RGB-to-gray remain separate.
 
 ## Implemented Initialized 16-Bit Gamma Table Snapshot
 
-LP-S004AZ translates the remaining 16-bit branch of frozen
+Porting milestone S004AZ translates the remaining 16-bit branch of frozen
 `png_build_gamma_table` before row execution:
 
 - `pngBuildGamma16To8Table` preserves the 255 corrected boundary calculations,
@@ -735,7 +735,7 @@ checkpoint. The next section records 16-bit row execution.
 
 ## Implemented 16-Bit Gamma Row Body
 
-LP-S004BA completes the frozen 16-bit branches of `png_do_gamma`:
+Porting milestone S004BA completes the frozen 16-bit branches of `png_do_gamma`:
 
 - Gray, GrayAlpha, RGB, and RGBA read each color component in PNG network order
 - segmented direct or reduction-specialized tables correct only color samples
@@ -754,7 +754,7 @@ The `png_do_gamma` ledger row is now translated and the ledger advances to
 
 ## Implemented Gamma-Aware RGB-To-Gray Row Arithmetic
 
-LP-S004BB completes the frozen gamma-table branches of
+Porting milestone S004BB completes the frozen gamma-table branches of
 `pngrtran.c::png_do_rgb_to_gray`:
 
 - initialized 8/16-bit RGB and RGBA rows use retained file-to-linear and
@@ -773,7 +773,7 @@ The `png_do_rgb_to_gray` row remains translated and the ledger remains
 
 ## Implemented Background Setter State
 
-LP-S004BC translates frozen `png_set_background_fixed` and
+Porting milestone S004BC translates frozen `png_set_background_fixed` and
 `png_set_background` before background initialization or row composition:
 
 - `PngBackground` is a public immutable `png_color_16`-shaped value with
@@ -794,7 +794,7 @@ setters remain separate.
 
 ## Implemented Background Initialization Snapshot
 
-LP-S004BD extends the still-partial palette, RGB, and read initializer rows:
+Porting milestone S004BD extends the still-partial palette, RGB, and read initializer rows:
 
 - immutable initialization retains the configured background color, gamma code,
   gamma value, and effective Compose/background-expand decisions
@@ -817,7 +817,7 @@ and remaining initializer branches are separate.
 
 ## Implemented Background Depth And Gamma Initialization
 
-LP-S004BE extends the same still-partial initializer rows through the complete
+Porting milestone S004BE extends the same still-partial initializer rows through the complete
 non-palette Compose preparation immediately preceding `png_do_compose`:
 
 - Expand16 with a non-expanded background and non-16-bit input applies the
@@ -843,7 +843,7 @@ composition, alpha-mode state, and the remaining initializer branches stay open.
 
 ## Implemented Non-Palette Background Composition
 
-LP-S004BF translates the complete row-local `png_do_compose` switch:
+Porting milestone S004BF translates the complete row-local `png_do_compose` switch:
 
 - packed 1/2/4-bit grayscale replaces exact tRNS keys without touching final
   padding bits; 2/4-bit surviving samples use the direct Gamma table
@@ -864,7 +864,7 @@ stay separate.
 
 ## Implemented Palette Background Composition Initialization
 
-LP-S004BG translates the Indexed initialization-time PLTE/tRNS branches that
+Porting milestone S004BG translates the Indexed initialization-time PLTE/tRNS branches that
 precede row execution:
 
 - initialization owns an effective palette and retained alpha-prefix snapshot
@@ -893,7 +893,7 @@ dispatch branches are still open. The total remains
 
 ## Implemented Alpha-Mode Setter State
 
-LP-S004BH translates `png_set_alpha_mode_fixed` and its floating facade:
+Porting milestone S004BH translates `png_set_alpha_mode_fixed` and its floating facade:
 
 - `PngAlphaMode` preserves PNG, Associated, Optimized, and Broken identities
 - fixed output Gamma translates screen-role sentinels and rejects unsupported
@@ -911,12 +911,12 @@ LP-S004BH translates `png_set_alpha_mode_fixed` and its floating facade:
   alpha-mode, Encode, Optimize, Compose, and background facts
 
 The pending `png_do_encode_alpha` body and optimized palette arithmetic remain
-separate packets. The ledger advances to
+separate milestones. The ledger advances to
 `36 translated / 8 partial / 1 pending`.
 
 ## Implemented Encode-Alpha Row Body
 
-LP-S004BI translates `png_do_encode_alpha` and its initialized dispatch:
+Porting milestone S004BI translates `png_do_encode_alpha` and its initialized dispatch:
 
 - 8-bit GA/RGBA rows encode only the final alpha byte through the from-linear
   table
@@ -937,7 +937,7 @@ initializer, info-projection, callback/C ABI, and dispatcher fidelity.
 
 ## Implemented Alpha Initializer Optimization Parity
 
-LP-S004BJ closes the remaining Alpha Optimize/Encode initialization branches:
+Porting milestone S004BJ closes the remaining Alpha Optimize/Encode initialization branches:
 
 - Indexed tRNS is classified as opaque, binary-only transparency, or partial
   alpha before effective alpha-mode decisions are frozen
@@ -961,7 +961,7 @@ branches, so the ledger becomes `38 translated / 7 partial / 0 pending`.
 
 ## Implemented Palette tRNS Invert Initialization
 
-LP-S004BK closes the final frozen branch in
+Porting milestone S004BK closes the final frozen branch in
 `png_init_palette_transformations`:
 
 - Background Expand plus Expand without Expand-tRNS inverts each retained tRNS
@@ -981,7 +981,7 @@ the row advances to translated. The ledger becomes
 
 ## Implemented cHRM RGB-to-Gray Coefficient Initialization
 
-LP-S004BL translates `png.c::png_set_rgb_coefficients` as consumed by
+Porting milestone S004BL translates `png.c::png_set_rgb_coefficients` as consumed by
 `pngrtran.c::png_init_read_transformations`:
 
 - accepted explicit fixed/floating setter coefficients remain authoritative
@@ -1001,7 +1001,7 @@ stays partial and the ledger remains `39 translated / 6 partial / 0 pending`.
 
 ## Implemented Background-Aware Gray-to-RGB Dispatch
 
-LP-S004BM closes the remaining default-config topology shared by
+Porting milestone S004BM closes the remaining default-config topology shared by
 `png_init_read_transformations` and `png_do_read_transformations`:
 
 - Background Expand on Grayscale/Grayscale Alpha marks the effective
@@ -1024,7 +1024,7 @@ program boundary.
 
 ## Implemented Direct Invert-Monochrome Row Body
 
-LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
+Porting milestone S004AI adds `png_invert_mono_transform.cj` as the direct translation of
 `pngtrans.c::png_do_invert` and connects it before Invert Alpha:
 
 - Grayscale rows at 1/2/4/8/16-bit invert every stored byte exactly, including
@@ -1039,13 +1039,13 @@ LP-S004AI adds `png_invert_mono_transform.cj` as the direct translation of
 - initialized row and whole-image execution place Invert Mono after Expand16
   and before Invert Alpha and Unshift
 
-The LP-S004AI packet did not add pack/packswap, byte swap, user callbacks,
+Porting milestone S004AI did not add pack/packswap, byte swap, user callbacks,
 gamma/background, Adam7, progressive IO, write behavior, or C ABI surfaces;
 later sections record the current PackSwap status.
 
 ## Implemented Direct BGR Row Body
 
-LP-S004AH adds `png_bgr_transform.cj` as the direct translation of
+Porting milestone S004AH adds `png_bgr_transform.cj` as the direct translation of
 `pngtrans.c::png_do_bgr` and connects it to the initialized read path:
 
 - natural Truecolor and Truecolor Alpha rows exchange red and blue while alpha
@@ -1061,13 +1061,13 @@ LP-S004AH adds `png_bgr_transform.cj` as the direct translation of
 - whole-image initialized transformation uses the same stage and retains the
   existing transformed-byte limit
 
-The LP-S004AH packet did not add invert-mono, pack/packswap, byte swap, user
+Porting milestone S004AH did not add invert-mono, pack/packswap, byte swap, user
 callbacks, gamma/background, Adam7, progressive IO, write behavior, or C ABI
 surfaces; later sections record the current PackSwap status.
 
 ## Implemented Direct Gray-To-RGB Row Body
 
-LP-S004L adds `png_gray_to_rgb_transform.cj` as the direct non-gamma
+Porting milestone S004L adds `png_gray_to_rgb_transform.cj` as the direct non-gamma
 translation of `png_do_gray_to_rgb`:
 
 - `PngReadRowInfo` carries width, bit depth, color type, channels, pixel depth,
@@ -1088,7 +1088,7 @@ strip-alpha, background composition, gamma, or later row transforms.
 
 ## Implemented Complete Read Transform Info Projection
 
-LP-S004M established `png_read_transform_info.cj`; LP-S004BN completes the
+Porting milestone S004M established `png_read_transform_info.cj`; Porting milestone S004BN completes the
 frozen default-config translation of `png_read_transform_info`:
 
 - `PngReadTransformInfo` exposes projected width, height, bit depth, color
@@ -1116,7 +1116,7 @@ ABI structure compatibility, and callback trampolines remain separate work.
 
 ## Implemented Direct Scale16 And Strip16 Row Bodies
 
-LP-S004N adds `png_16_to_8_transform.cj` as the direct translation of
+Porting milestone S004N adds `png_16_to_8_transform.cj` as the direct translation of
 `png_do_scale_16_to_8` and `png_do_chop`:
 
 - input rows retain PNG network-byte component order and are validated against
@@ -1137,7 +1137,7 @@ swap, user transforms, or the complete stateful row dispatcher.
 
 ## Implemented Direct Alpha Invert And Swap Row Bodies
 
-LP-S004O adds `png_alpha_transform.cj` as the direct translation of
+Porting milestone S004O adds `png_alpha_transform.cj` as the direct translation of
 `png_do_read_invert_alpha` and `png_do_read_swap_alpha`:
 
 - `pngDoReadInvertAlpha` preserves G/RGB bytes and complements only the alpha
@@ -1159,7 +1159,7 @@ claim the complete `png_do_read_transformations` dispatcher.
 
 ## Implemented Direct Strip Channel Row Body
 
-LP-S004AE adds `png_strip_channel_transform.cj` as the direct translation of
+Porting milestone S004AE adds `png_strip_channel_transform.cj` as the direct translation of
 `pngtrans.c::png_do_strip_channel` and connects its read-side use:
 
 - 8-bit and network-order 16-bit rows can remove the first or last component
@@ -1181,7 +1181,7 @@ Alpha, or claim the complete stateful row dispatcher.
 
 ## Implemented Direct Read Filler Row Body
 
-LP-S004P adds `png_filler_transform.cj` as the direct translation of
+Porting milestone S004P adds `png_filler_transform.cj` as the direct translation of
 `png_do_read_filler` and extends `PngReadRowInfo` with an explicit transformed
 channel-count constructor:
 
@@ -1206,7 +1206,7 @@ setter state, BGR/swap-alpha composition, and complete dispatch are deferred.
 
 ## Implemented Direct Packed-Row Unpack
 
-LP-S004R adds `png_unpack_transform.cj` as the direct translation of
+Porting milestone S004R adds `png_unpack_transform.cj` as the direct translation of
 `png_do_unpack`:
 
 - legal 1/2/4-bit grayscale and palette rows expand to one byte per stored
@@ -1222,13 +1222,13 @@ LP-S004R adds `png_unpack_transform.cj` as the direct translation of
 - malformed packed row lengths fail before source bytes are read
 
 The direct body does not scale grayscale values or expand palette entries to
-RGB. LP-S004AJ provides read-side `png_set_packing` state and bounded
-initialized dispatch. LP-S004AK now provides PackSwap; write packing and the
+RGB. Porting milestone S004AJ provides read-side `png_set_packing` state and bounded
+initialized dispatch. Porting milestone S004AK now provides PackSwap; write packing and the
 complete dispatcher remain separate work.
 
 ## Implemented Direct Palette Expansion
 
-LP-S004S adds `png_palette_expand_transform.cj` as the direct translation of
+Porting milestone S004S adds `png_palette_expand_transform.cj` as the direct translation of
 `png_do_expand_palette`:
 
 - legal 1/2/4/8-bit Indexed rows expand through retained PLTE entries
@@ -1251,7 +1251,7 @@ or claim the complete row dispatcher.
 
 ## Implemented Direct Non-Palette Expansion
 
-LP-S004T adds `png_nonpalette_expand_transform.cj` as the direct translation of
+Porting milestone S004T adds `png_nonpalette_expand_transform.cj` as the direct translation of
 non-palette `png_do_expand`:
 
 - legal packed 1/2/4-bit Gray values replicate to exact 8-bit bit patterns
@@ -1266,7 +1266,7 @@ non-palette `png_do_expand`:
 - transformed and no-op rows are copy-owned, and malformed row lengths fail
   before component reads
 
-LP-S004AD connects both direct expansion bodies to one bounded initialized
+Porting milestone S004AD connects both direct expansion bodies to one bounded initialized
 Expand stage:
 
 - one-shot initialization snapshots a copy-owned PLTE and only the effective
@@ -1284,7 +1284,7 @@ stages automatically, or claim the complete row dispatcher.
 
 ## Implemented Direct Expand16
 
-LP-S004U adds `png_expand16_transform.cj` as the direct translation of
+Porting milestone S004U adds `png_expand16_transform.cj` as the direct translation of
 `png_do_expand_16`:
 
 - every byte in an 8-bit non-palette runtime row is copied backward into an
@@ -1298,7 +1298,7 @@ LP-S004U adds `png_expand16_transform.cj` as the direct translation of
 - Indexed, non-8-bit, zero-channel, and zero-width rows safely no-op after
   row-length validation
 
-LP-S004AC connects the direct body to the bounded initialized Expand16 stage:
+Porting milestone S004AC connects the direct body to the bounded initialized Expand16 stage:
 
 - disabled initialization returns a validated copy-owned no-op row
 - enabled initialization delegates to `pngDoExpand16`
@@ -1313,7 +1313,7 @@ complete row dispatcher.
 
 ## Implemented Direct Quantize
 
-LP-S004V adds `png_quantize_transform.cj` as the direct translation of
+Porting milestone S004V adds `png_quantize_transform.cj` as the direct translation of
 `png_do_quantize`:
 
 - 8-bit RGB and RGBA rows use the frozen 5/5/5 cell formula and an exact
@@ -1329,7 +1329,7 @@ LP-S004V adds `png_quantize_transform.cj` as the direct translation of
 - transformed and no-op rows are copy-owned, and malformed row lengths fail
   before lookup validation
 
-LP-S004AA connects the direct body to one bounded initialized stage:
+Porting milestone S004AA connects the direct body to one bounded initialized stage:
 
 - `PngReadTransformInitialization` owns frozen copies of the generated
   32768-entry palette lookup and 256-entry index remap
@@ -1344,7 +1344,7 @@ LP-S004AA connects the direct body to one bounded initialized stage:
 The bounded adapter does not build or reduce palettes, mutate retained PLTE,
 project transformed info, or claim the complete row dispatcher.
 
-LP-S004AB connects the initialized quantize payload to the bounded transformed
+Porting milestone S004AB connects the initialized quantize payload to the bounded transformed
 info projection:
 
 - initialization snapshots the reduced or selected palette and its active count
@@ -1360,14 +1360,14 @@ info projection:
 - non-full RGB topology and gray topology remain unchanged, while non-full
   Indexed rows retain Indexed topology with the synchronized reduced palette
 
-At that historical checkpoint the ledger remained partial. LP-S004BN later
+At that historical checkpoint the ledger remained partial. Porting milestone S004BN later
 completed Gamma/background, filler/add-alpha, pack, active user-transform, and
 metadata synchronization; native allocation-warning fallback and C ABI remain
 separate work.
 
 ## Implemented Quantize Setter State Floor
 
-LP-S004W extends `PngReadTransformState` with the bounded state topology of
+Porting milestone S004W extends `PngReadTransformState` with the bounded state topology of
 `png_set_quantize`:
 
 - `setQuantize` preserves the existing `png_rtran_ok(..., 0)` lifecycle gate
@@ -1386,7 +1386,7 @@ transformed-info projection.
 
 ## Implemented Full Quantize Palette Lookup
 
-LP-S004X adds `png_quantize_lookup.cj` for the no-reduction full-color branch of
+Porting milestone S004X adds `png_quantize_lookup.cj` for the no-reduction full-color branch of
 `png_set_quantize`:
 
 - accepted full calls generate exactly 32768 5/5/5 RGB cells
@@ -1405,7 +1405,7 @@ is described by the next bounded branch.
 
 ## Implemented Histogram Quantize Reduction
 
-LP-S004Y adds `png_quantize_reduction.cj` and a histogram-bearing `setQuantize`
+Porting milestone S004Y adds `png_quantize_reduction.cj` and a histogram-bearing `setQuantize`
 overload for the `num_palette > maximum_colors` branch:
 
 - palette indexes are bubble-sorted by descending UInt16 histogram count using
@@ -1422,12 +1422,12 @@ overload for the `num_palette > maximum_colors` branch:
 - malformed or absent reduction histograms fail before quantize state mutation
 
 The separate no-histogram closest-pair branch is described by the next bounded
-packet. Allocation-warning fallback, initialized dispatcher, and
+milestone. Allocation-warning fallback, initialized dispatcher, and
 transformed-info projection remain open.
 
 ## Implemented Closest-Pair Quantize Reduction
 
-LP-S004Z adds `png_quantize_closest_reduction.cj` for reduction without a
+Porting milestone S004Z adds `png_quantize_closest_reduction.cj` for reduction without a
 histogram:
 
 - identity `index_to_palette` and `palette_to_index` maps track original
@@ -1446,7 +1446,7 @@ histogram:
   full mode builds its lookup from the final reduced palette
 - caller palette ownership and failed setter lifecycle state remain unchanged
 
-LP-S004BQ closes the native allocation-warning retry boundary with a bounded,
+Porting milestone S004BQ closes the native allocation-warning retry boundary with a bounded,
 quantize-specific managed diagnostic:
 
 - `PngQuantizeAllocationFaultPlan` deterministically fails pair-node admission
@@ -1471,7 +1471,7 @@ With this branch the generated `pngrtran.c` inventory reaches
 
 ## Implemented Significant-Bit Unshift
 
-LP-S004G extends `png_channel_transform.cj` and the generalized row-shape path
+Porting milestone S004G extends `png_channel_transform.cj` and the generalized row-shape path
 with the `PNG_SHIFT` stage represented by explicit
 `UnshiftSignificantBits` selection:
 
@@ -1489,7 +1489,7 @@ with the `PNG_SHIFT` stage represented by explicit
 The fixed RGBA convenience results and generalized RGB/RGBA/X results share the
 same shift resolver. Retained sBIT metadata remains unchanged.
 
-LP-S004Q adds `png_unshift_transform.cj` as the direct source-row translation of
+Porting milestone S004Q adds `png_unshift_transform.cj` as the direct source-row translation of
 `png_do_unshift`:
 
 - `PngSignificantBits` is converted into source-shaped G, GA, RGB, or RGBA
@@ -1511,12 +1511,12 @@ The direct adapter does not perform palette initialization mutation or compose
 byte swap, filler, and the complete `png_do_read_transformations` path.
 
 RGB-to-gray, gamma/background/alpha-mode, quantization, packing/packswap, byte
-swap, and user callbacks were outside that direct adapter packet; later
+swap, and user callbacks were outside that direct adapter milestone; later
 sections record their current status.
 
 ## Implemented Read CRC Action Policy
 
-LP-S004BO translates `pngrtran.c::png_set_crc_action` into
+Porting milestone S004BO translates `pngrtran.c::png_set_crc_action` into
 `PngCrcAction` and `PngReadSession.setCrcAction`:
 
 - `DEFAULT`, `ERROR_QUIT`, `WARN_DISCARD`, `WARN_USE`, `QUIET_USE`, and
@@ -1536,7 +1536,7 @@ CRC policy, and the C ABI remain separate work.
 
 ## Implemented Remaining Standard Ancillary Metadata
 
-LP-S004BR translates the frozen native read handling for cICP, cLLI, mDCV,
+Porting milestone S004BR translates the frozen native read handling for cICP, cLLI, mDCV,
 eXIf, hIST, oFFs, pCAL, sCAL, and sPLT:
 
 - fixed-size chunks preserve length, signed/fixed field, luminance-limit,
@@ -1557,7 +1557,7 @@ upstream libpng nor this translation performs ICC pixel color conversion.
 
 ## Implemented Write Foundation, Packed Encoder, Adam7, And Typed Metadata
 
-LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
+Porting milestone S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
 `png_write.cj`, the shared filter layer, and the external-zlib boundary:
 
 - `PngWriteSession` owns Open, Finalizing, Completed, Failed, and Closed write
@@ -1594,7 +1594,7 @@ LP-S006A starts the `pngwrite.c`, `pngwutil.c`, and `pngwtran.c` route through
 - `PngWriteMetadata(PngReadMetadata, PngColorType)` provides a copy-owned
   canonical decode-write-decode bridge without retaining unknown chunks
 
-LP-S006D adds the default write-transform route before filtering:
+Porting milestone S006D adds the default write-transform route before filtering:
 
 - `PngWriteTransformState` freezes target shape, selected transforms, copied
   significant-bit values, and the canonical `pngwtran.c` execution order when
@@ -1610,7 +1610,7 @@ LP-S006D adds the default write-transform route before filtering:
 - transformed bytes have a separate limit from filtered, compressed, metadata,
   and final output bytes, and caller rows remain copy-owned
 
-LP-S006E adds the native Cangjie write user-transform route:
+Porting milestone S006E adds the native Cangjie write user-transform route:
 
 - `setWriteUserTransform(callback)` and the identity-registration overload keep
   a live registration object visible after session initialization
@@ -1624,7 +1624,7 @@ LP-S006E adds the native Cangjie write user-transform route:
 - malformed callback output or callback failure moves the writer to Failed
   through the existing session boundary
 
-LP-S006F adds the native Cangjie custom write-sink route:
+Porting milestone S006F adds the native Cangjie custom write-sink route:
 
 - `PngWriteSession.write()` and `writeTo()` share one prepared-output emission
   core, preserving byte-for-byte memory output parity
@@ -1639,7 +1639,7 @@ LP-S006F adds the native Cangjie custom write-sink route:
 - reentrant write or close attempts during either emission or flush are
   rejected by the existing Finalizing lifecycle guard
 
-LP-S006G adds native unknown-chunk write injection:
+Porting milestone S006G adds native unknown-chunk write injection:
 
 - `PngUnknownChunk` is a public copy-owned write/read model with explicit
   after-IHDR, after-PLTE, or after-IDAT placement
@@ -1657,7 +1657,7 @@ LP-S006G adds native unknown-chunk write injection:
 - memory and custom-sink output share the same framed unknown-chunk plan, CRC,
   byte accounting, failure state, and ownership behavior
 
-LP-S006H adds a native row-at-a-time write lifecycle:
+Porting milestone S006H adds a native row-at-a-time write lifecycle:
 
 - `PngRowWriteSession` freezes the existing writer configuration at
   construction and accepts complete source rows in strict image order
@@ -1670,7 +1670,7 @@ LP-S006H adds a native row-at-a-time write lifecycle:
 - Adam7 retains buffered accepted rows until finalization because later passes
   revisit prior source rows
 
-LP-S006I adds genuine non-interlaced incremental write output:
+Porting milestone S006I adds genuine non-interlaced incremental write output:
 
 - `PngIncrementalDeflater` reuses the verified direct LP64/Windows-LLP64
   `z_stream` layout with fragmented input, bounded output
@@ -1685,11 +1685,11 @@ LP-S006I adds genuine non-interlaced incremental write output:
   the same incremental deflate and framing core and produce identical bytes
 - trailing metadata, IEND, final accounting, and flush retain exact-once sink
   behavior; callback reentrancy and compressed/output limits enter failed state
-- at the LP-S006I checkpoint, Adam7 still kept the LP-S006H buffered
-  compatibility path and rejected `startTo`; LP-S006K below replaces that
+- at the Porting milestone S006I checkpoint, Adam7 still kept the Porting milestone S006H buffered
+  compatibility path and rejected `startTo`; Porting milestone S006K below replaces that
   checkpoint behavior with bounded pass-local spooling
 
-LP-S006J translates the bounded write compression and filter control surface:
+Porting milestone S006J translates the bounded write compression and filter control surface:
 
 - `PngWriteControlState` accepts a non-empty subset of None/Sub/Up/Average/
   Paeth, preserves the default/unweighted fixed-heuristic identity, and freezes
@@ -1710,7 +1710,7 @@ LP-S006J translates the bounded write compression and filter control surface:
   translated heuristic identity is retained without fabricating a weighting
   algorithm beyond the deterministic existing filtered-byte score
 
-LP-S006K removes the Adam7 early-sink rejection through bounded pass spooling:
+Porting milestone S006K removes the Adam7 early-sink rejection through bounded pass spooling:
 
 - `PngRowWriteSession.startTo(sink)` emits the signature, Adam7 IHDR, palette,
   and legal pre-IDAT metadata before row intake
@@ -1733,11 +1733,11 @@ LP-S006K removes the Adam7 early-sink rejection through bounded pass spooling:
 These write paths finalize a complete image and support non-interlaced or
 Adam7 output.
 Raw C callback trampolines, simplified file surfaces, and
-complete libpng16 write ABI remain later LP-S007/LP-S008 work. ICC profile
+complete libpng16 write ABI remain later Porting milestone S007/Porting milestone S008 work. ICC profile
 bytes are validated and emitted, but ICC pixel conversion is outside libpng's
 scope.
 
-LP-S007A starts the native simplified `png_image_*` route without claiming its
+Porting milestone S007A starts the native simplified `png_image_*` route without claiming its
 C ABI:
 
 - `PngImage` owns copied memory input across explicit Empty, Reading,
@@ -1751,14 +1751,14 @@ C ABI:
 - alpha-retaining layouts preserve alpha; alpha-removing layouts use bounded
   integer composition in encoded 8-bit sample space against an explicit
   background, with black as the allocating convenience default; exact
-  gamma-aware `png_image_finish_read` parity remains outside this packet
+  gamma-aware `png_image_finish_read` parity remains outside this milestone
 - `writePngImageToMemory` canonicalizes the same layouts and reuses the
   existing non-interlaced/Adam7 writer, metadata plan, compression/filter
   controls, and output limits
 - diagnostics retain warning/error bits, error-kind ordinal, byte offset, and
   message while `free()` releases retained input idempotently
 
-LP-S007B extends that native facade without claiming the C ABI:
+Porting milestone S007B extends that native facade without claiming the C ABI:
 
 - `finishReadLinear` returns copy-owned host-numeric UInt16 components for the
   same nine Gray/RGB/BGR and alpha-first/alpha-last layouts
@@ -1778,7 +1778,7 @@ LP-S007B extends that native facade without claiming the C ABI:
   component count, byte count, minimal component stride, buffer copy, and row
   copy access
 
-LP-S007C adds native simplified colormap memory surfaces:
+Porting milestone S007C adds native simplified colormap memory surfaces:
 
 - `PngColormapImageBuffer` owns one byte per pixel and a 1..256-entry table in
   RGB/BGR/RGBA/ARGB/BGRA/ABGR layout, with exact shape/count/copy access
@@ -1791,7 +1791,7 @@ LP-S007C adds native simplified colormap memory surfaces:
   selects 1/2/4/8-bit indexed depth from entry count, packs application indices,
   and reuses non-interlaced/Adam7 writer controls and limits
 
-LP-S007D adds native custom component-stride storage across all three buffer
+Porting milestone S007D adds native custom component-stride storage across all three buffer
 families:
 
 - zero stride resolves to the exact minimum; positive values preserve top-down
@@ -1808,10 +1808,10 @@ families:
 - transformed-byte limits include allocated stride padding and linear component
   width before a strided read result is allocated
 
-LP-S007E adds bounded caller-managed stream and owned file-path adapters for all
+Porting milestone S007E adds bounded caller-managed stream and owned file-path adapters for all
 three native simplified image families without transferring stream ownership.
 
-LP-S008B exposes an upstream-compatible default-config `png_image` memory ABI
+Porting milestone S008B exposes an upstream-compatible default-config `png_image` memory ABI
 subset:
 
 - LP64 `png_image` and `png_color` layout, version/status/format/flag constants,
@@ -1828,7 +1828,7 @@ subset:
 - strict C11 layout assertions, frozen symbol manifest, undersized write-size
   behavior, malformed/limit/lifecycle coverage, and relocated dylib proof
 
-LP-S008C extends the same simplified ABI to named files and caller-owned C
+Porting milestone S008C extends the same simplified ABI to named files and caller-owned C
 stdio streams:
 
 - direct Cangjie `@C` exports for begin-read-from-file/stdio and
@@ -1841,7 +1841,7 @@ stdio streams:
 - strict C11 symbol, valid read/write, malformed/open/read/write failure,
   ownership, cleanup, and relocated-library proof
 
-LP-S008D starts the callback-free classic ABI surface with stateless utilities:
+Porting milestone S008D starts the callback-free classic ABI surface with stateless utilities:
 
 - direct Cangjie `@C` exports for the numeric library version and signature
   comparison, without introducing a borrowed string lifetime
@@ -1855,4 +1855,4 @@ LP-S008D starts the callback-free classic ABI surface with stateless utilities:
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, raw callback and allocator crossings, complete public-symbol parity,
-and portable packaging remain later LP-S008 and LTS work.
+and portable packaging remain later Porting milestone S008 and LTS work.

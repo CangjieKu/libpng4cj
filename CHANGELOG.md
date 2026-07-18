@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 Preview - 2026-07-18
+
+- Publish the accumulated Cangjie-native read, write, progressive, simplified
+  image, metadata, transform, and macOS arm64 C ABI subset as a preview review
+  line without claiming complete libpng16 compatibility or LTS status.
+- Add direct Cangjie classic stateless ABI utilities for version access,
+  signature comparison, and big-endian 16/32-bit integer reads and writes.
+- Extend the simplified `png_image` ABI subset across memory, named files, and
+  caller-owned C stdio streams for read and write workflows.
+- Complete bilingual README documentation, dependency/link guidance, public
+  capability boundaries, and replayable native/C consumer commands.
 
 - Add copy-owned custom component strides to direct 8-bit, linear UInt16, and
   colormap simplified image buffers, including zero-to-minimum normalization,

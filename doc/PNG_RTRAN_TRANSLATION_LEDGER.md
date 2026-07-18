@@ -71,20 +71,20 @@ Status meanings:
 
 ## Translation Rule
 
-Future LP-S004 packets should select one bounded `pending` or `partial` cluster,
+Future S004 porting milestones should select one bounded `pending` or `partial` cluster,
 translate the upstream topology and behavior first, prove it against the frozen
 oracle, and only then simplify or optimize the Cangjie implementation. A passing
 convenience API is evidence for a row operation, not proof that its upstream
 setter, state mutation, metadata projection, warning path, or compile guards are
 already translated.
 
-LP-S004J keeps the frozen state aliasing intact: `png_set_expand`,
+Porting milestone S004J keeps the frozen state aliasing intact: `png_set_expand`,
 `png_set_palette_to_rgb`, and `png_set_tRNS_to_alpha` all set the same
 `PNG_EXPAND | PNG_EXPAND_tRNS` bits in libpng `1.6.58`; the Cangjie state does
 not invent distinct persistent flags merely because the public setter names
 differ.
 
-LP-S004K adds the first stateful initialization anchor without hiding the
+Porting milestone S004K adds the first stateful initialization anchor without hiding the
 remaining branches. It distinguishes palette partial alpha from binary
 transparency, preserves inherent RGB/gray alpha classification, cancels tRNS
 expansion when Strip Alpha precedes composition, and freezes the translated
@@ -92,7 +92,7 @@ stage order. The three initializer rows remain `partial` until background row
 composition/gamma derivation, encode/optimize-alpha, remaining palette mutation,
 and full dispatcher state land.
 
-LP-S004L directly translates `png_do_gray_to_rgb` for 8-bit and 16-bit
+Porting milestone S004L directly translates `png_do_gray_to_rgb` for 8-bit and 16-bit
 grayscale/grayscale-alpha rows. `PngReadRowInfo` carries the source-shaped
 width, depth, color type, channels, pixel depth, and row-byte topology;
 `pngDoGrayToRgb` preserves every gray/alpha byte while returning a copy-owned
@@ -102,7 +102,7 @@ frozen initialized stage list. This advances the ledger to
 partial because preceding expansion/composition and later transforms are not
 executed by this narrow adapter.
 
-LP-S004M adds the bounded non-gamma `png_read_transform_info` projection for
+Porting milestone S004M adds the bounded non-gamma `png_read_transform_info` projection for
 the currently translated state. It handles palette/non-palette Expand, tRNS
 consumption, Strip Alpha, Scale16/Strip16, Gray-to-RGB, RGB-to-gray, Expand16,
 final channels, pixel depth, and row bytes. The projection deliberately follows
@@ -112,7 +112,7 @@ RGB-to-gray, instead of iterating runtime row stages. The ledger remains
 gamma/background, filler, quantize, pack, user transforms, and complete
 metadata projection remain absent.
 
-LP-S004N replaces the convenience-only Scale/Strip anchors with direct
+Porting milestone S004N replaces the convenience-only Scale/Strip anchors with direct
 network-byte row bodies. `pngDoScale16To8` applies the exact
 `(V * 255 + 32895) >> 16` arithmetic, while `pngDoChop` retains each high byte;
 both return copy-owned rows and update bit depth, pixel depth, and row bytes
@@ -122,7 +122,7 @@ changed the row to 8-bit depth. The ledger remains
 `23 translated / 6 partial / 16 pending`; Expand16 and the complete dispatcher
 remain separate work.
 
-LP-S004O replaces the canonical RGBA convenience anchors for alpha inversion
+Porting milestone S004O replaces the canonical RGBA convenience anchors for alpha inversion
 and alpha swapping with direct source-shaped byte-row bodies.
 `pngDoReadInvertAlpha` complements only GA/RGBA alpha bytes at 8-bit or 16-bit
 network-byte depth. `pngDoReadSwapAlpha` preserves component byte order while
@@ -134,7 +134,7 @@ independent of caller array order or duplicates. The ledger remains
 intermediate unshift/BGR/filler stages, and the complete dispatcher remain
 separate work.
 
-LP-S004P replaces the generalized row-shape convenience anchor for filler with
+Porting milestone S004P replaces the generalized row-shape convenience anchor for filler with
 the direct source-shaped byte-row body. `PngReadRowInfo` now supports an
 explicit transformed channel count, because `png_do_read_filler` increases
 channels, pixel depth, and row bytes while retaining the source Gray/RGB color
@@ -145,8 +145,8 @@ modes onto this row body without claiming preceding Strip Alpha execution or
 the separate transformed-info color-type update. The ledger remains
 `23 translated / 6 partial / 16 pending`.
 
-LP-S004W adds the bounded `png_set_quantize` state floor after the direct
-`png_do_quantize` row body landed in LP-S004V. `PngQuantizeMode` records
+Porting milestone S004W adds the bounded `png_set_quantize` state floor after the direct
+`png_do_quantize` row body landed in Porting milestone S004V. `PngQuantizeMode` records
 palette-remap versus full-color intent, accepted calls retain copy-owned palette
 state, and every non-full call rebuilds the complete 256-entry identity remap
 required by the frozen safety fix. Palette reduction, histogram/median-cut,
@@ -154,7 +154,7 @@ full 32768-entry lookup generation, initialized dispatch, transformed-info
 projection, and C ABI remain open. The current ledger is
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004X materializes the no-reduction full-color lookup requested by that
+Porting milestone S004X materializes the no-reduction full-color lookup requested by that
 state. `pngBuildQuantizePaletteLookup` translates all 32768 5/5/5 cells, the
 frozen `dmax + dr + dg + db` distance formula, and strict-smaller updates that
 retain the first palette entry on ties. Full lookups are copy-owned, replaceable,
@@ -163,7 +163,7 @@ Palette reduction, histogram/median-cut, initialized dispatch, transformed-info
 projection, and C ABI remain open, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004Y translates the histogram-backed reduction branch for both full and
+Porting milestone S004Y translates the histogram-backed reduction branch for both full and
 non-full modes. The implementation preserves descending bubble-sort selection,
 equal-frequency order, full palette relocation, non-full swap/remap updates,
 and first-closest Manhattan RGB mapping for discarded colors. Palette and
@@ -172,7 +172,7 @@ no-histogram closest-pair/median-cut branch, initialized dispatch,
 transformed-info projection, and C ABI remain open, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004Z translates the successful-allocation path of the no-histogram
+Porting milestone S004Z translates the successful-allocation path of the no-histogram
 closest-pair branch. It preserves 96-step distance windows, reverse bucket pair
 order, stale-pair rejection, odd/even elimination, last-slot compaction,
 bidirectional identity maps, and non-full remap updates before map mutation.
@@ -181,13 +181,13 @@ allocation-warning fallback, initialized dispatch, transformed-info projection,
 and C ABI remain open, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AA snapshots quantize mode plus lookup/remap tables during one-shot read
+Porting milestone S004AA snapshots quantize mode plus lookup/remap tables during one-shot read
 initialization and places the direct row body after Strip16 and before Expand16.
 The adapter remains bounded and copy-owned; complete dispatch and projected
 palette synchronization remain open, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AB snapshots the active quantize palette/count and synchronizes a
+Porting milestone S004AB snapshots the active quantize palette/count and synchronizes a
 copy-owned projected PLTE. The transformed-info branch preserves source PLTE
 when quantize is disabled and changes only 8-bit RGB/RGBA with a materialized
 full lookup to Indexed, after RGB/gray projection and before Expand16. Source
@@ -196,14 +196,14 @@ filler, pack, user-transform, complete metadata projection, complete dispatch,
 native allocation-warning fallback, and C ABI remain open, so the ledger stays
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AC adds `applyInitializedPngExpand16Stage` over the direct row body.
+Porting milestone S004AC adds `applyInitializedPngExpand16Stage` over the direct row body.
 Disabled stages remain validated copy-owned no-ops; Scale/Strip output expands
 back to network-order 16-bit pairs, while preceding Quantize produces Indexed
 rows that correctly block Expand16. The adapter proves the local frozen order
 without claiming automatic execution of preceding transforms or the complete
 dispatcher, so the ledger remains `24 translated / 7 partial / 14 pending`.
 
-LP-S004AD snapshots the retained payload required by `ReadStageExpand` and
+Porting milestone S004AD snapshots the retained payload required by `ReadStageExpand` and
 connects both direct expansion bodies through `applyInitializedPngExpandStage`.
 Indexed rows receive a copy-owned PLTE plus only the effective palette-alpha
 prefix that survives Strip Alpha; non-Indexed rows receive immutable Gray/RGB
@@ -212,7 +212,7 @@ color-key state. The adapter preserves the frozen shared transform bits behind
 metadata isolated. It does not execute adjacent stages or complete the stateful
 dispatcher, so the ledger remains `24 translated / 7 partial / 14 pending`.
 
-LP-S004AE translates the `pngtrans.c::png_do_strip_channel` dependency for
+Porting milestone S004AE translates the `pngtrans.c::png_do_strip_channel` dependency for
 8/16-bit two- and four-channel rows, including first/last component removal,
 network-byte preservation, alpha color-type updates, row-info shrinkage,
 copy-owned no-ops, and malformed-row priority. The initialized Strip Alpha
@@ -221,7 +221,7 @@ effective tRNS expansion. This advances dependency coverage but not the
 45-function `pngrtran.c` inventory count, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AF snapshots fixed RGB-to-gray configuration and adds the source-shaped
+Porting milestone S004AF snapshots fixed RGB-to-gray configuration and adds the source-shaped
 `pngDoRgbToGray` adapter for 8/16-bit RGB/RGBA rows. The combined
 `applyInitializedPngReadStages` entry executes Expand, Strip Alpha,
 RGB-to-gray, Gray-to-RGB, Scale/Strip16, Quantize, and Expand16 in frozen order;
@@ -231,7 +231,7 @@ status. This widens the bounded `png_do_read_transformations` anchor without
 changing the inventory totals, which remain
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AG snapshots the existing Invert Alpha, significant-bit Unshift,
+Porting milestone S004AG snapshots the existing Invert Alpha, significant-bit Unshift,
 Filler/Add Alpha, and Swap Alpha state and connects those translated row bodies
 after Expand16 in the combined initialized pipeline. The adapter preserves
 8/16-bit network-byte rows, exact filler growth, semantic added-alpha versus
@@ -241,7 +241,7 @@ priority, and whole-image transformed-byte limits. This advances the bounded
 `pngrtran.c` functions, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AH translates the shared `pngtrans.c::png_do_bgr` row body for natural
+Porting milestone S004AH translates the shared `pngtrans.c::png_do_bgr` row body for natural
 RGB/RGBA 8-bit and network-order 16-bit rows, preserving row information,
 copy ownership, unsupported no-op behavior, and malformed-row priority. It adds
 lifecycle-gated `setBgr()` state, snapshots that state during one-shot read
@@ -251,7 +251,7 @@ whole-image initialized execution. This advances the bounded
 `pngrtran.c` inventory function, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AI translates the shared `pngtrans.c::png_do_invert` body for packed,
+Porting milestone S004AI translates the shared `pngtrans.c::png_do_invert` body for packed,
 8-bit, and network-order 16-bit Grayscale rows plus GA8/GA16 gray components.
 It preserves packed padding inversion, alpha bytes, row information, copy-owned
 no-op behavior, and malformed-row priority. Lifecycle-gated `setInvertMono()`
@@ -260,7 +260,7 @@ whole-image initialized execution. This advances the bounded dispatcher anchor
 without adding a top-level `pngrtran.c` inventory function, so the ledger
 remains `24 translated / 7 partial / 14 pending`.
 
-LP-S004AJ translates read-side `pngtrans.c::png_set_packing` state and connects
+Porting milestone S004AJ translates read-side `pngtrans.c::png_set_packing` state and connects
 the existing direct `pngDoUnpack` body after Unshift and before BGR. The setter
 requires a known IHDR, enables only for source bit depths below 8, and is copied
 into the immutable one-shot initialization snapshot. Initialized Gray and
@@ -270,7 +270,7 @@ and whole-image transformed-byte limiting. This widens the bounded dispatcher
 and transformed-info anchors without adding a top-level `pngrtran.c` function,
 so the ledger remains `24 translated / 7 partial / 14 pending`.
 
-LP-S004AK translates read-side `pngtrans.c::png_set_packswap` state plus the
+Porting milestone S004AK translates read-side `pngtrans.c::png_set_packswap` state plus the
 shared `png_do_packswap` body. The direct row transform reverses 1-bit values,
 2-bit groups, or 4-bit nibbles in every stored byte, including final padding
 bits, without changing row information. The immutable initialized stage is
@@ -280,7 +280,7 @@ frozen dispatcher order. These anchors live in `pngtrans.c`, not the generated
 45-function `pngrtran.c` inventory, so the ledger remains
 `24 translated / 7 partial / 14 pending`.
 
-LP-S004AL translates read-side `pngtrans.c::png_set_swap` state plus the shared
+Porting milestone S004AL translates read-side `pngtrans.c::png_set_swap` state plus the shared
 `png_do_swap` body. The direct transform exchanges every adjacent byte pair in
 16-bit rows without changing row information. Immutable initialized execution
 places Byte Swap after Filler and Swap Alpha and before the eventual user
@@ -289,7 +289,7 @@ validated copy-owned no-op in those combinations. These anchors live in
 `pngtrans.c`, not the generated 45-function `pngrtran.c` inventory, so the
 ledger remains `24 translated / 7 partial / 14 pending`.
 
-LP-S004AM translates `pngset.c::png_set_check_for_invalid_index` state plus the
+Porting milestone S004AM translates `pngset.c::png_set_check_for_invalid_index` state plus the
 shared `pngtrans.c::png_do_check_palette_indexes` body. Default-enabled state is
 snapshotted with retained PLTE count, and direct 1/2/4/8-bit Indexed scanning
 updates only an accumulated maximum while excluding final-byte padding. The
@@ -298,7 +298,7 @@ plus whole-image results expose whether the maximum exceeds the retained PLTE.
 The setter/body live outside the generated 45-function `pngrtran.c` inventory,
 so the ledger remains `24 translated / 7 partial / 14 pending`.
 
-LP-S004AN adds native Cangjie read user-transform registration, byte-sized
+Porting milestone S004AN adds native Cangjie read user-transform registration, byte-sized
 depth/channel info, transformed-info projection, row/pass context, and the
 final initialized stage after Byte Swap. Callback input/output is copy-owned,
 configured nonzero depth/channels override callback-returned row information,
@@ -307,7 +307,7 @@ setter moves from pending to partial because null callback semantics, late
 mutation, raw user pointers, and the C ABI trampoline remain open. The current
 ledger is `24 translated / 8 partial / 13 pending`.
 
-LP-S004AO translates the floating-point `png_set_rgb_to_gray` facade and its
+Porting milestone S004AO translates the floating-point `png_set_rgb_to_gray` facade and its
 `png_fixed` dependency. `pngFixedFromFloat64` applies exact
 `floor(100000 * value + 0.5)` conversion, rejects non-finite and signed-32-bit
 overflow values before mutation, and delegates accepted fixed values into the
@@ -315,7 +315,7 @@ existing lifecycle-gated `setRgbToGrayFixed` path. The direct C ABI wrapper and
 warning callback delivery remain separate, while the ledger advances to
 `25 translated / 8 partial / 12 pending`.
 
-LP-S004AP translates the frozen-default floating-arithmetic branch of
+Porting milestone S004AP translates the frozen-default floating-arithmetic branch of
 `png_muldiv`, the shared `png_gamma_significant` predicate, and direct
 `png_gamma_threshold`. The fixed substrate preserves nearest rounding,
 divide-by-zero and signed-32-bit overflow failure, strict
@@ -324,7 +324,7 @@ multiplication forces gamma correction. Gamma setters, file-gamma resolution,
 tables, and row correction remain separate, while the ledger advances to
 `26 translated / 8 partial / 11 pending`.
 
-LP-S004AQ translates `png_reciprocal` through the accepted fixed
+Porting milestone S004AQ translates `png_reciprocal` through the accepted fixed
 multiply/divide substrate and adds immutable `pngResolveFileGamma` precedence.
 The first nonzero explicit file, chunk, or default gamma wins; otherwise a
 nonzero screen gamma is reciprocated, with zero or reciprocal failure returning
@@ -332,7 +332,7 @@ zero. Mutable read-state integration, gamma initialization, tables, and row
 correction remain separate, while the ledger advances to
 `27 translated / 8 partial / 10 pending`.
 
-LP-S004AR translates `png_init_gamma_values` as immutable
+Porting milestone S004AR translates `png_init_gamma_values` as immutable
 `pngInitGammaValues`. Positive resolved file and screen gamma values use the
 accepted threshold helper; a positive file with absent/nonpositive screen gamma
 uses the exact reciprocal; a nonpositive resolved file resets both values to
@@ -340,7 +340,7 @@ uses the exact reciprocal; a nonpositive resolved file resets both values to
 separate, while the ledger advances to
 `28 translated / 8 partial / 9 pending`.
 
-LP-S004AS translates gamma flag aliases, the inclusive supported range, and
+Porting milestone S004AS translates gamma flag aliases, the inclusive supported range, and
 `png_set_gamma_fixed` as lifecycle-gated `PngReadTransformState.setGammaFixed`.
 Accepted calls store translated file/screen values; invalid nonpositive inputs
 record application-error facts, unsupported values record a warning fact, and
@@ -348,7 +348,7 @@ failed calls preserve prior state. Floating conversion, callback delivery,
 initialization snapshot, tables, and row correction remain separate, while the
 ledger advances to `29 translated / 8 partial / 8 pending`.
 
-LP-S004AT translates `convert_gamma_value` and floating `png_set_gamma` as
+Porting milestone S004AT translates `convert_gamma_value` and floating `png_set_gamma` as
 `pngConvertGammaValue` plus `PngReadTransformState.setGamma`. Positive values
 below 128 are scaled by `PNG_FP_1`; other finite values remain fixed/flag-shaped
 before nearest rounding. Nonfinite and signed-32-bit overflow fail before state
@@ -356,7 +356,7 @@ mutation, and accepted values delegate into the AS fixed setter. Initialization
 snapshot, tables, row correction, callbacks, and C ABI remain separate, while
 the ledger advances to `30 translated / 8 partial / 7 pending`.
 
-LP-S004AU connects configured file/screen gamma state and retained gAMA chunk
+Porting milestone S004AU connects configured file/screen gamma state and retained gAMA chunk
 gamma to `initializePngReadTransformations`. The initializer constructs one
 immutable `PngFileGammaSources`, applies the translated precedence and fallback
 through `pngInitGammaValues`, and exposes resolved values plus correction status
@@ -366,7 +366,7 @@ is isolated from post-initialization mutation. Gamma tables, row correction,
 background/alpha mode, palette mutation, callbacks, and C ABI remain separate,
 so the ledger remains `30 translated / 8 partial / 7 pending`.
 
-LP-S004AV translates the frozen floating-arithmetic
+Porting milestone S004AV translates the frozen floating-arithmetic
 `png_gamma_8bit_correct` helper and result-equivalent `png_build_8bit_table`
 substrate from `png.c`. Exact endpoints, nearest `pow` rounding, identity
 filling, significant table generation, exhaustive table/scalar equivalence,
@@ -375,7 +375,7 @@ generated 45-function `pngrtran.c` inventory; initialization attachment,
 16-bit tables, and `png_do_gamma` remain separate, so the ledger remains
 `30 translated / 8 partial / 7 pending`.
 
-LP-S004AW translates frozen `png_reciprocal2` plus the 8-bit branch of
+Porting milestone S004AW translates frozen `png_reciprocal2` plus the 8-bit branch of
 `png_build_gamma_table` and attaches direct/to-linear/from-linear table
 snapshots to immutable read initialization. Tables are built only for required
 file-to-screen correction or linear RGB-to-gray work, and all row-stage
@@ -384,14 +384,14 @@ ordinals remain unchanged. These helpers remain outside the generated
 RGB-to-gray row arithmetic, and 16-bit tables remain separate, so the ledger
 remains `30 translated / 8 partial / 7 pending`.
 
-LP-S004AX translates packed 2/4-bit and 8-bit `png_do_gamma` row execution,
+Porting milestone S004AX translates packed 2/4-bit and 8-bit `png_do_gamma` row execution,
 including alpha preservation, 1-bit/palette/16-bit bounded no-ops, initialized
 direct-table gating, whole-image execution, and stable prior stage identities.
 The inventoried `png_do_gamma` row advances from pending to partial; 16-bit
 segmented-table branches and gamma-aware RGB-to-gray remain separate. The
 ledger advances to `30 translated / 9 partial / 6 pending`.
 
-LP-S004AY translates frozen `png_gamma_16bit_correct` and
+Porting milestone S004AY translates frozen `png_gamma_16bit_correct` and
 `png_build_16bit_table` helpers from `png.c`. The immutable Cangjie table keeps
 the exact shift `0..8` segmented topology, significant direct scaling,
 insignificant identity scaling, deep-copy ownership, and selected exhaustive
@@ -400,7 +400,7 @@ equivalence proofs. These helpers are outside the generated 45-function
 16-bit `png_do_gamma`, and gamma-aware RGB-to-gray remain separate, so the
 ledger remains `30 translated / 9 partial / 6 pending`.
 
-LP-S004AZ translates frozen `png_build_16to8_table`, gamma-shift selection,
+Porting milestone S004AZ translates frozen `png_build_16to8_table`, gamma-shift selection,
 and the 16-bit branch of `png_build_gamma_table` from `png.c`. Immutable read
 initialization now retains sBIT/reduction-aware direct or 16-to-8 tables plus
 optional to-linear/from-linear tables without enabling 16-bit row execution.
@@ -408,14 +408,14 @@ These helpers remain outside the generated inventory; `png_do_gamma` stays
 partial until its 16-bit branches land, so the ledger remains
 `30 translated / 9 partial / 6 pending`.
 
-LP-S004BA completes 16-bit Gray/GA/RGB/RGBA `png_do_gamma` execution through
+Porting milestone S004BA completes 16-bit Gray/GA/RGB/RGBA `png_do_gamma` execution through
 the initialized segmented direct or 16-to-8-specialized table. Network order,
 alpha preservation, Gamma-before-reduction order, whole-image behavior, and
 consumer use are covered. The inventoried row advances from partial to
 translated, so the ledger advances to
 `31 translated / 8 partial / 6 pending`.
 
-LP-S004BB completes the frozen gamma-table branches of `png_do_rgb_to_gray` for
+Porting milestone S004BB completes the frozen gamma-table branches of `png_do_rgb_to_gray` for
 8/16-bit RGB and RGBA rows. Initialized execution compares original samples,
 uses to-linear tables for unequal RGB, applies the rounded fixed coefficients,
 maps through from-linear tables, uses direct correction for equal RGB, and
@@ -424,7 +424,7 @@ ownership, malformed-row, and consumer proof are covered. The inventoried row
 was already translated, so the ledger remains
 `31 translated / 8 partial / 6 pending`.
 
-LP-S004BC translates `png_set_background_fixed` and its floating facade into
+Porting milestone S004BC translates `png_set_background_fixed` and its floating facade into
 `PngReadTransformState`. The state retains a copy-owned `PngBackground`, frozen
 gamma code/value, background expansion, Compose plus Strip Alpha selection,
 Encode Alpha/Optimize Alpha cancellation, unknown-gamma diagnosis, lifecycle
@@ -433,7 +433,7 @@ gating, repeated replacement, and prior-state stability. Initialization and
 to translated, so the ledger advances to
 `33 translated / 8 partial / 4 pending`.
 
-LP-S004BD snapshots that accepted state through the still-partial palette, RGB,
+Porting milestone S004BD snapshots that accepted state through the still-partial palette, RGB,
 and read initializers. Opaque/no-transparency inputs cancel effective Compose
 and Background Expand; palette binary/partial transparency, color-key tRNS, and
 inherent alpha retain Compose. Requested palette-index and 1/2/4-bit grayscale
@@ -442,7 +442,7 @@ Alpha remains after effective Compose. `png_do_compose`, background gamma-table
 derivation, alpha-mode setters, and remaining initializer branches stay open,
 so the ledger remains `33 translated / 8 partial / 4 pending`.
 
-LP-S004BE continues those initializer rows through non-palette Compose
+Porting milestone S004BE continues those initializer rows through non-palette Compose
 preparation. It snapshots exact Expand16/16-to-8 background normalization,
 original/linear/screen colors, Screen/File/Unique `g` and `gs`, effective Screen
 gamma identity, and Compose-driven 8/16-bit linear tables. Palette inputs build
@@ -451,7 +451,7 @@ palette composition/mutation, alpha-mode setters, and remaining initializer
 branches stay open, so the ledger remains
 `33 translated / 8 partial / 4 pending`.
 
-LP-S004BF translates the complete row-local `png_do_compose` body into
+Porting milestone S004BF translates the complete row-local `png_do_compose` body into
 `pngDoCompose`. It covers packed 1/2/4-bit grayscale color-key replacement,
 2/4-bit direct Gamma for surviving samples, 8/16-bit Gray/RGB tRNS replacement,
 8/16-bit GA/RGBA alpha composition with frozen no-division rounding, direct
@@ -464,7 +464,7 @@ still-partial initializer rows, so `png_do_compose` advances from pending to
 translated and the ledger becomes
 `34 translated / 8 partial / 3 pending`.
 
-LP-S004BG translates the frozen Indexed PLTE/tRNS preprocessing branches across
+Porting milestone S004BG translates the frozen Indexed PLTE/tRNS preprocessing branches across
 `png_init_palette_transformations` and `png_init_read_transformations`.
 Initialization snapshots a copy-owned effective palette and alpha prefix,
 composes transparent and partial-alpha entries in encoded or linear space,
@@ -479,7 +479,7 @@ until alpha-mode Encode/Optimize behavior and the remaining projection/dispatch
 branches land, so the ledger remains
 `34 translated / 8 partial / 3 pending`.
 
-LP-S004BH translates both alpha-mode setter rows. The fixed setter preserves
+Porting milestone S004BH translates both alpha-mode setter rows. The fixed setter preserves
 the four frozen modes, screen-role Gamma sentinel translation and range gate,
 first-write reciprocal default file Gamma, Associated linear output,
 Optimized and Broken flags, black File-Gamma Compose background, PNG-mode
@@ -491,7 +491,7 @@ claiming the pending `png_do_encode_alpha` row stage. The two setter rows become
 translated and the ledger advances to
 `36 translated / 8 partial / 1 pending`.
 
-LP-S004BI translates the final pending `png_do_encode_alpha` body. Direct 8-bit
+Porting milestone S004BI translates the final pending `png_do_encode_alpha` body. Direct 8-bit
 and 16-bit GA/RGBA helpers transform only the final alpha component through the
 from-linear Gamma table, preserve color bytes and network order, validate rows
 before topology selection, and keep unsupported results copy-owned. Read
@@ -502,7 +502,7 @@ consumer paths execute the same stage. The row body becomes translated and the
 ledger reaches
 `37 translated / 8 partial / 0 pending`.
 
-LP-S004BJ closes Alpha Optimize/Encode initializer parity. Palette input now
+Porting milestone S004BJ closes Alpha Optimize/Encode initializer parity. Palette input now
 distinguishes opaque, binary-only, and partial tRNS; opaque and binary-only
 inputs cancel effective Encode/Optimize without mutating configured setter
 intent, and insignificant screen Gamma performs the same cancellation. Partial
@@ -514,7 +514,7 @@ are covered. `png_init_rgb_transformations` advances from partial to translated;
 the palette and complete read initializer rows retain other deferred branches,
 so the ledger becomes `38 translated / 7 partial / 0 pending`.
 
-LP-S004BK closes the final palette initializer branch. Background Expand plus
+Porting milestone S004BK closes the final palette initializer branch. Background Expand plus
 Expand without tRNS-to-alpha expansion now inverts the copy-owned effective
 palette alpha prefix byte-for-byte before the existing palette composition
 path. Source metadata and the implicit opaque tail remain unchanged, while the
@@ -524,7 +524,7 @@ whole-image execution, malformed-prefix behavior, and consumer use are covered.
 `png_init_palette_transformations` advances from partial to translated, so the
 ledger becomes `39 translated / 6 partial / 0 pending`.
 
-LP-S004BL translates the RGB-to-gray coefficient-defaulting branch reached from
+Porting milestone S004BL translates the RGB-to-gray coefficient-defaulting branch reached from
 `png_init_read_transformations`. Accepted explicit setter coefficients retain
 priority; otherwise valid retained cHRM primaries and reference white are
 converted to normalized Y contributions on the `32768` scale, with the frozen
@@ -535,7 +535,7 @@ execution, and standalone consumer use is covered. The read initializer still
 has complete dispatcher state outstanding, so the ledger remains
 `39 translated / 6 partial / 0 pending`.
 
-LP-S004BM closes the background-aware Gray-to-RGB dispatcher split. Background
+Porting milestone S004BM closes the background-aware Gray-to-RGB dispatcher split. Background
 Expand on grayscale-family input and equal-RGB Compose backgrounds mark the
 effective background gray; the latter also synchronizes `background.gray` from
 red before composition. Gray-to-RGB runs before Compose for non-gray
@@ -545,7 +545,7 @@ interdependencies and all 23 row-stage positions. Both inventoried rows advance
 to translated, so the ledger becomes
 `41 translated / 4 partial / 0 pending`.
 
-LP-S004BN completes the frozen default-config `png_read_transform_info`
+Porting milestone S004BN completes the frozen default-config `png_read_transform_info`
 projection. `PngReadTransformInfo` now retains the exact post-initialization
 tRNS count, effective Compose background, initialized file Gamma, synchronized
 palette, and final shape. Both early and post-Compose Strip Alpha clear alpha
@@ -556,7 +556,7 @@ user-transform depth/channels remain the final overrides. The info row advances
 from partial to translated, so the ledger becomes
 `42 translated / 3 partial / 0 pending`.
 
-LP-S004BO translates `png_set_crc_action` through `PngCrcAction` and
+Porting milestone S004BO translates `png_set_crc_action` through `PngCrcAction` and
 `PngReadSession.setCrcAction`. The six frozen numeric identities, independent
 critical and ancillary replacement, `NO_CHANGE`, default critical error and
 ancillary warn/discard behavior, and invalid critical `WARN_DISCARD` warning
@@ -568,7 +568,7 @@ callbacks. Framing, type, size, and IHDR-order failures still precede CRC
 policy. The setter row advances from partial to translated, so the ledger
 becomes `43 translated / 2 partial / 0 pending`.
 
-LP-S004BP closes native `png_set_read_user_transform_fn` registration parity.
+Porting milestone S004BP closes native `png_set_read_user_transform_fn` registration parity.
 Both typed callback registration and the no-argument no-callback form
 unconditionally enable `USER_TRANSFORM`; the latter executes as identity while
 still applying configured depth/channel projection. Initialization retains a
@@ -582,7 +582,7 @@ and standalone consumer paths are covered. Raw user pointers and the C ABI
 trampoline remain separate. The setter row advances from partial to translated,
 so the ledger becomes `44 translated / 1 partial / 0 pending`.
 
-LP-S004BQ closes the final inventoried partial at `png_set_quantize`. The
+Porting milestone S004BQ closes the final inventoried partial at `png_set_quantize`. The
 closest-pair path now accepts a quantize-specific deterministic allocation
 fault plan. A failure after any number of collected pair nodes discards the
 entire temporary bucket set before palette or remap mutation, increases the

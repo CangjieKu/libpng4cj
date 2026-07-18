@@ -712,8 +712,9 @@ unknown-screen fallback. `PngGamma8BitTables` owns every table copy.
 `PngReadTransformInitialization.gamma8BitTablesBuilt()` and
 `gamma8BitLinearTablesBuilt()` report the initialized snapshot. Direct tables
 are retained only for required correction or linear RGB-to-gray work at source
-depths up to 8. LP-S004AW retained these snapshots without row execution;
-LP-S004AX below consumes the direct table for bounded packed/8-bit rows.
+depths up to 8. The table-snapshot milestone retained these values without row
+execution; the following gamma-row milestone consumes the direct table for
+bounded packed/8-bit rows.
 
 `pngDoGamma(rowInfo, row, table)` translates the frozen packed and 8-bit
 branches of `png_do_gamma`. It corrects 2/4-bit packed grayscale and 8-bit

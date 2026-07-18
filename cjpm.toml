@@ -1,11 +1,11 @@
 [package]
-  cjc-version = "1.1.0"
+  cjc-version = "1.0.5"
   name = "libpng4cj"
-  version = "0.1.0"
+  version = "0.2.0"
   output-type = "static"
   src-dir = "src"
   compile-option = "-Woff unused"
   link-option = "-lz"
   license = "Libpng-2.0"
-  description = "Full libpng port program for Cangjie with a future libpng16 C ABI surface"
-  include = ["src", "test", "doc", "tools", "README.md", "README.OpenSource", "CHANGELOG.md", "LICENSE", "vendor/libpng-1.6.58/LICENSE"]
+  description = "Cangjie-native libpng 1.6.58 port with PNG read/write APIs and a preview libpng16 ABI subset"
+  include = ["src", "abi", "test", "doc", "tools", "README.md", "README-EN.md", "README.OpenSource", "CHANGELOG.md", "LICENSE", "vendor/libpng-1.6.58/LICENSE"]

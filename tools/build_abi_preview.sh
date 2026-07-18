@@ -7,7 +7,7 @@ OUT=${1:-"$ROOT/target/abi-preview/macos-arm64"}
 RUNTIME_DIR=${CANGJIE_HOME:-}/runtime/lib/darwin_aarch64_cjnative
 
 if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
-    printf '%s\n' 'libpng4cj ABI preview: only macOS arm64 is implemented in LP-S008A' >&2
+    printf '%s\n' 'libpng4cj ABI preview: only macOS arm64 is currently supported' >&2
     exit 2
 fi
 if [ -z "${CANGJIE_HOME:-}" ] || [ ! -d "$RUNTIME_DIR" ]; then

@@ -1,8 +1,8 @@
 # libpng4cj C ABI Surfaces
 
-LP-S008A adds a macOS arm64 preview C surface alongside the existing native
-Cangjie package. It does not replace the package coordinate or change the
-normal `cjpm build` static-library output.
+The initial ABI milestone adds a macOS arm64 preview C surface alongside the
+existing native Cangjie package. It does not replace the package coordinate or
+change the normal `cjpm build` static-library output.
 
 Build and verify:
 
@@ -31,9 +31,9 @@ dynamic library. The standalone consumer demonstrates the toolchain-required
 `InitCJRuntime`, `LoadCJLibraryWithInit`, call, and `FiniCJRuntime` lifecycle;
 that host bootstrap is not a libpng4cj C implementation layer.
 
-LP-S008B adds the upstream-compatible LP64 `png_image` layout, the simplified
-memory subset of its format/geometry macros and diagnostic fields, and the
-exact memory symbol names and signatures:
+The simplified-memory milestone adds the upstream-compatible LP64 `png_image`
+layout, the memory subset of its format/geometry macros and diagnostic fields,
+and the exact memory symbol names and signatures:
 
 - `png_image_begin_read_from_memory`
 - `png_image_finish_read`
@@ -64,7 +64,7 @@ lifecycle, formats, malformed input, limits, read/write ownership, and relocated
 loading. It also proves non-sRGB begin facts and distinct linear output when the
 16-bit-sRGB assumption is enabled.
 
-LP-S008C adds the four simplified stdio/file entry points:
+The file and stdio milestone adds four simplified entry points:
 
 - `png_image_begin_read_from_file`
 - `png_image_begin_read_from_stdio`
@@ -84,7 +84,7 @@ file and caller-owned stdio read/write, caller reuse and close, malformed/open/
 read/write failures, incomplete-file removal, exact symbols, and relocated
 loading.
 
-LP-S008D adds the first callback-free classic libpng utility cluster:
+The classic stateless milestone adds the first callback-free utility cluster:
 
 - `png_access_version_number`
 - `png_sig_cmp`

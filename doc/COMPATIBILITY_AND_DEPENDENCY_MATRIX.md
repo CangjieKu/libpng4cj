@@ -49,13 +49,12 @@ vendored upstream license surface.
 
 | Version | Evidence | Support wording |
 | --- | --- | --- |
-| 1.1.0 | Current macOS arm64 build, test, and consumer receipts | Declared and locally verified |
-| 1.0.5 | Repository-administrator audit reports successful compile/run | Observed externally; local reproduction and regression receipt pending |
+| 1.1.0 | Current macOS arm64 build, test, consumer, and ABI receipts | Locally verified toolchain |
+| 1.0.5 | Declared package minimum; repository-administrator audit reports successful compile/run | Declared and externally observed; a local 1.0.5 regression receipt is still pending |
 
-The package keeps `cjc-version = "1.1.0"` until a reproducible 1.0.5 toolchain
-receipt is checked in or otherwise file-backed. The administrator observation
-is useful compatibility evidence, but it is not silently promoted into the
-declared minimum.
+The package declares `cjc-version = "1.0.5"`. The current host uses Cangjie
+`1.1.0`, so the local build proves that the declared minimum is accepted by the
+newer toolchain; it does not replace a direct local regression run on 1.0.5.
 
 ## Coverage Boundary
 
