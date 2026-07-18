@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add a Cangjie-native simplified memory image facade with copy-owned
+  begin/finish/free lifecycle, header and diagnostic facts, nine common 8-bit
+  Gray/GA/AG/RGB/BGR/RGBA/ARGB/BGRA/ABGR layouts, explicit background
+  composition, exact contiguous buffer ownership, and non-interlaced or Adam7
+  memory write-back through existing metadata, control, and limit policy.
 - Add Adam7 support to `PngRowWriteSession.startTo(sink)` through bounded
   pass-local spooling: transform each accepted complete row once, gather only
   its seven-pass material, then filter and incrementally deflate in canonical

@@ -1732,7 +1732,32 @@ LP-S006K removes the Adam7 early-sink rejection through bounded pass spooling:
 
 These write paths finalize a complete image and support non-interlaced or
 Adam7 output.
-Raw C callback trampolines, simplified API, and complete libpng16 write ABI
-remain later LP-S007/LP-S008 work. ICC
-profile bytes are validated and emitted, but ICC pixel conversion is outside
-libpng's scope.
+Raw C callback trampolines, broader simplified linear/colormap/file surfaces,
+and complete libpng16 write ABI remain later LP-S007/LP-S008 work. ICC profile
+bytes are validated and emitted, but ICC pixel conversion is outside libpng's
+scope.
+
+LP-S007A starts the native simplified `png_image_*` route without claiming its
+C ABI:
+
+- `PngImage` owns copied memory input across explicit Empty, Reading,
+  Finished, Freed, and Failed states and exposes IHDR-derived header facts and
+  format suggestion after begin; pre-IDAT tRNS is honored during finish but is
+  not reflected in that early suggestion
+- `finishRead` accepts the nine common 8-bit Gray/GA/AG/RGB/BGR/RGBA/ARGB/
+  BGRA/ABGR layouts, scales 16-bit input through the existing exact reducer,
+  accepts packed/Indexed/tRNS and Adam7 sources, and returns one copy-owned
+  contiguous `PngImageBuffer`
+- alpha-retaining layouts preserve alpha; alpha-removing layouts use bounded
+  integer composition in encoded 8-bit sample space against an explicit
+  background, with black as the allocating convenience default; exact
+  gamma-aware `png_image_finish_read` parity remains outside this packet
+- `writePngImageToMemory` canonicalizes the same layouts and reuses the
+  existing non-interlaced/Adam7 writer, metadata plan, compression/filter
+  controls, and output limits
+- diagnostics retain warning/error bits, error-kind ordinal, byte offset, and
+  message while `free()` releases retained input idempotently
+
+Linear-16/associated-alpha semantics, color maps, negative/custom row stride,
+file/stdio operations, raw-pointer buffers, exact `png_image` struct layout,
+and exported `png_image_*` symbols remain later LP-S007/LP-S008 packets.

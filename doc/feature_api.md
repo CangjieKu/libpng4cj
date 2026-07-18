@@ -45,6 +45,9 @@ import libpng4cj.*
 - lifecycle-frozen `PngWriteControlState` configuration for filter subsets,
   compression level/memory/window/method/strategy, and deflate output-buffer
   sizing across whole-image, row, sink, and Adam7 write paths
+- copy-owned simplified memory images with begin/finish/free lifecycle, the
+  common Gray/GA/AG/RGB/BGR/RGBA/ARGB/BGRA/ABGR 8-bit layouts, explicit
+  background composition, and non-interlaced or Adam7 memory write-back
 - RGBA8, RGBA16, generalized row-shape, and initialized row transformations
 - fixed/floating RGB-to-gray, expansion, alpha, invert-mono, BGR, 16-bit
   reduction, quantize, filler, and significant-bit row operations
@@ -62,6 +65,44 @@ import libpng4cj.*
 
 The complete translated function inventory and exact status are maintained in
 [PNG_RTRAN_TRANSLATION_LEDGER.md](PNG_RTRAN_TRANSLATION_LEDGER.md).
+
+## Simplified Memory Image API
+
+`PngImage` exposes an allocating Cangjie-native memory facade:
+
+```cangjie
+let image = beginPngImageReadFromMemory(pngBytes)
+let bgra = image.finishRead(ImageBgra8)
+
+let controls = PngWriteControlState()
+controls.setCompressionLevel(Int32(3))
+let rewritten = writePngImageToMemory(
+    bgra, PngWriteMetadata(), controls, Adam7, PngWriteLimits()
+)
+```
+
+After `beginReadFromMemory`, width, height, source bit depth, source color
+type, and an IHDR-derived suggested 8-bit format are available without
+transferring input ownership. The suggestion reflects inherent Gray/RGB alpha;
+pre-IDAT `tRNS` is applied by `finishRead` but is not folded into that early
+suggestion. `finishRead` accepts Gray8, GA8, AG8, RGB8, BGR8, RGBA8, ARGB8,
+BGRA8, or ABGR8 and returns a copy-owned `PngImageBuffer` with exact channels,
+minimal row stride, byte count, whole-buffer copy, and row copies. Input at
+1/2/4/8/16-bit depth, Indexed/tRNS, non-interlaced, or Adam7 is accepted through
+the existing decoder.
+
+When the requested format removes alpha, the allocating facade performs bounded
+8-bit integer composition in encoded sample space onto the supplied
+`PngSrgbColor8`; the no-background overload uses black. This packet does not
+claim exact gamma-aware `png_image_finish_read` composition parity.
+`writePngImageToMemory` canonicalizes the same nine layouts and reuses the
+existing writer, metadata, controls, limits, and `None`/`Adam7` selection.
+`free()` releases retained input and is idempotent.
+
+This native packet is not the exact C `png_image` ABI. Linear-16 and associated
+alpha, colormap output, negative or custom row stride, file/stdio operations,
+raw pointers, struct layout, and exported `png_image_*` symbols remain later
+LP-S007/LP-S008 work.
 
 ## Non-Interlaced Packed Write
 

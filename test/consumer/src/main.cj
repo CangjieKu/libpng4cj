@@ -1230,6 +1230,19 @@ main(): Int64 {
         println("libpng4cj incremental row write consumer check failed")
         return 1
     }
+    let simplifiedImage = beginPngImageReadFromMemory(adam7StreamProbe.bytes)
+    let simplifiedBgra = simplifiedImage.finishRead(ImageBgra8)
+    let simplifiedWritten = writePngImageToMemory(simplifiedBgra, Adam7)
+    let simplifiedRoundTrip =
+        beginPngImageReadFromMemory(simplifiedWritten).finishRead(ImageBgra8)
+    if (simplifiedImage.state() != PngImageFinished ||
+        simplifiedBgra.rowStride != Int64(8) ||
+        simplifiedBgra.byteCount() != Int64(16) ||
+        simplifiedRoundTrip.bytes() != simplifiedBgra.bytes() ||
+        decodePng(simplifiedWritten).ihdr.interlaceMethod != Adam7) {
+        println("libpng4cj simplified memory image consumer check failed")
+        return 1
+    }
     println("libpng4cj ${LIBPNG4CJ_VERSION} / libpng ${LIBPNG_UPSTREAM_VERSION}")
     0
 }
