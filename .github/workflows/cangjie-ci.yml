@@ -1,0 +1,26 @@
+name: Cangjie CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cangjie-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Doctor, build, test, and consumer
+    runs-on: [self-hosted, cangjie, posix]
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Run native verification
+        shell: sh
+        run: ./tools/ci.sh
