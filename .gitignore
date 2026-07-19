@@ -1,5 +1,6 @@
 target/
 .DS_Store
 *.log
+*.macrocall
 .cache/
 .vscode/
