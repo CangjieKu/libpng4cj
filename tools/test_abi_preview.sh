@@ -34,6 +34,8 @@ CLASSIC_EXTENDED_METADATA_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-extended
 CLASSIC_EXTENDED_METADATA_ACTUAL="$OUT/libpng4cj-classic-extended-metadata-v1.actual.txt"
 CLASSIC_RUNTIME_CONTEXT_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-runtime-context-v1.txt"
 CLASSIC_RUNTIME_CONTEXT_ACTUAL="$OUT/libpng4cj-classic-runtime-context-v1.actual.txt"
+CLASSIC_OWNER_LIMITS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-owner-read-limits-v1.txt"
+CLASSIC_OWNER_LIMITS_ACTUAL="$OUT/libpng4cj-classic-owner-read-limits-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -188,6 +190,12 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_RUNTIME_CONTEXT_ACTUAL"
 diff -u "$CLASSIC_RUNTIME_CONTEXT_EXPECTED" "$CLASSIC_RUNTIME_CONTEXT_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_set_chunk_malloc_max" || \
+        $3 == "_png_set_user_limits") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_OWNER_LIMITS_ACTUAL"
+diff -u "$CLASSIC_OWNER_LIMITS_EXPECTED" "$CLASSIC_OWNER_LIMITS_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -452,6 +460,51 @@ cc "$ROOT/test/abi_consumer/png_classic_runtime_context.c" \
     "$OUT/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/basn0g01.png"
 
+cc "$ROOT/test/abi_consumer/png_classic_owner_read_limits.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-owner-read-limits-consumer"
+
+"$OUT/png-classic-owner-read-limits-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+if "$OUT/png-classic-owner-read-limits-consumer" \
+    "$OUT/libpng4cj_preview.dylib" dimension-limit \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+then
+    dimension_limit_status=0
+else
+    dimension_limit_status=$?
+fi
+[ "$dimension_limit_status" -eq 81 ] || {
+    printf '%s\n' \
+        "png_set_user_limits exit=$dimension_limit_status, expected=81" >&2
+    exit 1
+}
+if "$OUT/png-classic-owner-read-limits-consumer" \
+    "$OUT/libpng4cj_preview.dylib" chunk-limit \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+then
+    chunk_limit_status=0
+else
+    chunk_limit_status=$?
+fi
+[ "$chunk_limit_status" -eq 82 ] || {
+    printf '%s\n' \
+        "png_set_chunk_malloc_max exit=$chunk_limit_status, expected=82" >&2
+    exit 1
+}
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
@@ -465,6 +518,7 @@ cp "$OUT/png-classic-easy-access-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-scalar-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-extended-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-runtime-context-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-owner-read-limits-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -538,4 +592,33 @@ fi
 "$RELOCATED/png-classic-runtime-context-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+"$RELOCATED/png-classic-owner-read-limits-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+if "$RELOCATED/png-classic-owner-read-limits-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" dimension-limit \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+then
+    relocated_dimension_limit_status=0
+else
+    relocated_dimension_limit_status=$?
+fi
+[ "$relocated_dimension_limit_status" -eq 81 ] || {
+    printf '%s\n' \
+        "relocated png_set_user_limits exit=$relocated_dimension_limit_status, expected=81" >&2
+    exit 1
+}
+if "$RELOCATED/png-classic-owner-read-limits-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" chunk-limit \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+then
+    relocated_chunk_limit_status=0
+else
+    relocated_chunk_limit_status=$?
+fi
+[ "$relocated_chunk_limit_status" -eq 82 ] || {
+    printf '%s\n' \
+        "relocated png_set_chunk_malloc_max exit=$relocated_chunk_limit_status, expected=82" >&2
+    exit 1
+}
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

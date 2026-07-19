@@ -137,7 +137,7 @@ cjpm run
 - tag `v1.6.58`
 - commit `3061454d980de7d53608f594194cfac722721d2a`
 - 默认公开符号清单：`258`
-- 当前冻结 ABI 清单覆盖：`122/258` 个上游默认符号
+- 当前冻结 ABI 清单覆盖：`124/258` 个上游默认符号
 - `pngrtran.c` 顶层函数清单：`45`
 
 ## C ABI Preview
@@ -153,7 +153,13 @@ macOS arm64 可运行完整 ABI preview 验证：
 - 构建直接由仓颉 `@C` 导出的 dylib
 - 校验冻结的导出符号清单
 - 以 `-Wall -Wextra -Werror` 编译严格 C11 消费者
-- 验证 preview facade、`png_image` 内存/文件/stdio 子集、经典无状态工具、读取/info 句柄生命周期、warning/error 边界、自定义分配器所有权、custom/stdio `png_read_info`、核心 IHDR getter、固定/浮点 gAMA 与 cHRM、cHRM XYZ、sRGB/sBIT/bKGD/pHYs/PLTE/tRNS、oFFs/cICP/cLLI/mDCV、pCAL/sCAL/tIME/text/eXIf/iCCP/hIST/sPLT/unknown/rows getter、版本字符串、get-valid/签名/物理换算 getter 及 raw row/image/read-end
+- 验证 preview facade、`png_image` 内存/文件/stdio 子集、经典无状态工具、
+  读取/info 句柄生命周期、warning/error 边界、自定义分配器所有权、
+  custom/stdio `png_read_info`、owner 尺寸/单 chunk 限制 setter、核心 IHDR
+  getter、固定/浮点 gAMA 与 cHRM、cHRM XYZ、
+  sRGB/sBIT/bKGD/pHYs/PLTE/tRNS、oFFs/cICP/cLLI/mDCV、
+  pCAL/sCAL/tIME/text/eXIf/iCCP/hIST/sPLT/unknown/rows getter、版本字符串、
+  get-valid/签名/物理换算 getter 及 raw row/image/read-end
 - 把 dylib 移动后重新运行消费者，验证同机重定位加载
 
 C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例消费者已经展示
@@ -166,7 +172,9 @@ C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例�
 `0.2.0 preview` 暂不声称：
 
 - 完整的 libpng16 默认配置符号与行为兼容
-- `png_struct` / `png_info` 的变换后行、Adam7 pass/display 合并、尚未填充的 rows 高层生命周期、剩余 runtime/context getter、完整 read-end 元数据、写入和元数据状态 API
+- `png_struct` / `png_info` 的变换后行、Adam7 pass/display 合并、尚未填充的
+  rows 高层生命周期、其余 runtime/context setter 与注册、完整 read-end
+  元数据、写入和元数据状态 API
 - `setjmp` / `longjmp`、chunk/row-status 等其余 C 回调与原始用户指针族
 - ICC profile 驱动的像素颜色转换
 - Linux、Windows、HarmonyOS/OpenHarmony ABI 制品验证

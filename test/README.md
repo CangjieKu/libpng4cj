@@ -54,3 +54,9 @@ signatures; verifies frozen 1.6.58 read-owner defaults, NULL registration
 contexts, row cursor movement, pass/IO/palette status, null and stale handles,
 and original plus relocated execution without claiming the held setter or
 progressive/write registration surfaces.
+
+The owner-read-limits consumer freezes `png_set_user_limits` and
+`png_set_chunk_malloc_max`; verifies default, replacement, zero-as-unlimited,
+callback-time snapshot, null, and stale behavior; proves real IHDR dimension
+and per-chunk rejection through exact fatal callbacks; and repeats original
+plus relocated execution.

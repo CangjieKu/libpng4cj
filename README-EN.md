@@ -143,7 +143,7 @@ The current baseline is:
 - tag `v1.6.58`
 - commit `3061454d980de7d53608f594194cfac722721d2a`
 - default public-symbol inventory: `258`
-- current frozen ABI manifests cover `122/258` upstream default symbols
+- current frozen ABI manifests cover `124/258` upstream default symbols
 - top-level `pngrtran.c` function inventory: `45`
 
 ## C ABI Preview
@@ -162,7 +162,8 @@ It performs the following checks:
 - exercises the preview facade, `png_image` memory/file/stdio subset,
   stateless classic utilities, read/info handle lifecycle, warning callbacks,
   fatal error subprocess boundaries, custom allocator ownership, and
-  custom/stdio `png_read_info`, core IHDR getters, fixed/floating gAMA and
+  custom/stdio `png_read_info`, owner dimension/per-chunk limit setters,
+  core IHDR getters, fixed/floating gAMA and
   cHRM and cHRM XYZ, sRGB/sBIT/bKGD/pHYs/PLTE/tRNS,
   oFFs/cICP/cLLI/mDCV, pCAL/sCAL/tIME/text/eXIf/iCCP/hIST/sPLT/unknown/rows
   getters, version strings, get-valid/signature/physical conversion getters,
@@ -181,8 +182,8 @@ See [C ABI Surfaces](doc/ABI_PREVIEW.md) for details.
 
 - complete default-config libpng16 symbol or behavior compatibility
 - transformed rows, Adam7 pass/display combination, high-level rows population,
-  runtime/context setter and registration parity, complete read-end metadata,
-  write state,
+  remaining runtime/context setter and registration parity, complete read-end
+  metadata, write state,
   and the remaining `png_struct` / `png_info` state API
 - `setjmp` / `longjmp`, chunk/row-status callback families, and the remaining
   raw user-pointer families

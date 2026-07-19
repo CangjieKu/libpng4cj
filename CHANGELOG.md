@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add direct Cangjie `png_set_user_limits` and
+  `png_set_chunk_malloc_max` exports with next-read dimension and per-chunk
+  enforcement.
+- Preserve callback-time operation snapshots, replacement and zero-as-unlimited
+  state, exact fatal diagnostics, a two-symbol manifest, and original plus
+  relocated strict C11 proof.
+
 - Add all fourteen remaining classic `png_get_*` exports for read-owner limits,
   compression buffer size, row/pass and IO status, palette/RGB-to-gray status,
   and progressive/user context pointers.

@@ -693,6 +693,15 @@ int png_get_unknown_chunks(
     png_infop info_ptr,
     png_unknown_chunkpp entries
 );
+void png_set_user_limits(
+    png_structp png_ptr,
+    png_uint_32 user_width_max,
+    png_uint_32 user_height_max
+);
+void png_set_chunk_malloc_max(
+    png_structp png_ptr,
+    png_alloc_size_t user_chunk_malloc_max
+);
 png_uint_32 png_get_chunk_cache_max(png_const_structp png_ptr);
 png_alloc_size_t png_get_chunk_malloc_max(png_const_structp png_ptr);
 size_t png_get_compression_buffer_size(png_const_structp png_ptr);

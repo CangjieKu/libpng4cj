@@ -1196,7 +1196,8 @@ private func pngCClassicBeginReadInfo(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): Option<(
     PngCClassicReadState, PngCClassicAllocatorSnapshot,
-    CPointer<Unit>, CPointer<Unit>, UInt8
+    CPointer<Unit>, CPointer<Unit>, UInt8,
+    UInt32, UInt32, UIntNative
 )> {
     if (pngPtr.isNull() || infoPtr.isNull()) { return None }
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
@@ -1214,7 +1215,9 @@ private func pngCClassicBeginReadInfo(
                             state.readOperationActive = true
                             Some((
                                 state, infoState.allocator,
-                                state.ioPtr, state.readFn, state.sigBytes
+                                state.ioPtr, state.readFn, state.sigBytes,
+                                state.userWidthMax, state.userHeightMax,
+                                state.chunkMallocMax
                             ))
                         }
                     case None => None
@@ -1592,6 +1595,43 @@ private func pngCClassicCaptureInput(
     input.toArray()
 }
 
+private func pngCClassicEffectiveChunkMax(value: UIntNative): UInt32 {
+    if (value == UIntNative(0) || value > UIntNative(PNG_UINT_31_MAX)) {
+        PNG_UINT_31_MAX
+    } else {
+        UInt32(value)
+    }
+}
+
+private func pngCClassicEffectiveDimensionMax(value: UInt32): UInt32 {
+    if (value > PNG_UINT_31_MAX) { PNG_UINT_31_MAX } else { value }
+}
+
+private func pngCClassicDecodeWithLimits(
+    input: Array<Byte>,
+    userWidthMax: UInt32,
+    userHeightMax: UInt32,
+    chunkMallocMax: UIntNative
+): PngDecodedRows {
+    let chunkMax = pngCClassicEffectiveChunkMax(chunkMallocMax)
+    let headerLimits = PngReadLimits(
+        chunkMax, PNG_UINT_31_MAX, PNG_UINT_31_MAX
+    )
+    let ihdr = readPngIhdr(input, headerLimits)
+    if (ihdr.width > userWidthMax || ihdr.height > userHeightMax) {
+        throw PngFormatException(
+            InvalidIhdr, Int64(16),
+            "IHDR dimensions exceed configured limits"
+        )
+    }
+    let widthMax = pngCClassicEffectiveDimensionMax(userWidthMax)
+    let heightMax = pngCClassicEffectiveDimensionMax(userHeightMax)
+    decodePng(
+        input,
+        PngReadLimits(chunkMax, widthMax, heightMax)
+    )
+}
+
 private func pngCClassicAllocateTracked(
     pngPtr: CPointer<Unit>, size: UIntNative
 ): CPointer<Unit> {
@@ -1798,6 +1838,46 @@ public func png_get_io_ptr(
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
             case Some(state) => state.ioPtr
             case None => CPointer<Unit>()
+        }
+    }
+}
+
+@C
+public func png_set_user_limits(
+    pngPtr: CPointer<Unit>,
+    userWidthMax: UInt32,
+    userHeightMax: UInt32
+): Unit {
+    if (pngPtr.isNull()) { return }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (!state.destroying) {
+                    state.userWidthMax = userWidthMax
+                    state.userHeightMax = userHeightMax
+                }
+            case None => ()
+        }
+    }
+}
+
+@C
+public func png_set_chunk_malloc_max(
+    pngPtr: CPointer<Unit>, userChunkMallocMax: UIntNative
+): Unit {
+    if (pngPtr.isNull()) { return }
+    let normalized = if (userChunkMallocMax == UIntNative(0)) {
+        UIntNative.Max
+    } else {
+        userChunkMallocMax
+    }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
+            case Some(state) =>
+                if (!state.destroying) {
+                    state.chunkMallocMax = normalized
+                }
+            case None => ()
         }
     }
 }
@@ -2024,12 +2104,17 @@ public func png_read_info(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): Unit {
     match (pngCClassicBeginReadInfo(pngPtr, infoPtr)) {
-        case Some((state, allocator, ioPtr, readFn, sigBytes)) =>
+        case Some((
+            state, allocator, ioPtr, readFn, sigBytes,
+            userWidthMax, userHeightMax, chunkMallocMax
+        )) =>
             try {
                 let input = pngCClassicCaptureInput(
                     pngPtr, ioPtr, readFn, sigBytes
                 )
-                let decoded = decodePng(input)
+                let decoded = pngCClassicDecodeWithLimits(
+                    input, userWidthMax, userHeightMax, chunkMallocMax
+                )
                 let backing = pngCClassicBuildMetadataBacking(
                     pngPtr, state, allocator, decoded
                 )

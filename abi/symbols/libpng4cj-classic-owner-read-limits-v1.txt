@@ -1,0 +1,2 @@
+png_set_chunk_malloc_max
+png_set_user_limits

@@ -35,6 +35,9 @@ The generated directory contains:
 - `png-classic-runtime-context-consumer`: strict C11 read-owner defaults,
   row/pass and IO status, palette status, NULL registration contexts, and
   stale/null lifecycle proof
+- `png-classic-owner-read-limits-consumer`: strict C11 owner dimension and
+  per-chunk limit mutation, zero-as-unlimited, callback snapshot, fatal limit,
+  and stale/null lifecycle proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -278,10 +281,20 @@ and proves null, wrong-info, stale, original, and relocated execution. The
 frozen manifests now cover `122/258` upstream default symbols, leaving `136`
 and no unmanifested `png_get_*` symbols.
 
+The classic owner-read-limit milestone adds `png_set_user_limits` and
+`png_set_chunk_malloc_max`, frozen in
+`abi/symbols/libpng4cj-classic-owner-read-limits-v1.txt`. A read operation
+snapshots both limits before caller callbacks run, then applies them to IHDR
+dimension validation and individual chunk allocation. Later callback-side
+setter changes remain visible to getters and affect the next operation.
+Chunk-malloc value zero normalizes to `PNG_SIZE_MAX`, while the effective PNG
+chunk bound remains `PNG_UINT_31_MAX`. Strict subprocess proof freezes both
+fatal diagnostics. The manifests now cover `124/258`, leaving `134` symbols.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
 pass-progress/display combination, exact callback/cursor timing, high-level
-rows population, runtime/context setter and registration parity, broader read-end
-metadata/write state, remaining callback families and public symbols, and
+rows population, remaining runtime/context setter and registration parity,
+broader read-end metadata/write state, remaining callback families and public symbols, and
 non-macOS ABI packaging remain
 outside this checkpoint.

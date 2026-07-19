@@ -1990,10 +1990,22 @@ Porting milestone S008O adds the remaining classic runtime/context getters:
 The frozen ABI manifests cover `122/258` upstream default symbols after this
 milestone, leaving `136` and no unmanifested `png_get_*` symbols.
 
+Porting milestone S008P adds classic owner read-limit setters:
+
+- direct Cangjie `png_set_user_limits` and `png_set_chunk_malloc_max` exports
+- read-operation snapshots before caller callbacks, with next-read IHDR
+  dimension and per-chunk allocation enforcement
+- upstream zero-as-unlimited chunk-malloc normalization to `PNG_SIZE_MAX`
+- frozen two-symbol manifest plus strict C11 replacement, callback mutation,
+  fatal dimension/chunk limit, null, stale, original, and relocated proof
+
+The frozen ABI manifests cover `124/258` upstream default symbols after this
+milestone, leaving `134`.
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor
-timing, high-level rows population, runtime/context setter and registration
+timing, high-level rows population, remaining runtime/context setter and registration
 parity, broader read-end metadata/write state,
 remaining callback families, complete public-symbol parity, and portable packaging remain later
 Porting milestone S008 and LTS work.
