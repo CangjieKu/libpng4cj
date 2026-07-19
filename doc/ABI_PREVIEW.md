@@ -38,6 +38,9 @@ The generated directory contains:
 - `png-classic-owner-read-limits-consumer`: strict C11 owner dimension and
   per-chunk limit mutation, zero-as-unlimited, callback snapshot, fatal limit,
   and stale/null lifecycle proof
+- `png-classic-write-chunk-consumer`: strict C11 write-owner, custom allocator,
+  custom/stdio sink, signature, streamed and one-shot chunk, exact CRC, flush,
+  fatal declared-length, and stale/null lifecycle proof
 
 The v1 preview supports signature checks and caller-owned RGBA8 decode,
 including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
@@ -291,10 +294,21 @@ Chunk-malloc value zero normalizes to `PNG_SIZE_MAX`, while the effective PNG
 chunk bound remains `PNG_UINT_31_MAX`. Strict subprocess proof freezes both
 fatal diagnostics. The manifests now cover `124/258`, leaving `134` symbols.
 
+The classic write-chunk milestone adds ten direct Cangjie symbols frozen in
+`abi/symbols/libpng4cj-classic-write-chunk-v1.txt`: write-owner creation and
+destruction, write callback registration, signature emission, streamed and
+one-shot raw chunk output, and flushing. Read and write owners share allocator,
+error, info, and IO context contracts while rejecting cross-direction
+operations. Write callbacks run outside the registry mutex with owner mutation
+frozen for the callback duration, and expose exact `PNG_IO_WRITING` location
+state plus the active chunk type. The strict consumer reproduces a real PNG
+fixture byte-for-byte through both custom and stdio sinks, including exact CRC,
+custom allocation ownership, relocated execution, and fatal declared-length
+diagnostics. The manifests now cover `134/258`, leaving `124` symbols.
+
 These surfaces are not yet the complete libpng16 drop-in ABI, a portable
 release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
 pass-progress/display combination, exact callback/cursor timing, high-level
-rows population, remaining runtime/context setter and registration parity,
-broader read-end metadata/write state, remaining callback families and public symbols, and
-non-macOS ABI packaging remain
-outside this checkpoint.
+rows population, write-info/row/image APIs, remaining runtime/context setter
+and registration parity, remaining callback families and public symbols, and
+non-macOS ABI packaging remain outside this checkpoint.

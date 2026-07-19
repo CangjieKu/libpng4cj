@@ -137,7 +137,7 @@ cjpm run
 - tag `v1.6.58`
 - commit `3061454d980de7d53608f594194cfac722721d2a`
 - 默认公开符号清单：`258`
-- 当前冻结 ABI 清单覆盖：`124/258` 个上游默认符号
+- 当前冻结 ABI 清单覆盖：`134/258` 个上游默认符号
 - `pngrtran.c` 顶层函数清单：`45`
 
 ## C ABI Preview
@@ -159,7 +159,8 @@ macOS arm64 可运行完整 ABI preview 验证：
   getter、固定/浮点 gAMA 与 cHRM、cHRM XYZ、
   sRGB/sBIT/bKGD/pHYs/PLTE/tRNS、oFFs/cICP/cLLI/mDCV、
   pCAL/sCAL/tIME/text/eXIf/iCCP/hIST/sPLT/unknown/rows getter、版本字符串、
-  get-valid/签名/物理换算 getter 及 raw row/image/read-end
+  get-valid/签名/物理换算 getter、raw row/image/read-end，以及 write owner、
+  custom/stdio 输出、签名、流式/整块 raw chunk、CRC 与 flush
 - 把 dylib 移动后重新运行消费者，验证同机重定位加载
 
 C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例消费者已经展示
@@ -174,7 +175,7 @@ C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例�
 - 完整的 libpng16 默认配置符号与行为兼容
 - `png_struct` / `png_info` 的变换后行、Adam7 pass/display 合并、尚未填充的
   rows 高层生命周期、其余 runtime/context setter 与注册、完整 read-end
-  元数据、写入和元数据状态 API
+  元数据、write-info/row/image 和元数据状态 API
 - `setjmp` / `longjmp`、chunk/row-status 等其余 C 回调与原始用户指针族
 - ICC profile 驱动的像素颜色转换
 - Linux、Windows、HarmonyOS/OpenHarmony ABI 制品验证

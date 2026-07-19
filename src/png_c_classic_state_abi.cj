@@ -62,6 +62,7 @@ class PngCClassicAllocatorSnapshot {
 }
 
 class PngCClassicReadState {
+    let writeOwner: Bool
     var errorPtr: CPointer<Unit>
     var errorFn: CPointer<Unit>
     var warningFn: CPointer<Unit>
@@ -74,6 +75,13 @@ class PngCClassicReadState {
     var readFn = CPointer<Unit>()
     var sigBytes = UInt8(0)
     var readOperationActive = false
+    var writeCallbackActive = false
+    var writeFn = CPointer<Unit>()
+    var flushFn = CPointer<Unit>()
+    var signatureWritten = false
+    var writeChunkActive = false
+    var writeChunkRemaining = UInt64(0)
+    var writeChunkCrc = pngCrc32Start()
     var decodedRows: Option<PngDecodedRows> = None
     var decodedInfoHandle = UIntNative(0)
     var nextRow = Int64(0)
@@ -96,6 +104,7 @@ class PngCClassicReadState {
     let selfAllocator: PngCClassicAllocatorSnapshot
 
     init(
+        writeOwner: Bool,
         errorPtr: CPointer<Unit>,
         errorFn: CPointer<Unit>,
         warningFn: CPointer<Unit>,
@@ -103,6 +112,7 @@ class PngCClassicReadState {
         mallocFn: CPointer<Unit>,
         freeFn: CPointer<Unit>
     ) {
+        this.writeOwner = writeOwner
         this.errorPtr = errorPtr
         this.errorFn = errorFn
         this.warningFn = warningFn
@@ -238,8 +248,8 @@ private class PngCClassicTrackedAllocation {
     }
 }
 
-private let PNG_C_CLASSIC_REGISTRY_MUTEX = Mutex()
-private let PNG_C_CLASSIC_READ_REGISTRY =
+let PNG_C_CLASSIC_REGISTRY_MUTEX = Mutex()
+let PNG_C_CLASSIC_READ_REGISTRY =
     HashMap<UIntNative, PngCClassicReadState>()
 private let PNG_C_CLASSIC_INFO_REGISTRY =
     HashMap<UIntNative, PngCClassicInfoState>()
@@ -1040,21 +1050,22 @@ func pngCClassicErrorText(
     unsafe { png_error(handle, text) }
 }
 
-private func pngCClassicCreateRead(
+private func pngCClassicCreateOwner(
     userPngVer: CString,
     errorPtr: CPointer<Unit>,
     errorFn: CPointer<Unit>,
     warningFn: CPointer<Unit>,
     memPtr: CPointer<Unit>,
     mallocFn: CPointer<Unit>,
-    freeFn: CPointer<Unit>
+    freeFn: CPointer<Unit>,
+    writeOwner: Bool
 ): CPointer<Unit> {
     if (!pngCClassicCompatibleVersion(userPngVer)) {
         return CPointer<Unit>()
     }
 
     let state = PngCClassicReadState(
-        errorPtr, errorFn, warningFn, memPtr, mallocFn, freeFn
+        writeOwner, errorPtr, errorFn, warningFn, memPtr, mallocFn, freeFn
     )
     let creationHandle = pngCClassicDefaultAllocate(UIntNative(1))
     if (!pngCClassicRegisterReadAlias(creationHandle, state)) {
@@ -1087,6 +1098,21 @@ private func pngCClassicCreateRead(
     pngCClassicRemoveReadAlias(creationHandle)
     pngCClassicDefaultFree(creationHandle)
     handle
+}
+
+private func pngCClassicCreateRead(
+    userPngVer: CString,
+    errorPtr: CPointer<Unit>,
+    errorFn: CPointer<Unit>,
+    warningFn: CPointer<Unit>,
+    memPtr: CPointer<Unit>,
+    mallocFn: CPointer<Unit>,
+    freeFn: CPointer<Unit>
+): CPointer<Unit> {
+    pngCClassicCreateOwner(
+        userPngVer, errorPtr, errorFn, warningFn,
+        memPtr, mallocFn, freeFn, false
+    )
 }
 
 private func pngCClassicRegisterInfo(
@@ -1140,7 +1166,9 @@ private func pngCClassicReleaseInfo(
                 if (infoState.owner == owner.toUIntNative() &&
                     PNG_C_CLASSIC_READ_REGISTRY.get(
                         infoState.owner
-                    ).isSome()) {
+                    ).isSome() &&
+                    !infoState.readState.writeCallbackActive &&
+                    !infoState.readState.writeChunkActive) {
                     let key = handle.toUIntNative()
                     PNG_C_CLASSIC_INFO_REGISTRY.remove(key)
                     if (infoState.readState.decodedInfoHandle == key) {
@@ -1162,8 +1190,8 @@ private func pngCClassicReleaseInfo(
     }
 }
 
-private func pngCClassicReleaseRead(
-    pngPtrPtr: CPointer<CPointer<Unit>>
+private func pngCClassicReleaseOwner(
+    pngPtrPtr: CPointer<CPointer<Unit>>, writeOwner: Bool
 ): Unit {
     if (pngPtrPtr.isNull()) { return }
     let handle = unsafe { pngPtrPtr.read() }
@@ -1173,8 +1201,11 @@ private func pngCClassicReleaseRead(
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(handle.toUIntNative())) {
             case Some(state) =>
-                if (!state.destroying && !state.allocatorCallbackActive &&
-                    !state.readOperationActive) {
+                if (state.writeOwner == writeOwner && !state.destroying &&
+                    !state.allocatorCallbackActive &&
+                    !state.readOperationActive &&
+                    !state.writeCallbackActive &&
+                    !state.writeChunkActive) {
                     state.destroying = true
                     unsafe { pngPtrPtr.write(CPointer<Unit>()) }
                     released = Some(state)
@@ -1192,6 +1223,12 @@ private func pngCClassicReleaseRead(
     }
 }
 
+private func pngCClassicReleaseRead(
+    pngPtrPtr: CPointer<CPointer<Unit>>
+): Unit {
+    pngCClassicReleaseOwner(pngPtrPtr, false)
+}
+
 private func pngCClassicBeginReadInfo(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): Option<(
@@ -1207,7 +1244,8 @@ private func pngCClassicBeginReadInfo(
                     infoPtr.toUIntNative()
                 )) {
                     case Some(infoState) =>
-                        if (infoState.owner != pngPtr.toUIntNative() ||
+                        if (state.writeOwner ||
+                            infoState.owner != pngPtr.toUIntNative() ||
                             state.destroying || state.readOperationActive ||
                             state.decodedRows.isSome()) {
                             None
@@ -1667,6 +1705,27 @@ private func pngCClassicAllocateTracked(
     }
 }
 
+private func pngCClassicCreateWrite(
+    userPngVer: CString,
+    errorPtr: CPointer<Unit>,
+    errorFn: CPointer<Unit>,
+    warningFn: CPointer<Unit>,
+    memPtr: CPointer<Unit>,
+    mallocFn: CPointer<Unit>,
+    freeFn: CPointer<Unit>
+): CPointer<Unit> {
+    pngCClassicCreateOwner(
+        userPngVer, errorPtr, errorFn, warningFn,
+        memPtr, mallocFn, freeFn, true
+    )
+}
+
+private func pngCClassicReleaseWrite(
+    pngPtrPtr: CPointer<CPointer<Unit>>
+): Unit {
+    pngCClassicReleaseOwner(pngPtrPtr, true)
+}
+
 @C
 public func png_create_read_struct(
     userPngVer: CString,
@@ -1677,6 +1736,35 @@ public func png_create_read_struct(
     pngCClassicCreateRead(
         userPngVer, errorPtr, errorFn, warningFn,
         CPointer<Unit>(), CPointer<Unit>(), CPointer<Unit>()
+    )
+}
+
+@C
+public func png_create_write_struct(
+    userPngVer: CString,
+    errorPtr: CPointer<Unit>,
+    errorFn: CPointer<Unit>,
+    warningFn: CPointer<Unit>
+): CPointer<Unit> {
+    pngCClassicCreateWrite(
+        userPngVer, errorPtr, errorFn, warningFn,
+        CPointer<Unit>(), CPointer<Unit>(), CPointer<Unit>()
+    )
+}
+
+@C
+public func png_create_write_struct_2(
+    userPngVer: CString,
+    errorPtr: CPointer<Unit>,
+    errorFn: CPointer<Unit>,
+    warningFn: CPointer<Unit>,
+    memPtr: CPointer<Unit>,
+    mallocFn: CPointer<Unit>,
+    freeFn: CPointer<Unit>
+): CPointer<Unit> {
+    pngCClassicCreateWrite(
+        userPngVer, errorPtr, errorFn, warningFn,
+        memPtr, mallocFn, freeFn
     )
 }
 
@@ -1725,6 +1813,18 @@ public func png_destroy_read_struct(
 }
 
 @C
+public func png_destroy_write_struct(
+    pngPtrPtr: CPointer<CPointer<Unit>>,
+    infoPtrPtr: CPointer<CPointer<Unit>>
+): Unit {
+    if (pngPtrPtr.isNull()) { return }
+    let pngPtr = unsafe { pngPtrPtr.read() }
+    if (pngPtr.isNull()) { return }
+    pngCClassicReleaseInfo(pngPtr, infoPtrPtr)
+    pngCClassicReleaseWrite(pngPtrPtr)
+}
+
+@C
 public func png_set_error_fn(
     pngPtr: CPointer<Unit>,
     errorPtr: CPointer<Unit>,
@@ -1735,9 +1835,11 @@ public func png_set_error_fn(
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
             case Some(state) =>
-                state.errorPtr = errorPtr
-                state.errorFn = errorFn
-                state.warningFn = warningFn
+                if (!state.writeCallbackActive) {
+                    state.errorPtr = errorPtr
+                    state.errorFn = errorFn
+                    state.warningFn = warningFn
+                }
             case None => ()
         }
     }
@@ -1767,9 +1869,11 @@ public func png_set_mem_fn(
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
             case Some(state) =>
-                state.memPtr = memPtr
-                state.mallocFn = mallocFn
-                state.freeFn = freeFn
+                if (!state.writeCallbackActive) {
+                    state.memPtr = memPtr
+                    state.mallocFn = mallocFn
+                    state.freeFn = freeFn
+                }
             case None => ()
         }
     }
@@ -1801,9 +1905,19 @@ public func png_init_io(
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
             case Some(state) =>
-                if (!state.destroying && !state.readOperationActive) {
-                    state.ioPtr = file
-                    state.readFn = CPointer<Unit>()
+                if (!state.destroying && !state.readOperationActive &&
+                    !state.writeCallbackActive) {
+                    if (state.writeOwner) {
+                        if (!state.writeChunkActive &&
+                            !state.signatureWritten) {
+                            state.ioPtr = file
+                            state.writeFn = CPointer<Unit>()
+                            state.flushFn = CPointer<Unit>()
+                        }
+                    } else {
+                        state.ioPtr = file
+                        state.readFn = CPointer<Unit>()
+                    }
                 }
             case None => ()
         }
@@ -1820,7 +1934,8 @@ public func png_set_read_fn(
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
             case Some(state) =>
-                if (!state.destroying && !state.readOperationActive) {
+                if (!state.writeOwner && !state.destroying &&
+                    !state.readOperationActive) {
                     state.ioPtr = ioPtr
                     state.readFn = readDataFn
                 }
@@ -2091,7 +2206,8 @@ public func png_set_sig_bytes(
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
             case Some(state) =>
-                if (!state.destroying && !state.readOperationActive) {
+                if (!state.destroying && !state.readOperationActive &&
+                    !state.writeCallbackActive && !state.signatureWritten) {
                     state.sigBytes = count
                 }
             case None => ()

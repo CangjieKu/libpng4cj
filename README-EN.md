@@ -143,7 +143,7 @@ The current baseline is:
 - tag `v1.6.58`
 - commit `3061454d980de7d53608f594194cfac722721d2a`
 - default public-symbol inventory: `258`
-- current frozen ABI manifests cover `124/258` upstream default symbols
+- current frozen ABI manifests cover `134/258` upstream default symbols
 - top-level `pngrtran.c` function inventory: `45`
 
 ## C ABI Preview
@@ -167,7 +167,8 @@ It performs the following checks:
   cHRM and cHRM XYZ, sRGB/sBIT/bKGD/pHYs/PLTE/tRNS,
   oFFs/cICP/cLLI/mDCV, pCAL/sCAL/tIME/text/eXIf/iCCP/hIST/sPLT/unknown/rows
   getters, version strings, get-valid/signature/physical conversion getters,
-  and raw row/image/read-end
+  raw row/image/read-end, and write owners with custom/stdio output, signature,
+  streamed/one-shot raw chunks, CRC, and flush
 - relocates the dylib and reruns every consumer on the same host
 
 A C process must initialize and finalize the Cangjie runtime as required by the
@@ -183,7 +184,7 @@ See [C ABI Surfaces](doc/ABI_PREVIEW.md) for details.
 - complete default-config libpng16 symbol or behavior compatibility
 - transformed rows, Adam7 pass/display combination, high-level rows population,
   remaining runtime/context setter and registration parity, complete read-end
-  metadata, write state,
+  metadata, write-info/row/image and metadata state,
   and the remaining `png_struct` / `png_info` state API
 - `setjmp` / `longjmp`, chunk/row-status callback families, and the remaining
   raw user-pointer families

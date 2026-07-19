@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add direct Cangjie classic write-owner creation/destruction, custom and stdio
+  output, signature emission, raw streamed/one-shot chunk output, CRC finalizing,
+  and flush across ten exact C ABI symbols.
+- Reproduce a real PNG fixture byte-for-byte through the raw write surface and
+  freeze allocator ownership, callback-time IO state/chunk type, reentrant
+  mutation rejection, fatal declared-length diagnostics, and original plus
+  relocated strict C11 proof.
+
 - Add direct Cangjie `png_set_user_limits` and
   `png_set_chunk_malloc_max` exports with next-read dimension and per-chunk
   enforcement.

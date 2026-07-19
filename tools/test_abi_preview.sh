@@ -36,6 +36,8 @@ CLASSIC_RUNTIME_CONTEXT_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-runtime-co
 CLASSIC_RUNTIME_CONTEXT_ACTUAL="$OUT/libpng4cj-classic-runtime-context-v1.actual.txt"
 CLASSIC_OWNER_LIMITS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-owner-read-limits-v1.txt"
 CLASSIC_OWNER_LIMITS_ACTUAL="$OUT/libpng4cj-classic-owner-read-limits-v1.actual.txt"
+CLASSIC_WRITE_CHUNK_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-write-chunk-v1.txt"
+CLASSIC_WRITE_CHUNK_ACTUAL="$OUT/libpng4cj-classic-write-chunk-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -196,6 +198,17 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_OWNER_LIMITS_ACTUAL"
 diff -u "$CLASSIC_OWNER_LIMITS_EXPECTED" "$CLASSIC_OWNER_LIMITS_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_create_write_struct" || \
+        $3 == "_png_create_write_struct_2" || \
+        $3 == "_png_destroy_write_struct" || \
+        $3 == "_png_set_write_fn" || $3 == "_png_write_sig" || \
+        $3 == "_png_write_chunk" || $3 == "_png_write_chunk_start" || \
+        $3 == "_png_write_chunk_data" || \
+        $3 == "_png_write_chunk_end" || $3 == "_png_write_flush") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_WRITE_CHUNK_ACTUAL"
+diff -u "$CLASSIC_WRITE_CHUNK_EXPECTED" "$CLASSIC_WRITE_CHUNK_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -505,6 +518,49 @@ fi
     exit 1
 }
 
+cc "$ROOT/test/abi_consumer/png_classic_write_chunk.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-write-chunk-consumer"
+
+"$OUT/png-classic-write-chunk-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+if "$OUT/png-classic-write-chunk-consumer" \
+    "$OUT/libpng4cj_preview.dylib" short-chunk
+then
+    short_chunk_status=0
+else
+    short_chunk_status=$?
+fi
+[ "$short_chunk_status" -eq 83 ] || {
+    printf '%s\n' \
+        "png_write_chunk_end exit=$short_chunk_status, expected=83" >&2
+    exit 1
+}
+if "$OUT/png-classic-write-chunk-consumer" \
+    "$OUT/libpng4cj_preview.dylib" long-chunk
+then
+    long_chunk_status=0
+else
+    long_chunk_status=$?
+fi
+[ "$long_chunk_status" -eq 84 ] || {
+    printf '%s\n' \
+        "png_write_chunk_data exit=$long_chunk_status, expected=84" >&2
+    exit 1
+}
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
@@ -519,6 +575,7 @@ cp "$OUT/png-classic-scalar-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-extended-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-runtime-context-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-owner-read-limits-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-write-chunk-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -619,6 +676,33 @@ fi
 [ "$relocated_chunk_limit_status" -eq 82 ] || {
     printf '%s\n' \
         "relocated png_set_chunk_malloc_max exit=$relocated_chunk_limit_status, expected=82" >&2
+    exit 1
+}
+"$RELOCATED/png-classic-write-chunk-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png"
+if "$RELOCATED/png-classic-write-chunk-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" short-chunk
+then
+    relocated_short_chunk_status=0
+else
+    relocated_short_chunk_status=$?
+fi
+[ "$relocated_short_chunk_status" -eq 83 ] || {
+    printf '%s\n' \
+        "relocated png_write_chunk_end exit=$relocated_short_chunk_status, expected=83" >&2
+    exit 1
+}
+if "$RELOCATED/png-classic-write-chunk-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" long-chunk
+then
+    relocated_long_chunk_status=0
+else
+    relocated_long_chunk_status=$?
+fi
+[ "$relocated_long_chunk_status" -eq 84 ] || {
+    printf '%s\n' \
+        "relocated png_write_chunk_data exit=$relocated_long_chunk_status, expected=84" >&2
     exit 1
 }
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

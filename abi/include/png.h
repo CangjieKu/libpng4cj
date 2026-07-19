@@ -3,12 +3,13 @@
 
 /* Frozen libpng 1.6.58 simplified and classic API subset.
  * This is not the complete upstream png.h. The stateful surface currently
- * covers opaque read/info ownership, caller-context retention, warning/error
+ * covers opaque read/write/info ownership, caller-context retention, warning/error
  * callback invocation, fatal fallback termination, custom-allocation
  * ownership, custom/stdio read-info input, core IHDR and fixed metadata getters,
  * raw row delivery, read-end sealing, retained and extended metadata getters,
  * validity, fixed physical conversions, and signature access. Longjmp and
- * transformed/pass-progress row IO are not yet implemented.
+ * transformed/pass-progress row IO and high-level classic writing are not yet
+ * implemented. The write subset includes exact signature and raw chunk output.
  */
 
 #include <stddef.h>
@@ -84,6 +85,7 @@ typedef void (*png_error_ptr)(png_structp, png_const_charp);
 typedef png_voidp (*png_malloc_ptr)(png_structp, png_alloc_size_t);
 typedef void (*png_free_ptr)(png_structp, png_voidp);
 typedef void (*png_rw_ptr)(png_structp, png_bytep, size_t);
+typedef void (*png_flush_ptr)(png_structp);
 
 typedef void *png_controlp;
 typedef struct png_image {
@@ -289,6 +291,21 @@ png_structp png_create_read_struct_2(
     png_malloc_ptr malloc_fn,
     png_free_ptr free_fn
 );
+png_structp png_create_write_struct(
+    png_const_charp user_png_ver,
+    png_voidp error_ptr,
+    png_error_ptr error_fn,
+    png_error_ptr warn_fn
+);
+png_structp png_create_write_struct_2(
+    png_const_charp user_png_ver,
+    png_voidp error_ptr,
+    png_error_ptr error_fn,
+    png_error_ptr warn_fn,
+    png_voidp mem_ptr,
+    png_malloc_ptr malloc_fn,
+    png_free_ptr free_fn
+);
 png_infop png_create_info_struct(png_const_structp png_ptr);
 void png_destroy_info_struct(
     png_const_structp png_ptr,
@@ -298,6 +315,10 @@ void png_destroy_read_struct(
     png_structpp png_ptr_ptr,
     png_infopp info_ptr_ptr,
     png_infopp end_info_ptr_ptr
+);
+void png_destroy_write_struct(
+    png_structpp png_ptr_ptr,
+    png_infopp info_ptr_ptr
 );
 void png_set_error_fn(
     png_structp png_ptr,
@@ -319,7 +340,32 @@ void png_set_read_fn(
     png_voidp io_ptr,
     png_rw_ptr read_data_fn
 );
+void png_set_write_fn(
+    png_structp png_ptr,
+    png_voidp io_ptr,
+    png_rw_ptr write_data_fn,
+    png_flush_ptr output_flush_fn
+);
 png_voidp png_get_io_ptr(png_const_structp png_ptr);
+void png_write_sig(png_structp png_ptr);
+void png_write_chunk(
+    png_structp png_ptr,
+    png_const_bytep chunk_name,
+    png_const_bytep data,
+    size_t length
+);
+void png_write_chunk_start(
+    png_structp png_ptr,
+    png_const_bytep chunk_name,
+    png_uint_32 length
+);
+void png_write_chunk_data(
+    png_structp png_ptr,
+    png_const_bytep data,
+    size_t length
+);
+void png_write_chunk_end(png_structp png_ptr);
+void png_write_flush(png_structp png_ptr);
 void png_set_sig_bytes(png_structp png_ptr, int num_bytes);
 void png_read_info(png_structp png_ptr, png_infop info_ptr);
 void png_read_rows(
