@@ -1,7 +1,7 @@
 [package]
   cjc-version = "1.0.5"
   name = "libpng4cj"
-  version = "0.2.0"
+  version = "0.8.1"
   output-type = "static"
   src-dir = "src"
   compile-option = "-Woff unused"

@@ -2006,6 +2006,20 @@ Porting milestone S008P adds classic owner read-limit setters:
 The frozen ABI manifests cover `124/258` upstream default symbols after this
 milestone, leaving `134`.
 
+Porting milestone S008Q adds the classic write owner and raw chunk sink:
+
+- direct Cangjie write-owner creation and destruction with shared allocator,
+  error, info, IO-context, and direction ownership rules
+- custom and caller-owned stdio output, signature emission, streamed and
+  one-shot raw chunks, exact framing/CRC, and flush
+- callback-time write state and chunk type with mutation and incomplete-chunk
+  destruction guards
+- frozen ten-symbol manifest plus strict C11 exact-byte, allocator, lifecycle,
+  fatal, original, and relocated proof
+
+The frozen ABI manifests cover `134/258` upstream default symbols after this
+milestone, leaving `124`.
+
 Exact gamma-aware direct 8-bit and colormap background/palette conversion,
 linear colormap combinations, compact 2/4/16-entry low-depth grayscale map
 parity, longjmp, transformed/pass-progress classic rows, exact callback/cursor

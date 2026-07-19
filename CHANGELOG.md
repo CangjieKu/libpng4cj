@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.8.1 - 2026-07-19
+
+- Add a generated five-function `pngwtran.c` inventory and a source-backed
+  write-transform translation ledger.
+- Add a reusable doctor, inventory, build, test, and standalone-consumer CI
+  entry with a self-hosted Cangjie workflow.
+- Extend the standalone consumer with a checked-in Adam7 fixture
+  decode-encode-decode pixel roundtrip.
+- Record the project-owner Debian 13 amd64 native build, test, and consumer
+  receipt while keeping Linux C ABI packaging outside the verified boundary.
+- Publish package and exported version truth as `0.8.1`.
+
 - Add direct Cangjie classic write-owner creation/destruction, custom and stdio
   output, signature emission, raw streamed/one-shot chunk output, CRC finalizing,
   and flush across ten exact C ABI symbols.
