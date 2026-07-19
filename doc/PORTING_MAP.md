@@ -3,6 +3,10 @@
 The first translation pass keeps upstream ownership boundaries recognizable.
 Refactoring for a more idiomatic Cangjie API happens only after behavior parity.
 
+Source-backed transform status is tracked separately in
+[`PNG_RTRAN_TRANSLATION_LEDGER.md`](PNG_RTRAN_TRANSLATION_LEDGER.md) and
+[`PNG_WTRAN_TRANSLATION_LEDGER.md`](PNG_WTRAN_TRANSLATION_LEDGER.md).
+
 | Upstream source | libpng4cj owner | Scope |
 | --- | --- | --- |
 | `png.c` | `runtime/` and `checksum/` | version, signature, CRC, shared runtime helpers |

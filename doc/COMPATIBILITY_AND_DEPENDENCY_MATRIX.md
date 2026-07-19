@@ -20,6 +20,11 @@ partial, and `0/45` pending top-level `pngrtran.c` functions. The complete
 source-backed status is maintained in
 [`PNG_RTRAN_TRANSLATION_LEDGER.md`](PNG_RTRAN_TRANSLATION_LEDGER.md).
 
+The write-transform ledger records `5/5` translated, `0/5` partial, and `0/5`
+pending top-level `pngwtran.c` functions for the native write pipeline. This is
+function-body coverage, not complete classic write ABI coverage. See
+[`PNG_WTRAN_TRANSLATION_LEDGER.md`](PNG_WTRAN_TRANSLATION_LEDGER.md).
+
 ## Native Dependency Matrix
 
 libpng4cj intentionally keeps zlib external, matching upstream libpng. The
