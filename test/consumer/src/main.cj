@@ -936,6 +936,22 @@ main(): Int64 {
         println("libpng4cj Adam7 consumer check failed")
         return 1
     }
+    let fixtureReencoded = encodePngPacked(
+        adam7.ihdr.width,
+        adam7.ihdr.height,
+        UInt8(8),
+        TruecolorAlpha,
+        adam7.rows()
+    )
+    let fixtureRoundTrip = decodePngRgba8(fixtureReencoded)
+    if (fixtureRoundTrip.ihdr.width != adam7.ihdr.width ||
+        fixtureRoundTrip.ihdr.height != adam7.ihdr.height ||
+        fixtureRoundTrip.ihdr.bitDepth != UInt8(8) ||
+        fixtureRoundTrip.ihdr.colorType != TruecolorAlpha ||
+        fixtureRoundTrip.rows() != adam7.rows()) {
+        println("libpng4cj fixture decode-encode-decode roundtrip failed")
+        return 1
+    }
     let progressive = PngProgressiveReader()
     let progressiveFacts = Array<Int64>(2, repeat: Int64(0))
     progressive.setInfoCallback({
