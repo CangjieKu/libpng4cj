@@ -1,46 +1,70 @@
-# libpng4cj
+<p align="center">
+  <img src="https://img.shields.io/badge/Cangjie-libpng4cj-ff6b35?style=for-the-badge&labelColor=1a1a2e" alt="libpng4cj" />
+  <img src="https://img.shields.io/badge/version-0.8.1-blue?style=for-the-badge&labelColor=1a1a2e" alt="Version" />
+  <img src="https://img.shields.io/badge/license-Libpng--2.0-green?style=for-the-badge&labelColor=1a1a2e" alt="License" />
+</p>
 
-[English](README-EN.md) | 简体中文
+<div align="center">
+<span style="font-weight:300;font-size:38px">libpng4cj</span><br/>
+<span style="font-weight:100;font-size:26px">仓颉原生 PNG 编解码与 libpng 兼容工程</span>
+<p align="center">
+  <strong>覆盖读取、写入、像素变换、元数据和渐进式处理的仓颉 PNG 库</strong><br>
+  <sub>Adam7 · Progressive · Gamma · Metadata · Streaming · C ABI Preview</sub>
+</p>
+</div>
 
-libpng4cj 是面向仓颉的 PNG 读写库，也是 libpng `1.6.58` 的全量移植工程。
-PNG 解析、过滤、像素转换、元数据、渐进式读取和编码逻辑由仓颉实现；zlib
-作为外部压缩依赖保留，这与上游 libpng 的边界一致。
+<p align="center">
+  <a href="https://gitcode.com/cinyu/libpng4cj">开源主仓</a> ·
+  <a href="doc/feature_api.md">API 索引</a> ·
+  <a href="doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md">兼容性矩阵</a> ·
+  <a href="README-EN.md">English</a>
+</p>
 
-当前版本为 `0.2.0 preview`。仓颉原生 API 已覆盖常用读写流程，macOS arm64
-还提供了经过 C11 消费链验证的 libpng16 ABI 子集。它不是完整的 libpng16
-替换品，也不是 LTS 或跨平台发行版。
+> 当前文档对应版本：`0.8.1`
 
-## 当前能力
+libpng4cj 是面向仓颉的 PNG 编解码库。项目以 libpng `1.6.58` 为行为参考，
+用仓颉实现 PNG 解析、过滤、像素变换、元数据、渐进式读取和编码，并保留 zlib
+作为压缩依赖。
 
-| 能力 | 0.2.0 preview 状态 |
+`0.8.1` 提供可直接用于仓颉项目的原生读写 API。原生消费链已在 macOS arm64
+和 Debian 13 amd64 上验证。仓库同时提供 macOS arm64 上经过严格 C11
+消费者验证的 libpng16 C ABI 子集；该 ABI 仍处于 preview 阶段，不是完整的
+libpng16 替代品。
+
+## 支持范围
+
+| 能力 | 当前支持 |
 | --- | --- |
-| PNG 解码 | 支持全部 PNG 颜色类型、1/2/4/8/16 位深、五种过滤器和 Adam7 |
-| 像素输出 | packed rows、RGBA8、RGBA16、常用 Gray/RGB/BGR/Alpha 布局、线性 UInt16 和索引色 |
-| 颜色处理 | Gamma 校正、背景合成、RGB/Gray 转换、Alpha 模式及常用读变换已接入当前管线 |
-| 元数据 | 支持 PLTE/tRNS、gAMA/cHRM/sRGB/sBIT/bKGD/pHYs、iCCP、文本、时间及多种标准辅助块 |
-| 渐进式读取 | 支持增量输入、早期信息/行回调、Adam7 pass 上下文、暂停与恢复 |
-| PNG 编码 | 支持整图、逐行、增量 IDAT、Adam7、过滤/压缩控制、元数据和未知块 |
-| 简化 API | 支持内存、文件和调用方管理的流；支持 direct8、linear16、colormap 和正负 stride |
-| C ABI | macOS arm64 上提供 preview facade、`png_image` 内存/文件/stdio 子集、经典工具与读取句柄、custom/stdio `png_read_info`、核心 IHDR、固定/浮点标量及扩展元数据 getter、easy-access getter，以及 raw row/image/read-end 子集 |
-| ICC | 保留并校验 iCCP profile；不执行 ICC 像素颜色转换 |
+| 解码 | 全部 PNG 颜色类型，1/2/4/8/16 位深，五种过滤器，非交织和 Adam7 |
+| 像素输出 | packed rows、RGBA8、RGBA16、Gray/RGB/BGR/Alpha 常用布局、线性 UInt16、索引色 |
+| 颜色处理 | Gamma 校正、背景合成、RGB/Gray 转换、Alpha 模式及常用读变换 |
+| 元数据 | PLTE/tRNS、gAMA/cHRM/sRGB/sBIT/bKGD/pHYs、iCCP、文本、时间及多种标准辅助块 |
+| 渐进式读取 | 增量输入、info/row/end 回调、Adam7 pass 信息、暂停与恢复 |
+| 编码 | 整图、逐行、增量 IDAT、Adam7、过滤和压缩控制、元数据、未知块 |
+| 简化 API | 内存、文件、调用方管理的流，支持 direct8、linear16、colormap 和正负 stride |
+| C ABI | `134/258` 个默认公开符号，当前完整回执限 macOS arm64 |
+| ICC | 保留并校验 iCCP profile，不执行 ICC 像素颜色转换 |
 
-更细的边界见 [兼容性与依赖矩阵](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)。
+详细状态见[兼容性与依赖矩阵](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)。
+API 索引见 [Feature API](doc/feature_api.md)。
 
 ## 环境要求
 
-- `cjpm` / `cjc`：项目声明最低版本 `1.0.5`
-- 当前本机完整回执：Cangjie `1.1.0`，`aarch64-apple-darwin`
+- `cjc` 和 `cjpm`，项目声明最低版本为 `1.0.5`
 - zlib 开发库和运行库
-- macOS ABI preview 还需要系统 C 编译器
+- C ABI preview 需要系统 C 编译器
 
-静态库的链接选项不会自动传递给最终可执行文件，因此消费项目需要显式链接
-`-lz`。
+当前本机完整验证使用 Cangjie `1.1.3`、macOS arm64 和 zlib `1.2.12`。
+Debian 13 amd64 已有项目所有者提供的原生构建、测试和独立 consumer 实机回执。
 
-先运行环境检查：
+先检查环境：
 
 ```sh
 ./tools/doctor.sh
 ```
+
+由于 cjpm 静态库的链接选项不会自动传递给最终可执行文件，消费项目必须显式
+链接 `-lz`。
 
 ## 添加依赖
 
@@ -54,17 +78,15 @@ link-option = "-lz"
 libpng4cj = { git = "https://gitcode.com/cinyu/libpng4cj.git" }
 ```
 
-公开包根就是 `libpng4cj`，不会出现 `libpng4cj.libpng4cj.*` 的重复前缀：
+正式项目应固定经过验证的 tag 或 commit。公开包根为 `libpng4cj`：
 
 ```cangjie
 import libpng4cj.*
 ```
 
-正式项目建议在依赖配置中固定经过验证的 tag 或 commit。
+## 读取 PNG
 
-## 快速读取
-
-读取 PNG 并转换为 RGBA8：
+读取文件并得到 RGBA8 行：
 
 ```cangjie
 import std.fs.*
@@ -80,12 +102,10 @@ main(): Int64 {
 }
 ```
 
-`Scale` 使用精确缩放把 16 位输入转换为 8 位。只处理不超过 8 位的输入时，
-也可以直接调用 `decodePngRgba8(encoded)`。
+`Scale` 会把 16 位样本精确缩放到 8 位。输入不超过 8 位时，也可以直接调用
+`decodePngRgba8(encoded)`。
 
-## 简化读写
-
-简化 API 适合应用层内存、文件和流操作：
+应用层文件读写可以使用简化 API：
 
 ```cangjie
 import libpng4cj.*
@@ -99,7 +119,7 @@ main(): Int64 {
 }
 ```
 
-还可使用：
+同一组 API 还支持：
 
 - `beginPngImageReadFromMemory` / `writePngImageToMemory`
 - `beginPngImageReadFromStream` / `writePngImageToStream`
@@ -108,82 +128,73 @@ main(): Int64 {
 - `PngProgressiveReader`
 - `PngWriteSession` / `PngRowWriteSession`
 
-完整 API 索引见 [Feature API](doc/feature_api.md)。
+## 构建与验证
 
-## 构建与测试
+常规开发命令：
 
 ```sh
-./tools/doctor.sh
 cjpm build
 cjpm test
-```
 
-验证独立仓颉消费项目：
-
-```sh
 cd test/consumer
 cjpm run
 ```
 
-刷新并校验冻结的上游基线：
+完整自动化入口会依次执行环境检查、冻结清单校验、构建、单元测试和独立
+consumer：
 
 ```sh
-./tools/update-upstream-baseline.sh
+./tools/ci.sh
 ```
 
-当前基线固定为：
+仓库已包含 `.github/workflows/cangjie-ci.yml`。当前公共托管 runner 不提供所需
+仓颉 SDK，因此 workflow 使用带 `cangjie` 和 `posix` 标签的自托管 runner。
+配置说明见 [Continuous Integration](doc/CI.md)。
+
+当前测试集为 `504/504`。独立 consumer 包含真实 Adam7 fixture 的
+decode -> encode -> decode 完整像素 roundtrip。
+
+## 上游对应关系
+
+项目冻结以下上游参考：
 
 - libpng `1.6.58`
 - tag `v1.6.58`
 - commit `3061454d980de7d53608f594194cfac722721d2a`
 - 默认公开符号清单：`258`
-- 当前冻结 ABI 清单覆盖：`134/258` 个上游默认符号
-- `pngrtran.c` 顶层函数清单：`45`
+- `pngrtran.c`：`45/45` 顶层函数已映射到仓颉实现
+- `pngwtran.c`：`5/5` 顶层函数已映射到仓颉实现
+
+逐函数状态见 [read transform ledger](doc/PNG_RTRAN_TRANSLATION_LEDGER.md)
+和 [write transform ledger](doc/PNG_WTRAN_TRANSLATION_LEDGER.md)。这些数字描述
+源文件函数体覆盖，不等于完整 C ABI 覆盖。
 
 ## C ABI Preview
 
-macOS arm64 可运行完整 ABI preview 验证：
+macOS arm64 上可以运行完整 C ABI 验证：
 
 ```sh
 ./tools/test_abi_preview.sh
 ```
 
-它会：
+该脚本会构建仓颉 `@C` 导出的 dylib，校验符号清单，以 warnings-as-errors
+编译严格 C11 消费者，并在原位置和同机重定位后重复运行。当前覆盖
+`png_image` 内存/文件/stdio 子集、经典读取和元数据 getter、allocator/error/
+IO 生命周期，以及 write owner、raw chunk、CRC 和 flush。
 
-- 构建直接由仓颉 `@C` 导出的 dylib
-- 校验冻结的导出符号清单
-- 以 `-Wall -Wextra -Werror` 编译严格 C11 消费者
-- 验证 preview facade、`png_image` 内存/文件/stdio 子集、经典无状态工具、
-  读取/info 句柄生命周期、warning/error 边界、自定义分配器所有权、
-  custom/stdio `png_read_info`、owner 尺寸/单 chunk 限制 setter、核心 IHDR
-  getter、固定/浮点 gAMA 与 cHRM、cHRM XYZ、
-  sRGB/sBIT/bKGD/pHYs/PLTE/tRNS、oFFs/cICP/cLLI/mDCV、
-  pCAL/sCAL/tIME/text/eXIf/iCCP/hIST/sPLT/unknown/rows getter、版本字符串、
-  get-valid/签名/物理换算 getter、raw row/image/read-end，以及 write owner、
-  custom/stdio 输出、签名、流式/整块 raw chunk、CRC 与 flush
-- 把 dylib 移动后重新运行消费者，验证同机重定位加载
+C 进程需要按照仓颉工具链要求调用 `InitCJRuntime`、
+`LoadCJLibraryWithInit` 和 `FiniCJRuntime`。完整说明见
+[C ABI Surfaces](doc/ABI_PREVIEW.md)。
 
-C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例消费者已经展示
-`InitCJRuntime`、`LoadCJLibraryWithInit` 和 `FiniCJRuntime` 的完整生命周期。
+## 当前限制
 
-详见 [C ABI Surfaces](doc/ABI_PREVIEW.md)。
-
-## 兼容性边界
-
-`0.2.0 preview` 暂不声称：
-
-- 完整的 libpng16 默认配置符号与行为兼容
-- `png_struct` / `png_info` 的变换后行、Adam7 pass/display 合并、尚未填充的
-  rows 高层生命周期、其余 runtime/context setter 与注册、完整 read-end
-  元数据、write-info/row/image 和元数据状态 API
-- `setjmp` / `longjmp`、chunk/row-status 等其余 C 回调与原始用户指针族
-- ICC profile 驱动的像素颜色转换
-- Linux、Windows、HarmonyOS/OpenHarmony ABI 制品验证
-- 超过 100 MB 图片的吞吐认证或并发压力认证
-- LTS、稳定 ABI 或生产发行承诺
-
-这些限制不会影响已验证的仓颉原生主流程，但使用 C ABI 或跨平台发布前应先查看
-[兼容性与依赖矩阵](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)。
+- C ABI 尚未覆盖全部 libpng16 默认符号和行为
+- `setjmp` / `longjmp`、部分回调和原始用户指针族仍未完成
+- 经典 write-info/row/image 与剩余 setter/state API 仍需补齐
+- 不执行 ICC profile 驱动的像素颜色转换
+- Linux、Windows、HarmonyOS/OpenHarmony 的 C ABI 制品尚未验证
+- 尚无超过 100 MB 图片的吞吐认证、并发压力证明或稳定 ABI 承诺
+- `0.8.1` 不是 LTS 版本
 
 ## 项目结构
 
@@ -191,19 +202,18 @@ C 进程需要按仓颉工具链要求初始化和结束仓颉 runtime。示例�
 libpng4cj/
 ├── src/                         # 仓颉实现与 cjpm 单元测试
 ├── abi/                         # C ABI 头文件和冻结符号清单
-├── doc/                         # API、兼容性和上游映射文档
+├── doc/                         # API、兼容性、CI 和上游映射
 ├── test/consumer/               # 独立仓颉消费项目
 ├── test/abi_consumer/           # 严格 C11 消费者
-├── tools/                       # doctor、基线和 ABI 验证脚本
-└── vendor/libpng-1.6.58/        # 冻结的上游翻译参考与行为 oracle
+├── tools/                       # doctor、CI、清单和 ABI 验证脚本
+└── vendor/libpng-1.6.58/        # 冻结的上游参考与行为 oracle
 ```
 
-## 上游与许可证
+## 许可证
 
-libpng4cj 以 libpng `1.6.58` 为冻结翻译基线。仓库保留完整上游源码用于许可证、
-实现对照和 oracle 测试；产品实现位于 `src/`，PNG 行为不由 vendored C 源码提供。
+libpng4cj 使用 [Libpng-2.0](LICENSE)。仓库保留完整上游源码用于许可证、
+实现对照和 oracle 测试；运行时 PNG 行为由 `src/` 下的仓颉实现提供。
 
-- 项目许可证：[Libpng-2.0](LICENSE)
-- 上游许可证：[vendor/libpng-1.6.58/LICENSE](vendor/libpng-1.6.58/LICENSE)
-- 开源依赖清单：[README.OpenSource](README.OpenSource)
-- 上游仓库：[pnggroup/libpng](https://github.com/pnggroup/libpng)
+- [README.OpenSource](README.OpenSource)
+- [上游 libpng 许可证](vendor/libpng-1.6.58/LICENSE)
+- [pnggroup/libpng](https://github.com/pnggroup/libpng)
