@@ -1,314 +1,102 @@
-# libpng4cj C ABI Surfaces
+# C ABI Surfaces
 
-The initial ABI milestone adds a macOS arm64 preview C surface alongside the
-existing native Cangjie package. It does not replace the package coordinate or
-change the normal `cjpm build` static-library output.
+[English](ABI_PREVIEW.md) | [简体中文](zh-CN/C_ABI.md)
 
-Build and verify:
+libpng4cj provides a preview C ABI implemented directly by Cangjie `@C`
+exports. It is intended for early integration and compatibility work. It is not
+yet a complete replacement for `libpng16`.
+
+## Build And Test
+
+On macOS arm64:
 
 ```sh
 ./tools/test_abi_preview.sh
 ```
 
-The generated directory contains:
+The output directory contains the dynamic library, public headers, symbol
+receipts, and strict C11 consumer binaries. The suite checks both the original
+output location and relocation-sensitive loading from a copied directory.
 
-- `libpng4cj_preview.dylib`: direct Cangjie `@C` implementation
-- `include/libpng4cj_preview.h`: preview API contract
-- `include/png.h`: frozen simplified `png_image` memory/file/stdio ABI header
-- `abi-consumer`: standalone C consumption proof
-- `png-image-memory-consumer`: strict C11 `png_image` consumption proof
-- `png-image-file-stdio-consumer`: strict C11 file and `FILE*` proof
-- `png-classic-stateless-consumer`: strict C11 classic utility proof
-- `png-classic-read-handle-consumer`: strict C11 read/info lifecycle and
-  warning/error callback boundary proof
-- `png-classic-core-info-consumer`: strict C11 IHDR/scalar getter proof
-- `png-classic-row-read-consumer`: strict C11 raw row/image/read-end proof
-- `png-classic-metadata-consumer`: strict C11 fixed/core retained-metadata
-  getter and allocator-lifecycle proof
-- `png-classic-easy-access-consumer`: strict C11 validity, fixed physical
-  conversion, and stable signature-pointer proof
-- `png-classic-scalar-metadata-consumer`: strict C11 floating/scalar metadata,
-  version-string lifetime, utility, owner, and allocator-lifecycle proof
-- `png-classic-extended-metadata-consumer`: strict C11 cHRM XYZ, variable
-  metadata structures and pointer trees, phase visibility, fatal sCAL fixed
-  conversion, owner, and allocator-lifecycle proof
-- `png-classic-runtime-context-consumer`: strict C11 read-owner defaults,
-  row/pass and IO status, palette status, NULL registration contexts, and
-  stale/null lifecycle proof
-- `png-classic-owner-read-limits-consumer`: strict C11 owner dimension and
-  per-chunk limit mutation, zero-as-unlimited, callback snapshot, fatal limit,
-  and stale/null lifecycle proof
-- `png-classic-write-chunk-consumer`: strict C11 write-owner, custom allocator,
-  custom/stdio sink, signature, streamed and one-shot chunk, exact CRC, flush,
-  fatal declared-length, and stale/null lifecycle proof
+## Exported Surface
 
-The v1 preview supports signature checks and caller-owned RGBA8 decode,
-including Adam7 input and explicit 16-to-8 scaling. All public ABI functions
-are implemented directly in Cangjie. The decoder reports the required buffer
-size before the caller supplies storage, and Cangjie exceptions are converted
-to deterministic status and message outputs.
+The manifests currently cover `134/258` default public libpng symbols.
 
-A C process must initialize the Cangjie runtime before calling a Cangjie
-dynamic library. The standalone consumer demonstrates the toolchain-required
-`InitCJRuntime`, `LoadCJLibraryWithInit`, call, and `FiniCJRuntime` lifecycle;
-that host bootstrap is not a libpng4cj C implementation layer.
+Supported groups include:
 
-The simplified-memory milestone adds the upstream-compatible LP64 `png_image`
-layout, the memory subset of its format/geometry macros and diagnostic fields,
-and the exact memory symbol names and signatures:
+- five `png4cj_*` preview discovery and RGBA8 decode functions
+- eight simplified `png_image` memory, file, and stdio functions
+- classic version, signature, endian, and grayscale-palette utilities
+- read and write owner creation and destruction
+- error, warning, allocator, and IO callback contexts
+- user dimensions and per-chunk allocation limits
+- `png_read_info`, source-packed row delivery, and `png_read_end`
+- IHDR, scalar, fixed, floating, physical, color, text, ICC, and extended
+  metadata getters
+- write callbacks, signature emission, one-shot and streamed raw chunks, CRC,
+  flush, and stdio output
 
-- `png_image_begin_read_from_memory`
-- `png_image_finish_read`
-- `png_image_free`
-- `png_image_write_to_memory`
+Exact symbol membership is defined by files under [`abi/symbols/`](../abi/symbols/).
 
-The begin/finish path retains one Cangjie-owned decode state behind
-`png_image::opaque`, decodes pixels exactly once, and clears the handle on
-finish or free. The current memory surface covers common direct 8-bit, linear
-UInt16, and RGB-family color-map formats, signed component strides, solid or
-caller-buffer background composition, associated-alpha reads, Adam7 input,
-and direct/linear/color-map memory writing. Size-only writes return the exact
-encoded byte count and undersized writes update that count without reporting a
-PNG error.
+## Headers
 
-Begin-read derives `PNG_IMAGE_FLAG_COLORSPACE_NOT_sRGB` from the frozen
-libpng cICP/mDCV/sRGB/cHRM precedence. Linear reads honor
-`PNG_IMAGE_FLAG_16BIT_sRGB` for untagged 16-bit input, and writes preserve the
-requested sRGB/non-sRGB metadata shape. Exact gamma-aware direct 8-bit and
-color-map pixel conversion remains outside this checkpoint.
+[`abi/include/png.h`](../abi/include/png.h) exposes the supported libpng-shaped
+types, macros, structures, and function declarations. It intentionally does
+not present itself as a complete upstream header.
 
-The exact exported symbol sets are frozen in
-`abi/symbols/libpng4cj-preview-v1.txt` and
-`abi/symbols/libpng4cj-png-image-memory-v1.txt`, with the file/stdio extension
-in `abi/symbols/libpng4cj-png-image-file-stdio-v1.txt`. The C11 proof statically
-checks the LP64 104-byte structure and every field offset before exercising
-lifecycle, formats, malformed input, limits, read/write ownership, and relocated
-loading. It also proves non-sRGB begin facts and distinct linear output when the
-16-bit-sRGB assumption is enabled.
+[`abi/include/libpng4cj_preview.h`](../abi/include/libpng4cj_preview.h) exposes
+the small `png4cj_*` preview API.
 
-The file and stdio milestone adds four simplified entry points:
+Consumers should compile against the headers shipped with the same libpng4cj
+build as the dynamic library.
 
-- `png_image_begin_read_from_file`
-- `png_image_begin_read_from_stdio`
-- `png_image_write_to_file`
-- `png_image_write_to_stdio`
+## Runtime Lifecycle
 
-The implementation keeps PNG parsing, format conversion, opaque ownership,
-limits, diagnostics, and encoding in Cangjie. A narrow libc FFI performs only
-`FILE*` open/read/write/flush/close/remove operations. Caller-supplied streams
-remain caller-owned; named-file operations own their stream, flush and close
-writes, and remove an incomplete output after failure. The same memory ABI
-format, flag, background, signed-stride, colormap, and Adam7 behavior is reused.
+A native C consumer must initialize the Cangjie runtime before loading and
+calling the library. The verified lifecycle is:
 
-The file/stdio symbols are frozen separately in
-`abi/symbols/libpng4cj-png-image-file-stdio-v1.txt`. The strict consumer proves
-file and caller-owned stdio read/write, caller reuse and close, malformed/open/
-read/write failures, incomplete-file removal, exact symbols, and relocated
-loading.
+1. `InitCJRuntime`
+2. `LoadCJLibraryWithInit`
+3. call the libpng4cj exports
+4. release all libpng4cj owners and buffers
+5. `FiniCJRuntime`
 
-The classic stateless milestone adds the first callback-free utility cluster:
+The consumer examples under [`test/abi_consumer/`](../test/abi_consumer/)
+demonstrate the complete sequence.
 
-- `png_access_version_number`
-- `png_sig_cmp`
-- `png_get_uint_32`, `png_get_uint_16`, and `png_get_int_32`
-- `png_save_uint_32`, `png_save_int_32`, and `png_save_uint_16`
+## Ownership Rules
 
-The declarations use the frozen libpng integer and byte-pointer types, and the
-exact symbols are listed in `abi/symbols/libpng4cj-classic-stateless-v1.txt`.
-The strict consumer freezes every function-pointer signature and compares
-signature ranges, signed edge behavior, and big-endian read/write vectors with
-the libpng `1.6.58` source algorithms, including its `INT32_MIN` read result.
+- `png_struct` and `png_info` values are opaque Cangjie-owned handles.
+- destroy functions invalidate the handle and write NULL through the supplied
+  pointer where required by the compatible API.
+- caller-provided read, write, error, memory, and stdio contexts remain owned by
+  the caller.
+- memory returned by the classic allocation surface must be released through
+  the matching libpng4cj free path.
+- borrowed metadata pointers remain valid only while their owning info object
+  remains live and unchanged.
+- callback dispatch occurs outside the internal registry lock.
 
-The first stateful classic milestone adds opaque caller-held read and info
-handles:
+## Error Boundary
 
-- `png_create_read_struct` and `png_create_read_struct_2`
-- `png_create_info_struct`
-- `png_destroy_info_struct` and `png_destroy_read_struct`
-- `png_set_error_fn` and `png_get_error_ptr`
-- `png_set_mem_fn` and `png_get_mem_ptr`
+Cangjie exceptions do not cross the C ABI. Recoverable operations report their
+documented return value or image error state. Fatal classic `png_error` paths
+terminate when no compatible non-local-jump boundary is available.
 
-The handles are native tokens backed by a mutex-protected Cangjie registry.
-Read creation accepts libpng-compatible `1.6.*` version strings, info handles
-retain their creating read handle, and destruction writes NULL through every
-successfully released pointer-to-pointer argument. Caller error and memory
-contexts can be replaced and read back without transferring ownership. The
-exact nine-symbol set is frozen in
-`abi/symbols/libpng4cj-classic-read-handle-v1.txt`.
+The preview does not claim complete `setjmp`/`longjmp` compatibility.
 
-The strict lifecycle consumer covers incompatible versions, null inputs,
-independent info destruction, two-info cascade destruction, context updates,
-exact function-pointer declarations, and original/relocated loading.
+## Platform Status
 
-The classic error milestone adds direct Cangjie `png_warning` and `png_error`
-exports, frozen in `abi/symbols/libpng4cj-classic-error-v1.txt`. Callback
-addresses are snapshotted under the registry mutex and invoked after releasing
-the lock, allowing callback-side context lookup and later replacement. Missing
-warning callbacks use the default `libpng warning:` stderr diagnostic. Fatal
-errors invoke the current error callback first, then use the default
-`libpng error:` diagnostic and process termination if the callback is absent
-or returns. The strict consumer proves all three fatal outcomes in independent
-processes so a terminating path cannot corrupt the main acceptance process.
+The complete dynamic-library, symbol, consumer, and relocation receipt is
+currently available for macOS arm64. Other platforms may use the native
+Cangjie API, but no portable C ABI artifact is claimed until a platform-specific
+build and consumer receipt is added.
 
-The classic memory milestone adds direct Cangjie exports for `png_malloc`,
-`png_calloc`, `png_malloc_warn`, `png_free`, `png_malloc_default`, and
-`png_free_default`, frozen in
-`abi/symbols/libpng4cj-classic-memory-v1.txt`. `png_create_read_struct_2`
-invokes the configured allocator through a temporary live creation context and
-returns the allocator-owned block as the opaque read handle. Info handles and
-explicit allocations use the current allocator; later `png_set_mem_fn` calls
-affect future allocations, while already-created objects retain the allocator
-snapshot that owns their release. Default allocation APIs bypass user
-callbacks.
+## Open Compatibility Areas
 
-For the frozen macOS arm64 default configuration, the strict consumer verifies
-the upstream `png_struct` and `png_info` requests at 1224 and 352 bytes. It also
-proves callback-side `png_get_mem_ptr`, zero-filled calloc, allocator-family
-matching after replacement, creation and warn-return allocation failure,
-fatal allocation failure in an isolated process, duplicate-free suppression,
-and original/relocated loading.
-
-The classic read-IO milestone adds direct Cangjie exports for `png_init_io`,
-`png_set_read_fn`, `png_get_io_ptr`, `png_set_sig_bytes`, and `png_read_info`,
-frozen in `abi/symbols/libpng4cj-classic-read-io-v1.txt`. Custom callbacks are
-snapshotted under the registry mutex and invoked after unlock, so the callback
-can recover its current context through `png_get_io_ptr`. NULL read callbacks
-select caller-owned stdio input. Signature-prefix counts preserve the upstream
-negative-to-zero, `0..8`, and fatal `>8` behavior.
-
-The current `png_read_info` bridge requests exact signature and chunk-framing
-lengths through the selected input, captures through IEND, validates and
-decodes with the existing Cangjie PNG pipeline, and retains the decoded state
-on the classic read handle for later getter and row APIs. The strict consumer
-proves custom callback replacement, callback-side context lookup, four-byte
-signature prefix continuation, stdio input, truncated and excessive-prefix
-fatal paths, pre-allocation oversized-chunk rejection, exact symbols/signatures,
-and original/relocated loading.
-
-The classic core-info milestone adds `png_get_IHDR`, `png_get_rowbytes`,
-`png_get_channels`, and the seven easy-access IHDR scalar getters, frozen in
-`abi/symbols/libpng4cj-classic-core-info-v1.txt`. Header facts are visible only
-through the exact live `png_info` populated by `png_read_info`; null, unknown,
-wrong-owner, pre-read, other-info, and destroyed handles return zero. Failed
-`png_get_IHDR` calls preserve caller outputs, successful calls accept any
-nullable output combination, and packed grayscale plus Adam7 RGBA facts pass
-strict C11 original/relocated proof.
-
-The classic row-read milestone adds `png_read_row`, `png_read_rows`,
-`png_read_image`, and `png_read_end`, frozen in
-`abi/symbols/libpng4cj-classic-row-read-v1.txt`. Row and row-array calls
-consume retained raw source-packed rows sequentially; NULL row/display
-destinations follow the wrapper's call behavior, and whole-image delivery
-copies final reconstructed Adam7 rows. Read-end seals remaining retained rows
-and accepts NULL or an owner-matched live info handle. The strict consumer
-checks packed 1-bit grayscale row, display, array, and no-destination behavior;
-Adam7 RGBA complete-image parity; early read-end sealing; stale-handle no-op;
-exact symbols/signatures; and original/relocated loading.
-
-The classic metadata milestone adds eight getters frozen in
-`abi/symbols/libpng4cj-classic-metadata-v1.txt`:
-
-- `png_get_gAMA_fixed` and `png_get_cHRM_fixed`
-- `png_get_sRGB`, `png_get_sBIT`, `png_get_bKGD`, and `png_get_pHYs`
-- `png_get_PLTE` and `png_get_tRNS`
-
-Scalar outputs and `PNG_INFO_*` return bits follow the libpng 1.6.58 source
-contracts. Pointer-returning metadata is copied into stable native backing
-owned by the populated info handle and released through the allocator snapshot
-that created that handle. A bounded operation guard keeps destruction from
-racing output publication while caller-memory writes remain outside the
-registry mutex. The strict consumer compares fixed metadata against vendored
-upstream samples, checks palette and indexed/non-indexed transparency output
-combinations, pointer stability, structure layout, absent-output preservation,
-wrong-owner/spare/stale handles, custom allocator balance, exact signatures,
-and original/relocated loading.
-
-The classic easy-access milestone adds sixteen getters frozen in
-`abi/symbols/libpng4cj-classic-easy-access-v1.txt`:
-
-- `png_get_valid` and `png_get_signature`
-- pixels-per-meter/inch scalar getters and fixed pixel-aspect ratio
-- pixel/micron offsets and fixed inch conversions
-- `png_get_pHYs_dpi`
-
-The validity mask follows the populated primary-info phase instead of treating
-all eagerly retained metadata as immediately visible; post-IDAT eXIf/tIME stay
-retained for later end-info work but do not leak into primary `png_get_valid`.
-The physical helpers preserve libpng unit gates, fixed multiply/divide
-rounding, overflow fallback, and `png_get_pHYs_dpi` output-dependent return
-flags. The PNG signature lives in stable info-owned native backing and follows
-the same allocator snapshot and operation guard as the retained metadata
-pointers. The strict consumer compares vendored `pngtest.png` values with an
-independent system-libpng 1.6.58 oracle, mutates pHYs/oFFs payloads with valid
-CRCs for unit-gate coverage, checks absent/wrong-owner/spare/stale handles,
-allocator balance, exact signatures, and original/relocated loading.
-
-The classic scalar-metadata milestone adds seventeen symbols frozen in
-`abi/symbols/libpng4cj-classic-scalar-metadata-v1.txt`:
-
-- floating gAMA/cHRM, pixel-aspect, and x/y inch getters
-- process-lifetime copyright, header-version, and library-version strings
-- `png_get_uint_31` and `png_build_grayscale_palette`
-- fixed/floating oFFs, cICP, cLLI, and mDCV getters
-
-Floating results are converted from retained fixed facts with the exact source
-scales; `png_get_oFFs` and `png_get_cICP` require every output, while cLLI and
-mDCV preserve optional outputs. Version strings use immutable process-lifetime
-native backing. The strict consumer freezes all signatures, compares the
-vendored upstream metadata values, checks invalid grayscale depth, absent and
-wrong-owner output preservation, the out-of-range UInt31 fatal callback path,
-stale handles, allocator balance, and original plus relocated execution.
-
-The classic extended-metadata milestone adds fifteen symbols frozen in
-`abi/symbols/libpng4cj-classic-extended-metadata-v1.txt`:
-
-- fixed/floating `png_get_cHRM_XYZ`
-- eXIf, hIST, iCCP, pCAL, sCAL, sPLT, tIME, text, and unknown-chunk getters
-- `png_get_rows`, which returns NULL until a later high-level rows population
-  lifecycle is implemented
-
-Variable metadata uses info-owned native backing allocated and released through
-the owning allocator snapshot. Primary info exposes only pre-IDAT text, eXIf,
-tIME, and unknown metadata; the post-IDAT zTXt/eXIf facts retained by the native
-decoder do not leak into these getters. The strict consumer freezes exact LP64
-layouts, compares `pngtest.png` values with libpng 1.6.58, checks pointer
-stability and owner/lifecycle rejection, and reproduces the upstream sCAL
-fixed-point overflow diagnostic in a subprocess.
-
-The classic runtime/context milestone adds all fourteen remaining `png_get_*`
-symbols frozen in `abi/symbols/libpng4cj-classic-runtime-context-v1.txt`. It
-preserves the frozen read-owner defaults for user limits, chunk limits, and the
-IDAT buffer; exposes the current sequential row cursor and zero pass/IO/status
-facts; returns NULL for registration contexts whose setters remain outside;
-and proves null, wrong-info, stale, original, and relocated execution. The
-frozen manifests now cover `122/258` upstream default symbols, leaving `136`
-and no unmanifested `png_get_*` symbols.
-
-The classic owner-read-limit milestone adds `png_set_user_limits` and
-`png_set_chunk_malloc_max`, frozen in
-`abi/symbols/libpng4cj-classic-owner-read-limits-v1.txt`. A read operation
-snapshots both limits before caller callbacks run, then applies them to IHDR
-dimension validation and individual chunk allocation. Later callback-side
-setter changes remain visible to getters and affect the next operation.
-Chunk-malloc value zero normalizes to `PNG_SIZE_MAX`, while the effective PNG
-chunk bound remains `PNG_UINT_31_MAX`. Strict subprocess proof freezes both
-fatal diagnostics. The manifests now cover `124/258`, leaving `134` symbols.
-
-The classic write-chunk milestone adds ten direct Cangjie symbols frozen in
-`abi/symbols/libpng4cj-classic-write-chunk-v1.txt`: write-owner creation and
-destruction, write callback registration, signature emission, streamed and
-one-shot raw chunk output, and flushing. Read and write owners share allocator,
-error, info, and IO context contracts while rejecting cross-direction
-operations. Write callbacks run outside the registry mutex with owner mutation
-frozen for the callback duration, and expose exact `PNG_IO_WRITING` location
-state plus the active chunk type. The strict consumer reproduces a real PNG
-fixture byte-for-byte through both custom and stdio sinks, including exact CRC,
-custom allocation ownership, relocated execution, and fatal declared-length
-diagnostics. The manifests now cover `134/258`, leaving `124` symbols.
-
-These surfaces are not yet the complete libpng16 drop-in ABI, a portable
-release, or an LTS artifact. Setjmp/longjmp, transformed rows, Adam7
-pass-progress/display combination, exact callback/cursor timing, high-level
-rows population, write-info/row/image APIs, remaining runtime/context setter
-and registration parity, remaining callback families and public symbols, and
-non-macOS ABI packaging remain outside this checkpoint.
+- the remaining `124` default public symbols
+- complete classic transform setters and transformed row timing
+- full progressive and user-callback C trampolines
+- exact upstream `setjmp`/`longjmp` behavior
+- canonical `libpng16` naming, installation, and package metadata
+- non-macOS C ABI artifacts and receipts

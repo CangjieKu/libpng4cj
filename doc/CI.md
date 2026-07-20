@@ -1,33 +1,54 @@
 # Continuous Integration
 
-`tools/ci.sh` is the canonical automated verification entry. It runs:
+[English](CI.md) | [简体中文](zh-CN/CI.md)
 
-1. environment and zlib checks
-2. frozen upstream inventory regeneration and drift detection
-3. `cjpm build`
-4. `cjpm test`
-5. the standalone Cangjie consumer
+## Local Verification
 
-Run it locally with:
+Run the complete native Cangjie verification entry from the repository root:
 
 ```sh
 ./tools/ci.sh
 ```
 
-The checked-in workflow at `.github/workflows/cangjie-ci.yml` uses a
-self-hosted runner labeled `cangjie` and `posix`. Public hosted runners do not
-currently provide the required Cangjie SDK, so the workflow will wait until a
-matching runner is connected.
+The script runs:
 
-A runner needs:
+1. environment checks through `tools/doctor.sh`
+2. frozen upstream inventory checks
+3. `cjpm build`
+4. `cjpm test`
+5. the standalone Cangjie consumer
 
-- `cjc` and `cjpm` on `PATH`
-- a POSIX shell
-- zlib development and runtime libraries resolvable through `-lz`
-- `git`, plus `sha256sum` or `shasum`
-- permission for the Cangjie unit-test runner to bind its local coordination
-  port
+The consumer includes a real-fixture decode, encode, and decode roundtrip.
 
-The workflow intentionally omits the macOS-only C ABI preview. That suite
-remains available through `tools/test_abi_preview.sh` and can be added as a
-separate runner lane when platform runners are provisioned.
+## Self-Hosted Runner
+
+The workflow under `.github/workflows/` targets a self-hosted runner with these
+labels:
+
+```text
+self-hosted
+cangjie
+posix
+```
+
+The runner must provide a compatible Cangjie SDK, zlib development files, Git,
+and a shell environment that permits the Cangjie unit-test runner to bind its
+local coordination port.
+
+Public hosted runners generally do not include the required Cangjie SDK, so
+the workflow is intentionally self-hosted.
+
+## C ABI Verification
+
+On macOS arm64, run:
+
+```sh
+./tools/test_abi_preview.sh
+```
+
+This builds the preview dynamic library, checks exported-symbol manifests,
+compiles 14 strict C11 consumers, runs them against the original library, and
+replays the relocation-sensitive paths from a copied location.
+
+The C ABI suite is separate from the portable native CI entry because the
+current artifact and runtime paths are macOS arm64 specific.

@@ -1,78 +1,50 @@
 # Compatibility And Dependency Matrix
 
-## Current Capability Boundary
+[English](COMPATIBILITY_AND_DEPENDENCY_MATRIX.md) | [简体中文](zh-CN/COMPATIBILITY.md)
 
-| Capability | Status | Current truth |
+## Capability Matrix
+
+| Area | Status | Notes |
 | --- | --- | --- |
-| ICC color application | Pending | iCCP bytes and validated profile metadata are retained; pixel colors are not converted |
-| Gamma correction | Implemented for current read pipeline | gAMA/sRGB/cHRM metadata, packed/8/16-bit correction, gamma-aware RGB-to-gray, background composition, and alpha-mode paths execute through frozen direct/linear tables; ICC pixel color conversion remains outside libpng parity |
-| Background composition | Implemented for current read pipeline | bKGD, fixed/floating application state, palette and non-palette composition, depth normalization, Screen/File/Unique gamma snapshots, alpha modes, and post-Compose Strip Alpha execute in initialized row and whole-image paths |
-| Standard ancillary metadata | Implemented for current read pipeline | cICP, cLLI, mDCV, eXIf, hIST, oFFs, pCAL, sCAL, and multiple sPLT entries are validated and retained through raw/RGBA result surfaces; recognized eXIf remains available after IDAT |
-| Adam7 decoding | Implemented for whole-image and progressive read | Exact seven-pass geometry, pass-local filter reversal, packed/8/16-bit reconstruction, metadata retention, RGBA8/RGBA16 transforms, progressive pass context, and owned canonical row combination are available |
-| Progressive reading | Implemented native incremental read path | `PngProgressiveReader` incrementally parses signature/chunk/CRC state, streams IDAT through bounded zlib windows, emits early info and rows, reports exact Adam7 pass rows, and supports callback-driven pause/resume with unconsumed-byte accounting |
-| Write API | Native whole-image, row-at-a-time, simplified native memory/file/stream, and `png_image` memory/file/stdio subset | `PngWriteSession`, `PngRowWriteSession`, `encodePngPacked`, `encodePngPackedAdam7`, and `PngWriteMetadata` emit canonical core, typed standard metadata, and policy-controlled copy-owned unknown chunks with bounded transforms, filtering, compression, metadata, and output; `PngWriteControlState` freezes filter subsets plus zlib level/memory/window/method/strategy/buffer policy and feeds one configured deflater across whole-image, deferred, early, and Adam7 paths; simplified writers add nine common 8-bit layouts, nine host-numeric linear UInt16 layouts, and six indexed colormap entry layouts; the C ABI adds upstream-shaped memory size-query/fill plus named-file and caller-owned `FILE*` output with cleanup. Complete write ABI parity remains open |
-| Simplified image API | Native facades plus upstream-compatible `png_image` memory/file/stdio ABI subset implemented | `PngImage` provides copy-owned begin/finish/free state, diagnostics, direct 8-bit, linear UInt16, colormap, signed-stride, file, and caller-managed stream surfaces. The exported ABI adds the LP64 `png_image` layout, simplified constants and geometry macros, tRNS-aware begin facts, cICP/mDCV/sRGB/cHRM colorspace flags, one-decode opaque ownership handoff, direct/linear/colormap finish, the untagged-16-bit sRGB assumption for linear reads, associated-alpha reads, solid or caller-buffer background composition, Adam7 input, deterministic cleanup, and file/caller-owned stdio begin/write entry points through narrow libc IO. Exact gamma-aware direct/color-map pixel parity remains open |
-| C ABI compatibility | Frozen manifests cover `134/258` upstream default symbols: five-symbol preview, eight exact simplified `png_image` symbols, eight stateless classic utilities, nine stateful read-handle symbols, two classic error symbols, six classic memory symbols, five classic read-IO symbols, ten classic core-info getters, four classic row/read-end symbols, eight fixed/core metadata getters, sixteen validity/easy-access/signature getters, seventeen scalar-metadata/version utilities, fifteen extended-metadata getters, fourteen runtime/context getters, two owner read-limit setters, and ten write-owner/raw-chunk symbols | Direct Cangjie `@C` exports include the original checked preview functions, exact memory/file/stdio simplified read/write lifecycle symbols, numeric version/signature/endian utilities, opaque `png_struct`/`png_info` ownership, lock-safe warning/error and custom read/write callback dispatch, allocator-owned memory, signature-prefix state, custom/stdio `png_read_info` decoding, owner-matched IHDR/scalar facts, fixed and floating gAMA/cHRM plus cHRM XYZ, sRGB/sBIT/bKGD/pHYs plus PLTE/tRNS, oFFs/cICP/cLLI/mDCV, pCAL/sCAL/tIME/text/eXIf/iCCP/hIST/sPLT/unknown/rows getters, frozen read-owner limits and buffer defaults, row/pass/IO/palette/RGB-to-gray status, NULL progressive/user contexts, owner dimension/per-chunk limits with callback snapshots, process-lifetime version strings, grayscale-palette construction, primary-phase valid flags, physical conversions, stable signature and variable metadata backing, sequential raw source-packed row/array delivery, final Adam7 whole-image copy, read-end lifecycle sealing, write-owner lifecycle, signature emission, streamed/one-shot raw chunks, CRC, stdio/custom output, and flush; strict C11 original and relocated proof passes on macOS arm64. The remaining `124` symbols contain no unmanifested `png_get_*` entries. Longjmp, transformed/pass-progress rows, exact callback/cursor timing, high-level rows population, remaining runtime/context setters and registration, broader read-end metadata/write state, remaining default-config symbols, canonical libpng16 packaging, and non-macOS ABI receipts remain open |
-| User callbacks | Partial | Native Cangjie read and write user transforms execute with explicit context and copy ownership, native write/flush sink callbacks support live replacement and failed-state guards, and the classic C ABI invokes retained warning/error, custom allocator/free, and custom read callbacks outside the registry mutex with callback-side context lookup, replacement ownership, and failure proof. Unknown-chunk callbacks, chunk callbacks, row-status callbacks, other raw C callback families, and longjmp remain open |
+| PNG decode | Supported | Non-interlaced and Adam7, packed rows, RGBA8/RGBA16, simplified image buffers |
+| PNG encode | Supported | Non-interlaced and Adam7, packed rows, row-at-a-time and sink output |
+| Progressive read | Supported | Fragmented feed, pause/resume, info/row/end callbacks |
+| Read transforms | `45/45` source functions translated | Includes gamma, background, alpha, packing, expansion, quantize, and channel transforms |
+| Write transforms | `5/5` source functions translated | Includes packing, swapping, shifting, alpha, BGR, and monochrome transforms |
+| Standard metadata | Supported | Core color, display, text, time, calibration, palette, ICC retention, and unknown chunks |
+| Simplified API | Supported | Memory, file, and stream input/output; direct, linear, and colormap buffers |
+| C ABI | Preview, `134/258` symbols | Complete verification currently limited to macOS arm64 |
 
-The read-transform ledger currently records `45/45` translated, `0/45`
-partial, and `0/45` pending top-level `pngrtran.c` functions. The complete
-source-backed status is maintained in
-[`PNG_RTRAN_TRANSLATION_LEDGER.md`](PNG_RTRAN_TRANSLATION_LEDGER.md).
+Function translation counts describe the `pngrtran.c` and `pngwtran.c` source
+bodies. They do not represent complete classic API or ABI coverage.
 
-The write-transform ledger records `5/5` translated, `0/5` partial, and `0/5`
-pending top-level `pngwtran.c` functions for the native write pipeline. This is
-function-body coverage, not complete classic write ABI coverage. See
-[`PNG_WTRAN_TRANSLATION_LEDGER.md`](PNG_WTRAN_TRANSLATION_LEDGER.md).
+## Native Dependencies
 
-## Native Dependency Matrix
-
-libpng4cj intentionally keeps zlib external, matching upstream libpng. The
-static library uses the zlib API through FFI, and the final executable must link
-`-lz` because cjpm static-library link options are not transitive.
-
-| Host | zlib source | Receipt | Status |
-| --- | --- | --- | --- |
-| macOS arm64 | System SDK/Homebrew-visible linker surface | zlib `1.2.12`; doctor, build, `504/504` tests, consumer, and strict C ABI preview | Verified on current host |
-| Debian 13 amd64 | Distribution zlib development/runtime package | Project-owner real-host receipt: native package build, tests, and standalone consumer succeeded | Verified native Cangjie surface; Linux C ABI artifact not yet collected |
-| Other Linux x86_64/aarch64 | Distribution `zlib` development/runtime package | Not collected | Pending |
-| Windows x86_64/aarch64 | Explicit zlib import/static library and cjpm link configuration | Not collected | Pending |
-| HarmonyOS/OpenHarmony | Target-provided or packaged zlib artifact | Not collected | Pending |
-
-Run the local preflight before building:
-
-```sh
-./tools/doctor.sh
-cjpm build
-cjpm test
-```
-
-`doctor.sh` verifies the Cangjie commands, reports the host/toolchain, checks
-zlib through `pkg-config` or a native `-lz` link-and-run probe, and confirms the
-vendored upstream license surface.
-
-## Cangjie Toolchain Matrix
-
-| Version | Evidence | Support wording |
+| Dependency | Requirement | Reason |
 | --- | --- | --- |
-| 1.1.3 | Current macOS arm64 doctor, build, `504/504` tests, consumer, and ABI receipts | Locally verified toolchain |
-| 1.1.0 | Earlier macOS arm64 build, test, consumer, and ABI receipts | Previously verified toolchain |
-| 1.0.5 | Declared package minimum; repository-administrator audit reports successful compile/run | Declared and externally observed; a local 1.0.5 regression receipt is still pending |
+| Cangjie SDK | `1.0.5` or newer | Package minimum |
+| zlib | System development library | PNG IDAT and compressed metadata |
+| C compiler | Optional | Required only for C ABI consumers |
 
-The package declares `cjc-version = "1.0.5"`. The current host uses Cangjie
-`1.1.3`, so the local build proves that the declared minimum is accepted by the
-newer toolchain; it does not replace a direct local regression run on 1.0.5.
+The final Cangjie executable must link `-lz`. This is required even when
+libpng4cj is consumed as a static cjpm dependency.
 
-## Coverage Boundary
+## Verified Environments
 
-- Inputs above 100 MB do not yet have a committed fixture. Compressed,
-  inflated, chunk, dimension, and transformed-output limits are configurable
-  and have focused boundary tests, but large-file throughput is not certified.
-- Decoder sessions and transform state are instance-owned with no package-level
-  mutable decode state. Concurrent stress and race testing are still pending.
-- Adam7 whole-image and progressive decoding are covered across packed,
-  8-bit, and 16-bit rows. Progressive proof includes one-byte and irregular
-  feeds, split chunk framing and zlib windows, all seven passes, owned row
-  combination, early callbacks, CRC/limit failures, and pause/resume without
-  duplicate delivery. ICC pixel color conversion is not a libpng behavior and
-  no broader color-management engine is claimed.
+| Platform | Toolchain | Verified surface |
+| --- | --- | --- |
+| macOS arm64 | Cangjie `1.1.3` | doctor, build, `504/504` tests, Cangjie consumer, original and relocated C ABI consumers |
+| Debian 13 amd64 | Owner-provided native receipt | build, `504/504` tests, Cangjie consumer |
+
+These receipts demonstrate the listed environments. They are not a general
+certification for every operating system, architecture, libc, zlib, or Cangjie
+toolchain combination.
+
+## Known Boundaries
+
+- The C ABI is not yet a drop-in replacement for complete `libpng16`.
+- Non-macOS C ABI artifacts and receipts are not yet provided.
+- ICC profiles are parsed, validated, and retained, but ICC pixel color
+  conversion is not implemented.
+- Images above 100 MB and concurrent stress workloads are not certified.
+- zlib remains an external dependency by design.

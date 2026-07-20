@@ -15,8 +15,9 @@
 
 <p align="center">
   <a href="https://gitcode.com/cinyu/libpng4cj">开源主仓</a> ·
-  <a href="doc/feature_api.md">API 索引</a> ·
-  <a href="doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md">兼容性矩阵</a> ·
+  <a href="doc/README.md">中文文档</a> ·
+  <a href="doc/zh-CN/API.md">API 指南</a> ·
+  <a href="doc/zh-CN/COMPATIBILITY.md">兼容性矩阵</a> ·
   <a href="README-EN.md">English</a>
 </p>
 
@@ -45,8 +46,8 @@ libpng16 替代品。
 | C ABI | `134/258` 个默认公开符号，当前完整回执限 macOS arm64 |
 | ICC | 保留并校验 iCCP profile，不执行 ICC 像素颜色转换 |
 
-详细状态见[兼容性与依赖矩阵](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)。
-API 索引见 [Feature API](doc/feature_api.md)。
+详细状态见[兼容性与依赖矩阵](doc/zh-CN/COMPATIBILITY.md)。
+API 使用说明见 [API 指南](doc/zh-CN/API.md)。
 
 ## 环境要求
 
@@ -149,7 +150,7 @@ consumer：
 
 仓库已包含 `.github/workflows/cangjie-ci.yml`。当前公共托管 runner 不提供所需
 仓颉 SDK，因此 workflow 使用带 `cangjie` 和 `posix` 标签的自托管 runner。
-配置说明见 [Continuous Integration](doc/CI.md)。
+配置说明见[持续集成](doc/zh-CN/CI.md)。
 
 当前测试集为 `504/504`。独立 consumer 包含真实 Adam7 fixture 的
 decode -> encode -> decode 完整像素 roundtrip。
@@ -165,8 +166,8 @@ decode -> encode -> decode 完整像素 roundtrip。
 - `pngrtran.c`：`45/45` 顶层函数已映射到仓颉实现
 - `pngwtran.c`：`5/5` 顶层函数已映射到仓颉实现
 
-逐函数状态见 [read transform ledger](doc/PNG_RTRAN_TRANSLATION_LEDGER.md)
-和 [write transform ledger](doc/PNG_WTRAN_TRANSLATION_LEDGER.md)。这些数字描述
+逐函数状态见[读取转换对齐](doc/zh-CN/READ_TRANSFORMS.md)
+和[写入转换对齐](doc/zh-CN/WRITE_TRANSFORMS.md)。这些数字描述
 源文件函数体覆盖，不等于完整 C ABI 覆盖。
 
 ## C ABI Preview
@@ -184,7 +185,7 @@ IO 生命周期，以及 write owner、raw chunk、CRC 和 flush。
 
 C 进程需要按照仓颉工具链要求调用 `InitCJRuntime`、
 `LoadCJLibraryWithInit` 和 `FiniCJRuntime`。完整说明见
-[C ABI Surfaces](doc/ABI_PREVIEW.md)。
+[C ABI 说明](doc/zh-CN/C_ABI.md)。
 
 ## 当前限制
 
@@ -202,7 +203,7 @@ C 进程需要按照仓颉工具链要求调用 `InitCJRuntime`、
 libpng4cj/
 ├── src/                         # 仓颉实现与 cjpm 单元测试
 ├── abi/                         # C ABI 头文件和冻结符号清单
-├── doc/                         # API、兼容性、CI 和上游映射
+├── doc/                         # 中英文 API、兼容性、CI 和上游映射
 ├── test/consumer/               # 独立仓颉消费项目
 ├── test/abi_consumer/           # 严格 C11 消费者
 ├── tools/                       # doctor、CI、清单和 ABI 验证脚本

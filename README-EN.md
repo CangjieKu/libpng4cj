@@ -15,7 +15,8 @@
 
 <p align="center">
   <a href="https://gitcode.com/cinyu/libpng4cj">Source repository</a> ·
-  <a href="doc/feature_api.md">API index</a> ·
+  <a href="doc/README-EN.md">Documentation</a> ·
+  <a href="doc/feature_api.md">API guide</a> ·
   <a href="doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md">Compatibility matrix</a> ·
   <a href="README.md">简体中文</a>
 </p>
@@ -210,7 +211,7 @@ A C process must call `InitCJRuntime`, `LoadCJLibraryWithInit`, and
 libpng4cj/
 ├── src/                         # Cangjie implementation and cjpm unit tests
 ├── abi/                         # C ABI headers and frozen symbol manifests
-├── doc/                         # API, compatibility, CI, and upstream mapping
+├── doc/                         # Bilingual API, compatibility, CI, and upstream mapping
 ├── test/consumer/               # standalone Cangjie consumer
 ├── test/abi_consumer/           # strict C11 consumers
 ├── tools/                       # doctor, CI, inventory, and ABI verification
