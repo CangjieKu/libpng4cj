@@ -52,7 +52,7 @@ for detailed status and [Feature API](doc/feature_api.md) for the API index.
 
 ## Requirements
 
-- `cjc` and `cjpm`; the package declares `1.0.5` as its minimum version
+- `cjc` and `cjpm`; this branch declares STS `1.1.3` as its minimum version
 - zlib development and runtime libraries
 - a system C compiler for the C ABI preview
 

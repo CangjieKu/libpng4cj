@@ -22,7 +22,7 @@ bodies. They do not represent complete classic API or ABI coverage.
 
 | Dependency | Requirement | Reason |
 | --- | --- | --- |
-| Cangjie SDK | `1.0.5` or newer | Package minimum |
+| Cangjie SDK | STS `1.1.3` or newer | Branch minimum |
 | zlib | System development library | PNG IDAT and compressed metadata |
 | C compiler | Optional | Required only for C ABI consumers |
 

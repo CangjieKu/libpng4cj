@@ -51,7 +51,7 @@ API 使用说明见 [API 指南](doc/zh-CN/API.md)。
 
 ## 环境要求
 
-- `cjc` 和 `cjpm`，项目声明最低版本为 `1.0.5`
+- `cjc` 和 `cjpm`，本分支声明 STS `1.1.3` 为最低版本
 - zlib 开发库和运行库
 - C ABI preview 需要系统 C 编译器
 
