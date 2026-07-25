@@ -91,6 +91,7 @@ class PngCClassicReadState {
     var chunkCacheMax = PNG_C_CLASSIC_CHUNK_CACHE_MAX
     var chunkMallocMax = PNG_C_CLASSIC_CHUNK_MALLOC_MAX
     var compressionBufferSize = PNG_C_CLASSIC_COMPRESSION_BUFFER_SIZE
+    let timeBuffer: CPointer<Unit>
     var ioState = UInt32(0)
     var ioChunkType = UInt32(0)
     var currentPass = UInt8(0)
@@ -120,6 +121,7 @@ class PngCClassicReadState {
         this.mallocFn = mallocFn
         this.freeFn = freeFn
         selfAllocator = PngCClassicAllocatorSnapshot(memPtr, mallocFn, freeFn)
+        timeBuffer = unsafe { malloc(UIntNative(29)) }
     }
 }
 
@@ -1215,6 +1217,9 @@ private func pngCClassicReleaseOwner(
     }
     match (released) {
         case Some(state) =>
+            if (!state.timeBuffer.isNull()) {
+                unsafe { free(state.timeBuffer) }
+            }
             pngCClassicFreeWith(
                 handle, state, state.selfAllocator, handle
             )

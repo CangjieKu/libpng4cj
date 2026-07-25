@@ -75,6 +75,7 @@ typedef size_t png_alloc_size_t;
 typedef struct png_struct_def png_struct;
 typedef const png_struct *png_const_structp;
 typedef png_struct *png_structp;
+typedef png_struct *png_structrp;
 typedef png_struct **png_structpp;
 typedef struct png_info_def png_info;
 typedef png_info *png_infop;
@@ -157,6 +158,7 @@ typedef struct png_time_struct {
     png_byte minute;
     png_byte second;
 } png_time, *png_timep;
+typedef const png_time *png_const_timep;
 
 typedef struct png_unknown_chunk_t {
     png_byte name[5];
@@ -733,6 +735,14 @@ int png_get_text(
     png_infop info_ptr,
     png_textp *text,
     int *text_count
+);
+int png_convert_to_rfc1123_buffer(
+    char out[29],
+    png_const_timep ptime
+);
+png_const_charp png_convert_to_rfc1123(
+    png_structrp png_ptr,
+    png_const_timep ptime
 );
 int png_get_unknown_chunks(
     png_const_structp png_ptr,
