@@ -13,7 +13,7 @@
 | 写入转换 | 上游源函数 `5/5` | 包含打包、交换、位移、Alpha、BGR 和单色反转 |
 | 标准元数据 | 已支持 | 色彩、显示、文本、时间、校准、调色板、ICC 保留和未知 chunk |
 | 简化 API | 已支持 | 内存、文件、流；直接、线性和色表图像缓冲区 |
-| C ABI | Preview，`134/258` | 完整验证目前限于 macOS arm64 |
+| C ABI | Preview，`139/258` | 完整验证目前限于 macOS arm64 |
 
 源函数数量描述 `pngrtran.c` 和 `pngwtran.c` 的函数体翻译情况，不等同于
 完整 classic API 或 ABI 覆盖率。
