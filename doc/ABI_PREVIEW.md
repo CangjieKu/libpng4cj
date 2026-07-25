@@ -20,7 +20,9 @@ output location and relocation-sensitive loading from a copied directory.
 
 ## Exported Surface
 
-The manifests currently cover `139/258` default public libpng symbols.
+The manifests currently cover `134/258` default public libpng symbols. Five
+additional `png4cj_*` preview extension symbols are exported and are not
+counted against the upstream total.
 
 Supported groups include:
 

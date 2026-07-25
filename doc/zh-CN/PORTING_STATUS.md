@@ -35,8 +35,9 @@ API。仓库中的上游源码是固定的实现参考，不会被链接进仓�
 ## ABI 范围
 
 C ABI 由仓颉 `@C` 直接导出。目前清单覆盖默认公开 libpng 符号中的
-`139/258`，包含简化图像操作、classic read owner、IO、行读取、元数据
-getter、内存和错误回调、限制，以及 raw write chunk 输出。
+`134/258`，包含简化图像操作、classic read owner、IO、行读取、元数据
+getter、内存和错误回调、限制，以及 raw write chunk 输出。另有 5 个
+`png4cj_*` 预览扩展符号用于能力发现和 RGBA8 解码，不计入上游总数。
 
 受支持契约和明确边界见 [C ABI 说明](C_ABI.md)。
 
