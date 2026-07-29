@@ -43,7 +43,7 @@ libpng16 替代品。
 | 渐进式读取 | 增量输入、info/row/end 回调、Adam7 pass 信息、暂停与恢复 |
 | 编码 | 整图、逐行、增量 IDAT、Adam7、过滤和压缩控制、元数据、未知块 |
 | 简化 API | 内存、文件、调用方管理的流，支持 direct8、linear16、colormap 和正负 stride |
-| C ABI | `134/258` 个默认公开符号，当前完整回执限 macOS arm64 |
+| C ABI | `134/258` 个默认公开 libpng 符号，另含 5 个 `png4cj_*` 预览扩展符号，当前完整回执限 macOS arm64 |
 | ICC | 保留并校验 iCCP profile，不执行 ICC 像素颜色转换 |
 
 详细状态见[兼容性与依赖矩阵](doc/zh-CN/COMPATIBILITY.md)。
@@ -51,7 +51,7 @@ API 使用说明见 [API 指南](doc/zh-CN/API.md)。
 
 ## 环境要求
 
-- `cjc` 和 `cjpm`，项目声明最低版本为 `1.0.5`
+- `cjc` 和 `cjpm`，本分支声明 STS `1.1.3` 为最低版本
 - zlib 开发库和运行库
 - C ABI preview 需要系统 C 编译器
 
@@ -171,6 +171,7 @@ decode -> encode -> decode 完整像素 roundtrip。
 源文件函数体覆盖，不等于完整 C ABI 覆盖。
 
 ## C ABI Preview
+> 注意！ 该能力为额外维护项，本项目主要方向是维护*仓颉原生API*的实现
 
 macOS arm64 上可以运行完整 C ABI 验证：
 
@@ -189,11 +190,11 @@ C 进程需要按照仓颉工具链要求调用 `InitCJRuntime`、
 
 ## 当前限制
 
-- C ABI 尚未覆盖全部 libpng16 默认符号和行为
-- `setjmp` / `longjmp`、部分回调和原始用户指针族仍未完成
+- C ABI 尚未覆盖全部 libpng16 默认符号和行为 | **该能力为额外维护项**
+- `setjmp` / `longjmp`、部分回调和原始用户指针族仍未完成 | **Cangjie 用 Exception**
 - 经典 write-info/row/image 与剩余 setter/state API 仍需补齐
-- 不执行 ICC profile 驱动的像素颜色转换
-- Linux、Windows、HarmonyOS/OpenHarmony 的 C ABI 制品尚未验证
+- 不执行 ICC profile 驱动的像素颜色转换 | **原版 libpng 也不默认做 ICC 转换(需要 lcms2)**
+- Linux、Windows、HarmonyOS/OpenHarmony 的 C ABI 制品尚未验证 | **主要负责方向是仓颉原生接口**
 - 尚无超过 100 MB 图片的吞吐认证、并发压力证明或稳定 ABI 承诺
 - `0.8.1` 不是 LTS 版本
 

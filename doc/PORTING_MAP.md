@@ -39,7 +39,9 @@ not linked into the Cangjie implementation.
 The C ABI is built from direct Cangjie `@C` exports. It currently manifests
 `134/258` default public libpng symbols, including simplified image operations,
 classic read ownership, IO, row delivery, metadata getters, memory and error
-callbacks, limits, and raw write-chunk output.
+callbacks, limits, and raw write-chunk output. Five additional `png4cj_*`
+preview extension symbols are exported for capability discovery and RGBA8
+decode and are not counted against the upstream libpng total.
 
 See [C ABI Surfaces](ABI_PREVIEW.md) for the supported contract and explicit
 limits.

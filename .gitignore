@@ -4,3 +4,10 @@ target/
 *.macrocall
 .cache/
 .vscode/
+.idea/
+*.iml
+.cursor/
+.claude/
+.trae-cn/
+.codespell*
+cjpm.lock

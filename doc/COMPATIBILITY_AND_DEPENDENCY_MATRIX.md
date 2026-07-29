@@ -13,7 +13,7 @@
 | Write transforms | `5/5` source functions translated | Includes packing, swapping, shifting, alpha, BGR, and monochrome transforms |
 | Standard metadata | Supported | Core color, display, text, time, calibration, palette, ICC retention, and unknown chunks |
 | Simplified API | Supported | Memory, file, and stream input/output; direct, linear, and colormap buffers |
-| C ABI | Preview, `134/258` symbols | Complete verification currently limited to macOS arm64 |
+| C ABI | Preview, `134/258` upstream symbols plus 5 `png4cj_*` preview extensions | Complete verification currently limited to macOS arm64 |
 
 Function translation counts describe the `pngrtran.c` and `pngwtran.c` source
 bodies. They do not represent complete classic API or ABI coverage.
@@ -22,7 +22,7 @@ bodies. They do not represent complete classic API or ABI coverage.
 
 | Dependency | Requirement | Reason |
 | --- | --- | --- |
-| Cangjie SDK | `1.0.5` or newer | Package minimum |
+| Cangjie SDK | STS `1.1.3` or newer | Branch minimum |
 | zlib | System development library | PNG IDAT and compressed metadata |
 | C compiler | Optional | Required only for C ABI consumers |
 

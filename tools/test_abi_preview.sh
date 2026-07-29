@@ -38,6 +38,8 @@ CLASSIC_OWNER_LIMITS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-owner-read-li
 CLASSIC_OWNER_LIMITS_ACTUAL="$OUT/libpng4cj-classic-owner-read-limits-v1.actual.txt"
 CLASSIC_WRITE_CHUNK_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-write-chunk-v1.txt"
 CLASSIC_WRITE_CHUNK_ACTUAL="$OUT/libpng4cj-classic-write-chunk-v1.actual.txt"
+CLASSIC_TIME_CONVERSION_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-time-conversion-v1.txt"
+CLASSIC_TIME_CONVERSION_ACTUAL="$OUT/libpng4cj-classic-time-conversion-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -209,6 +211,12 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_WRITE_CHUNK_ACTUAL"
 diff -u "$CLASSIC_WRITE_CHUNK_EXPECTED" "$CLASSIC_WRITE_CHUNK_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_convert_to_rfc1123" || \
+        $3 == "_png_convert_to_rfc1123_buffer") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_TIME_CONVERSION_ACTUAL"
+diff -u "$CLASSIC_TIME_CONVERSION_EXPECTED" "$CLASSIC_TIME_CONVERSION_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -561,6 +569,24 @@ fi
     exit 1
 }
 
+cc "$ROOT/test/abi_consumer/png_classic_time_conversion.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-time-conversion-consumer"
+
+"$OUT/png-classic-time-conversion-consumer" \
+    "$OUT/libpng4cj_preview.dylib"
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
@@ -576,6 +602,7 @@ cp "$OUT/png-classic-extended-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-runtime-context-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-owner-read-limits-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-write-chunk-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-time-conversion-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -705,4 +732,6 @@ fi
         "relocated png_write_chunk_data exit=$relocated_long_chunk_status, expected=84" >&2
     exit 1
 }
+"$RELOCATED/png-classic-time-conversion-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib"
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'

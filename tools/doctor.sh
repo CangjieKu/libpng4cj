@@ -79,6 +79,8 @@ fi
     fail "classic owner read-limits ABI symbol manifest is missing"
 [ -f "$ROOT/abi/symbols/libpng4cj-classic-write-chunk-v1.txt" ] || \
     fail "classic write-chunk ABI symbol manifest is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-classic-time-conversion-v1.txt" ] || \
+    fail "classic time-conversion ABI symbol manifest is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_read_handle.c" ] || \
     fail "classic read-handle ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_core_info.c" ] || \
@@ -99,8 +101,10 @@ fi
     fail "classic owner read-limits ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_write_chunk.c" ] || \
     fail "classic write-chunk ABI C consumer is missing"
+[ -f "$ROOT/test/abi_consumer/png_classic_time_conversion.c" ] || \
+    fail "classic time-conversion ABI C consumer is missing"
 
 note "upstream=libpng-1.6.58 reference present"
 note "png_image=memory/file/stdio ABI header and symbol manifests present"
-note "classic-abi=stateless, read-handle, error, memory, read-IO, core-info, row-read, metadata, easy-access, scalar-metadata, extended-metadata, runtime-context, owner-read-limits, and write-chunk manifests/consumers present"
+note "classic-abi=stateless, read-handle, error, memory, read-IO, core-info, row-read, metadata, easy-access, scalar-metadata, extended-metadata, runtime-context, owner-read-limits, write-chunk, and time-conversion manifests/consumers present"
 note "PASS"
