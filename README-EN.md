@@ -44,7 +44,7 @@ arm64. That ABI remains a preview and is not a complete libpng16 replacement.
 | Progressive reading | Incremental input, info/row/end callbacks, Adam7 pass information, pause, and resume |
 | Encoding | Whole-image, row-at-a-time, incremental IDAT, Adam7, filter and compression control, metadata, and unknown chunks |
 | Simplified API | Memory, files, caller-managed streams, direct8, linear16, colormap, and positive or negative strides |
-| C ABI | `134/258` default public symbols, with the complete current receipt limited to macOS arm64 |
+| C ABI | `136/258` default public libpng symbols plus 5 `png4cj_*` preview extensions, with the complete current receipt limited to macOS arm64 |
 | ICC | iCCP profiles are retained and validated; ICC pixel color conversion is not performed |
 
 See the [Compatibility and Dependency Matrix](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)

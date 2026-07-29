@@ -20,7 +20,7 @@ output location and relocation-sensitive loading from a copied directory.
 
 ## Exported Surface
 
-The manifests currently cover `134/258` default public libpng symbols. Five
+The manifests currently cover `136/258` default public libpng symbols. Five
 additional `png4cj_*` preview extension symbols are exported and are not
 counted against the upstream total.
 
@@ -37,6 +37,7 @@ Supported groups include:
   metadata getters
 - write callbacks, signature emission, one-shot and streamed raw chunks, CRC,
   flush, and stdio output
+- RFC1123 conversion from `png_time`, including the owner-buffer form
 
 Exact symbol membership is defined by files under [`abi/symbols/`](../abi/symbols/).
 
@@ -96,7 +97,7 @@ build and consumer receipt is added.
 
 ## Open Compatibility Areas
 
-- the remaining `124` default public symbols
+- the remaining `122` default public symbols
 - complete classic transform setters and transformed row timing
 - full progressive and user-callback C trampolines
 - exact upstream `setjmp`/`longjmp` behavior

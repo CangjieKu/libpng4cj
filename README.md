@@ -43,7 +43,7 @@ libpng16 替代品。
 | 渐进式读取 | 增量输入、info/row/end 回调、Adam7 pass 信息、暂停与恢复 |
 | 编码 | 整图、逐行、增量 IDAT、Adam7、过滤和压缩控制、元数据、未知块 |
 | 简化 API | 内存、文件、调用方管理的流，支持 direct8、linear16、colormap 和正负 stride |
-| C ABI | `134/258` 个默认公开 libpng 符号，另含 5 个 `png4cj_*` 预览扩展符号，当前完整回执限 macOS arm64 |
+| C ABI | `136/258` 个默认公开 libpng 符号，另含 5 个 `png4cj_*` 预览扩展符号，当前完整回执限 macOS arm64 |
 | ICC | 保留并校验 iCCP profile，不执行 ICC 像素颜色转换 |
 
 详细状态见[兼容性与依赖矩阵](doc/zh-CN/COMPATIBILITY.md)。
