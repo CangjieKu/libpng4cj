@@ -82,6 +82,12 @@ class PngCClassicReadState {
     var writeChunkActive = false
     var writeChunkRemaining = UInt64(0)
     var writeChunkCrc = pngCrc32Start()
+    var writeInfoHandle = UIntNative(0)
+    var writeIhdr: Option<PngIhdr> = None
+    var writePalette = Array<Byte>()
+    let writeControls = PngWriteControlState()
+    var rowWriter: Option<PngRowWriteSession> = None
+    var rowWriterSink: Option<PngWriteSink> = None
     var decodedRows: Option<PngDecodedRows> = None
     let readTransforms = PngReadTransformState()
     var transformedRows: Option<PngInitializedReadRowsResult> = None
@@ -1217,11 +1223,30 @@ private func pngCClassicReleaseOwner(
     }
     match (released) {
         case Some(state) =>
+            match (state.rowWriter) {
+                case Some(writer) =>
+                    try { writer.close() } catch (_: Exception) {}
+                case None => ()
+            }
             pngCClassicFreeWith(
                 handle, state, state.selfAllocator, handle
             )
             pngCClassicRemoveReadAlias(handle)
         case None => ()
+    }
+}
+
+func pngCClassicInfoMatchesOwner(
+    pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
+): Bool {
+    if (pngPtr.isNull() || infoPtr.isNull()) { return false }
+    synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
+        match (PNG_C_CLASSIC_INFO_REGISTRY.get(infoPtr.toUIntNative())) {
+            case Some(infoState) =>
+                infoState.owner == pngPtr.toUIntNative() &&
+                    !infoState.readState.destroying
+            case None => false
+        }
     }
 }
 

@@ -7,9 +7,9 @@
  * callback invocation, fatal fallback termination, custom-allocation
  * ownership, custom/stdio read-info input, core IHDR and fixed metadata getters,
  * raw row delivery, read-end sealing, retained and extended metadata getters,
- * validity, fixed physical conversions, and signature access. Longjmp and
- * transformed/pass-progress row IO and high-level classic writing are not yet
- * implemented. The write subset includes exact signature and raw chunk output.
+ * validity, fixed physical conversions, signature access, and a bounded
+ * sequential classic write lifecycle. Longjmp, progressive/pass-progress IO,
+ * and the wider libpng metadata/write surface remain outside this subset.
  */
 
 #include <stddef.h>
@@ -441,6 +441,39 @@ void png_read_row(
 );
 void png_read_image(png_structp png_ptr, png_bytepp image);
 void png_read_end(png_structp png_ptr, png_infop info_ptr);
+void png_set_IHDR(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_uint_32 width,
+    png_uint_32 height,
+    int bit_depth,
+    int color_type,
+    int interlace_method,
+    int compression_method,
+    int filter_method
+);
+void png_set_PLTE(
+    png_structp png_ptr,
+    png_infop info_ptr,
+    png_const_colorp palette,
+    int num_palette
+);
+void png_write_info(png_structp png_ptr, png_const_infop info_ptr);
+void png_write_row(png_structp png_ptr, png_const_bytep row);
+void png_write_rows(
+    png_structp png_ptr,
+    png_bytepp rows,
+    png_uint_32 num_rows
+);
+void png_write_image(png_structp png_ptr, png_bytepp image);
+void png_write_end(png_structp png_ptr, png_infop info_ptr);
+void png_set_filter(png_structp png_ptr, int method, int filters);
+void png_set_compression_buffer_size(png_structp png_ptr, size_t size);
+void png_set_compression_level(png_structp png_ptr, int level);
+void png_set_compression_mem_level(png_structp png_ptr, int mem_level);
+void png_set_compression_strategy(png_structp png_ptr, int strategy);
+void png_set_compression_window_bits(png_structp png_ptr, int window_bits);
+void png_set_compression_method(png_structp png_ptr, int method);
 size_t png_get_rowbytes(
     png_const_structp png_ptr,
     png_const_infop info_ptr

@@ -40,6 +40,8 @@ CLASSIC_READ_TRANSFORM_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-read-transf
 CLASSIC_READ_TRANSFORM_ACTUAL="$OUT/libpng4cj-classic-read-transform-v1.actual.txt"
 CLASSIC_WRITE_CHUNK_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-write-chunk-v1.txt"
 CLASSIC_WRITE_CHUNK_ACTUAL="$OUT/libpng4cj-classic-write-chunk-v1.actual.txt"
+CLASSIC_WRITE_LIFECYCLE_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-write-lifecycle-v1.txt"
+CLASSIC_WRITE_LIFECYCLE_ACTUAL="$OUT/libpng4cj-classic-write-lifecycle-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
 
 trap 'rm -rf "$RELOCATED"' EXIT HUP INT TERM
@@ -230,6 +232,21 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_WRITE_CHUNK_ACTUAL"
 diff -u "$CLASSIC_WRITE_CHUNK_EXPECTED" "$CLASSIC_WRITE_CHUNK_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_set_IHDR" || \
+        $3 == "_png_set_PLTE" || \
+        $3 == "_png_set_compression_buffer_size" || \
+        $3 == "_png_set_compression_level" || \
+        $3 == "_png_set_compression_mem_level" || \
+        $3 == "_png_set_compression_method" || \
+        $3 == "_png_set_compression_strategy" || \
+        $3 == "_png_set_compression_window_bits" || \
+        $3 == "_png_set_filter" || $3 == "_png_write_end" || \
+        $3 == "_png_write_image" || $3 == "_png_write_info" || \
+        $3 == "_png_write_row" || $3 == "_png_write_rows") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_WRITE_LIFECYCLE_ACTUAL"
+diff -u "$CLASSIC_WRITE_LIFECYCLE_EXPECTED" "$CLASSIC_WRITE_LIFECYCLE_ACTUAL"
 
 cc "$ROOT/test/abi_consumer/main.c" \
     -std=c11 \
@@ -604,6 +621,24 @@ fi
     exit 1
 }
 
+cc "$ROOT/test/abi_consumer/png_classic_write_lifecycle.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-write-lifecycle-consumer"
+
+"$OUT/png-classic-write-lifecycle-consumer" \
+    "$OUT/libpng4cj_preview.dylib"
+
 cp "$OUT/abi-consumer" "$RELOCATED/"
 cp "$OUT/libpng4cj_preview.dylib" "$RELOCATED/"
 cp "$OUT/png-image-memory-consumer" "$RELOCATED/"
@@ -620,6 +655,7 @@ cp "$OUT/png-classic-runtime-context-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-owner-read-limits-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-read-transform-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-write-chunk-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-write-lifecycle-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/ibasn0g01.png"
@@ -755,4 +791,6 @@ fi
         "relocated png_write_chunk_data exit=$relocated_long_chunk_status, expected=84" >&2
     exit 1
 }
+"$RELOCATED/png-classic-write-lifecycle-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib"
 printf '%s\n' 'libpng4cj ABI preview consumer: PASS'
