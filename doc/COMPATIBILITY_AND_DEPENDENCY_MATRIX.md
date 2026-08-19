@@ -13,7 +13,7 @@
 | Write transforms | `5/5` source functions translated | Includes packing, swapping, shifting, alpha, BGR, and monochrome transforms |
 | Standard metadata | Supported | Core color, display, text, time, calibration, palette, ICC retention, and unknown chunks |
 | Simplified API | Supported | Memory, file, and stream input/output; direct, linear, and colormap buffers |
-| C ABI | Preview, `134/258` symbols | Complete verification currently limited to macOS arm64 |
+| C ABI | Review candidate, `180/258` symbols | Complete verification currently limited to macOS arm64; exact inventories are machine-checked |
 
 Function translation counts describe the `pngrtran.c` and `pngwtran.c` source
 bodies. They do not represent complete classic API or ABI coverage.
@@ -43,8 +43,23 @@ toolchain combination.
 ## Known Boundaries
 
 - The C ABI is not yet a drop-in replacement for complete `libpng16`.
+- The remaining 78 upstream-default symbols are listed in the exact inventory
+  linked from [C ABI Surfaces](ABI_PREVIEW.md).
 - Non-macOS C ABI artifacts and receipts are not yet provided.
 - ICC profiles are parsed, validated, and retained, but ICC pixel color
   conversion is not implemented.
 - Images above 100 MB and concurrent stress workloads are not certified.
 - zlib remains an external dependency by design.
+
+## Migration And Rollback
+
+The new classic write metadata setters are additive. Existing consumers can
+keep using the previous manifests and omit the new setters. Consumers that
+enable them must use the matching `png.h` and dynamic library from the same
+build, because borrowed metadata layouts and exported symbol sets are versioned
+together.
+
+To roll back this candidate, keep the last known-good library/header pair and
+remove the candidate dynamic library from the deployment directory. Do not mix
+the candidate header with an older library or vice versa. The native Cangjie API
+is unchanged by the classic ABI additions.

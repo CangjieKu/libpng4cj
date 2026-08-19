@@ -2,8 +2,8 @@
 
 [简体中文](C_ABI.md) | [English](../ABI_PREVIEW.md)
 
-libpng4cj 提供由仓颉 `@C` 直接导出的 Preview C ABI，用于早期业务接入和
-兼容性建设。它目前还不是完整 `libpng16` 的替代品。
+libpng4cj 提供由仓颉 `@C` 直接导出的评审候选 C ABI，用于业务接入和兼容性
+建设。它目前还不是完整 `libpng16` 的替代品。
 
 ## 构建与测试
 
@@ -18,7 +18,11 @@ libpng4cj 提供由仓颉 `@C` 直接导出的 Preview C ABI，用于早期业�
 
 ## 导出范围
 
-当前符号清单覆盖默认公开 libpng 符号中的 `134/258`。
+当前符号清单覆盖默认公开 libpng 符号中的 `180/258`。机器可复核的已支持和
+剩余清单分别是
+[`libpng4cj-1.6.58-supported-symbols.txt`](../upstream/libpng4cj-1.6.58-supported-symbols.txt)
+和 [`libpng4cj-1.6.58-remaining-symbols.txt`](../upstream/libpng4cj-1.6.58-remaining-symbols.txt)。
+可运行 `tools/check_abi_coverage.sh` 从 manifest 重算覆盖率。
 
 主要包括：
 
@@ -29,7 +33,10 @@ libpng4cj 提供由仓颉 `@C` 直接导出的 Preview C ABI，用于早期业�
 - 错误、警告、分配器和 IO 回调上下文
 - 用户尺寸和单 chunk 分配限制
 - `png_read_info`、源格式打包行读取和 `png_read_end`
+- classic 读取转换、转换后行交付和信息投影
 - IHDR、标量、定点、浮点、物理尺寸、色彩、文本、ICC 和扩展元数据 getter
+- IHDR/PLTE 写入设置、逐行/整图/结束生命周期、压缩和过滤控制，以及安全的
+  classic 元数据 setter
 - 写回调、签名、单次及分段 raw chunk、CRC、flush 和 stdio 输出
 
 准确符号范围以 [`abi/symbols/`](../../abi/symbols/) 中的清单为准。
@@ -80,9 +87,13 @@ C ABI 产物。
 
 ## 待补兼容范围
 
-- 剩余 `124` 个默认公开符号
-- 完整 classic transform setter 和转换后行时序
-- 完整 progressive 及用户回调 C trampoline
+- 剩余 `78` 个默认公开符号，见上面的精确清单
+- 回调式转换、状态/用户 chunk trampoline
+- progressive C ABI 回调和上游 `png_read_png` 便捷路径
 - 上游一致的 `setjmp`/`longjmp` 行为
 - 标准 `libpng16` 命名、安装和包元数据
 - 非 macOS C ABI 产物与验证记录
+
+剩余清单按风险分组，包括非局部跳转错误与生命周期辅助函数、progressive
+和回调注册、指针树或文本/未知 chunk 修改、其他转换/压缩策略 setter，以及
+上游便捷或平台时间辅助函数。本候选不会用只有地址的空实现伪装覆盖率。

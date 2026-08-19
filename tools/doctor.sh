@@ -111,6 +111,12 @@ fi
     fail "classic write-lifecycle ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_write_metadata.c" ] || \
     fail "classic write-metadata ABI C consumer is missing"
+[ -x "$ROOT/tools/check_abi_coverage.sh" ] || \
+    fail "ABI coverage checker is missing or not executable"
+
+coverage=$("$ROOT/tools/check_abi_coverage.sh") || \
+    fail "ABI coverage inventory does not match the manifests"
+note "$coverage"
 
 note "upstream=libpng-1.6.58 reference present"
 note "png_image=memory/file/stdio ABI header and symbol manifests present"

@@ -35,10 +35,11 @@ API。仓库中的上游源码是固定的实现参考，不会被链接进仓�
 ## ABI 范围
 
 C ABI 由仓颉 `@C` 直接导出。目前清单覆盖默认公开 libpng 符号中的
-`134/258`，包含简化图像操作、classic read owner、IO、行读取、元数据
-getter、内存和错误回调、限制，以及 raw write chunk 输出。
+`180/258`，包含简化图像操作、classic read owner、IO、行读取、读取转换、
+元数据 getter 和安全 setter、内存和错误回调、限制，以及写入生命周期/输出。
 
 受支持契约和明确边界见 [C ABI 说明](C_ABI.md)。
+精确的已支持/剩余集合由 `tools/check_abi_coverage.sh` 校验。
 
 ## 对齐证据
 
