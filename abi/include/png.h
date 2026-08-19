@@ -123,6 +123,7 @@ typedef struct png_color_8_struct {
     png_byte gray;
     png_byte alpha;
 } png_color_8, *png_color_8p;
+typedef const png_color_8 *png_const_color_8p;
 
 typedef struct png_sPLT_entry_struct {
     png_uint_16 red;
@@ -158,6 +159,7 @@ typedef struct png_time_struct {
     png_byte minute;
     png_byte second;
 } png_time, *png_timep;
+typedef const png_time *png_const_timep;
 
 typedef struct png_unknown_chunk_t {
     png_byte name[5];
@@ -474,6 +476,103 @@ void png_set_compression_mem_level(png_structp png_ptr, int mem_level);
 void png_set_compression_strategy(png_structp png_ptr, int strategy);
 void png_set_compression_window_bits(png_structp png_ptr, int window_bits);
 void png_set_compression_method(png_structp png_ptr, int method);
+void png_set_bKGD(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_const_color_16p background
+);
+void png_set_cHRM_fixed(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_fixed_point white_x,
+    png_fixed_point white_y,
+    png_fixed_point red_x,
+    png_fixed_point red_y,
+    png_fixed_point green_x,
+    png_fixed_point green_y,
+    png_fixed_point blue_x,
+    png_fixed_point blue_y
+);
+void png_set_cICP(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_byte color_primaries,
+    png_byte transfer_function,
+    png_byte matrix_coefficients,
+    png_byte full_range_flag
+);
+void png_set_cLLI_fixed(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_uint_32 maximum_content_light_level,
+    png_uint_32 maximum_frame_average_light_level
+);
+void png_set_eXIf_1(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_uint_32 num_exif,
+    png_bytep exif
+);
+void png_set_gAMA_fixed(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_fixed_point file_gamma
+);
+void png_set_hIST(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    const png_uint_16 *histogram
+);
+void png_set_mDCV_fixed(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_fixed_point white_x,
+    png_fixed_point white_y,
+    png_fixed_point red_x,
+    png_fixed_point red_y,
+    png_fixed_point green_x,
+    png_fixed_point green_y,
+    png_fixed_point blue_x,
+    png_fixed_point blue_y,
+    png_uint_32 maximum_display_luminance,
+    png_uint_32 minimum_display_luminance
+);
+void png_set_oFFs(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_int_32 offset_x,
+    png_int_32 offset_y,
+    int unit_type
+);
+void png_set_pHYs(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_uint_32 resolution_x,
+    png_uint_32 resolution_y,
+    int unit_type
+);
+void png_set_sBIT(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_const_color_8p significant_bits
+);
+void png_set_sRGB(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    int srgb_intent
+);
+void png_set_tIME(
+    png_const_structp png_ptr,
+    png_infop info_ptr,
+    png_const_timep modification_time
+);
+void png_set_tRNS(
+    png_structp png_ptr,
+    png_infop info_ptr,
+    png_const_bytep transparency,
+    int transparency_count,
+    png_const_color_16p transparent_color
+);
 size_t png_get_rowbytes(
     png_const_structp png_ptr,
     png_const_infop info_ptr

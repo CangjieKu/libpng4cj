@@ -85,6 +85,7 @@ class PngCClassicReadState {
     var writeInfoHandle = UIntNative(0)
     var writeIhdr: Option<PngIhdr> = None
     var writePalette = Array<Byte>()
+    let writeMetadata = PngWriteMetadata()
     let writeControls = PngWriteControlState()
     var rowWriter: Option<PngRowWriteSession> = None
     var rowWriterSink: Option<PngWriteSink> = None

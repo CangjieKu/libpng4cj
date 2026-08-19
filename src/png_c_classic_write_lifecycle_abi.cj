@@ -244,7 +244,7 @@ private func pngCClassicStartRowWriter(
 ): Unit {
     if (!pngCClassicInfoMatchesOwner(pngPtr, infoPtr)) { return }
     var context: Option<(
-        PngCClassicReadState, PngIhdr, Array<Byte>
+        PngCClassicReadState, PngIhdr, Array<Byte>, PngWriteMetadata
     )> = None
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
@@ -258,7 +258,8 @@ private func pngCClassicStartRowWriter(
                             state.readOperationActive = true
                             state.signatureWritten = true
                             context = Some((
-                                state, ihdr, state.writePalette.clone()
+                                state, ihdr, state.writePalette.clone(),
+                                pngSnapshotWriteMetadata(state.writeMetadata)
                             ))
                         case None => ()
                     }
@@ -267,7 +268,7 @@ private func pngCClassicStartRowWriter(
         }
     }
     match (context) {
-        case Some((state, ihdr, palette)) =>
+        case Some((state, ihdr, palette, metadata)) =>
             var writer: Option<PngRowWriteSession> = None
             var sink: Option<PngWriteSink> = None
             var message = ""
@@ -281,7 +282,7 @@ private func pngCClassicStartRowWriter(
                 })
                 let nextWriter = PngRowWriteSession(
                     ihdr.width, ihdr.height, ihdr.bitDepth, ihdr.colorType,
-                    ihdr.interlaceMethod, palette, PngWriteMetadata(),
+                    ihdr.interlaceMethod, palette, metadata,
                     state.writeControls, PngWriteLimits()
                 )
                 nextWriter.startTo(nextSink)
