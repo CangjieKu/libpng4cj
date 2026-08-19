@@ -114,6 +114,7 @@ typedef struct png_color_16_struct {
     png_uint_16 blue;
     png_uint_16 gray;
 } png_color_16, *png_color_16p;
+typedef const png_color_16 *png_const_color_16p;
 
 typedef struct png_color_8_struct {
     png_byte red;
@@ -201,6 +202,17 @@ typedef png_unknown_chunkp *png_unknown_chunkpp;
 #define PNG_TEXT_COMPRESSION_zTXt 0
 #define PNG_ITXT_COMPRESSION_NONE 1
 #define PNG_ITXT_COMPRESSION_zTXt 2
+
+#define PNG_ERROR_ACTION_NONE 1
+#define PNG_ERROR_ACTION_WARN 2
+#define PNG_ERROR_ACTION_ERROR 3
+#define PNG_RGB_TO_GRAY_DEFAULT (-1)
+#define PNG_FILLER_BEFORE 0
+#define PNG_FILLER_AFTER 1
+#define PNG_BACKGROUND_GAMMA_UNKNOWN 0
+#define PNG_BACKGROUND_GAMMA_SCREEN 1
+#define PNG_BACKGROUND_GAMMA_FILE 2
+#define PNG_BACKGROUND_GAMMA_UNIQUE 3
 
 #define PNG_FORMAT_FLAG_ALPHA 0x01u
 #define PNG_FORMAT_FLAG_COLOR 0x02u
@@ -368,6 +380,54 @@ void png_write_chunk_end(png_structp png_ptr);
 void png_write_flush(png_structp png_ptr);
 void png_set_sig_bytes(png_structp png_ptr, int num_bytes);
 void png_read_info(png_structp png_ptr, png_infop info_ptr);
+void png_set_expand(png_structp png_ptr);
+void png_set_expand_gray_1_2_4_to_8(png_structp png_ptr);
+void png_set_palette_to_rgb(png_structp png_ptr);
+void png_set_tRNS_to_alpha(png_structp png_ptr);
+void png_set_expand_16(png_structp png_ptr);
+void png_set_gray_to_rgb(png_structp png_ptr);
+void png_set_rgb_to_gray(
+    png_structp png_ptr,
+    int error_action,
+    double red,
+    double green
+);
+void png_set_rgb_to_gray_fixed(
+    png_structp png_ptr,
+    int error_action,
+    png_fixed_point red,
+    png_fixed_point green
+);
+void png_set_strip_alpha(png_structp png_ptr);
+void png_set_scale_16(png_structp png_ptr);
+void png_set_strip_16(png_structp png_ptr);
+void png_set_gamma(
+    png_structp png_ptr,
+    double screen_gamma,
+    double file_gamma
+);
+void png_set_gamma_fixed(
+    png_structp png_ptr,
+    png_fixed_point screen_gamma,
+    png_fixed_point file_gamma
+);
+void png_set_background(
+    png_structp png_ptr,
+    png_const_color_16p background_color,
+    int background_gamma_code,
+    int need_expand,
+    double background_gamma
+);
+void png_set_background_fixed(
+    png_structp png_ptr,
+    png_const_color_16p background_color,
+    int background_gamma_code,
+    int need_expand,
+    png_fixed_point background_gamma
+);
+void png_set_check_for_invalid_index(png_structp png_ptr, int allowed);
+void png_start_read_image(png_structp png_ptr);
+void png_read_update_info(png_structp png_ptr, png_infop info_ptr);
 void png_read_rows(
     png_structp png_ptr,
     png_bytepp row,

@@ -36,6 +36,8 @@ CLASSIC_RUNTIME_CONTEXT_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-runtime-co
 CLASSIC_RUNTIME_CONTEXT_ACTUAL="$OUT/libpng4cj-classic-runtime-context-v1.actual.txt"
 CLASSIC_OWNER_LIMITS_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-owner-read-limits-v1.txt"
 CLASSIC_OWNER_LIMITS_ACTUAL="$OUT/libpng4cj-classic-owner-read-limits-v1.actual.txt"
+CLASSIC_READ_TRANSFORM_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-read-transform-v1.txt"
+CLASSIC_READ_TRANSFORM_ACTUAL="$OUT/libpng4cj-classic-read-transform-v1.actual.txt"
 CLASSIC_WRITE_CHUNK_EXPECTED="$ROOT/abi/symbols/libpng4cj-classic-write-chunk-v1.txt"
 CLASSIC_WRITE_CHUNK_ACTUAL="$OUT/libpng4cj-classic-write-chunk-v1.actual.txt"
 RELOCATED=$(mktemp -d "${TMPDIR:-/tmp}/libpng4cj-abi-preview.XXXXXX")
@@ -198,6 +200,25 @@ nm -gU "$OUT/libpng4cj_preview.dylib" | \
         { sub(/^_/, "", $3); print $3 }' | \
     sort > "$CLASSIC_OWNER_LIMITS_ACTUAL"
 diff -u "$CLASSIC_OWNER_LIMITS_EXPECTED" "$CLASSIC_OWNER_LIMITS_ACTUAL"
+nm -gU "$OUT/libpng4cj_preview.dylib" | \
+    awk '$2 == "T" && ($3 == "_png_read_update_info" || \
+        $3 == "_png_set_background" || \
+        $3 == "_png_set_background_fixed" || \
+        $3 == "_png_set_check_for_invalid_index" || \
+        $3 == "_png_set_expand" || $3 == "_png_set_expand_16" || \
+        $3 == "_png_set_expand_gray_1_2_4_to_8" || \
+        $3 == "_png_set_gamma" || $3 == "_png_set_gamma_fixed" || \
+        $3 == "_png_set_gray_to_rgb" || \
+        $3 == "_png_set_palette_to_rgb" || \
+        $3 == "_png_set_rgb_to_gray" || \
+        $3 == "_png_set_rgb_to_gray_fixed" || \
+        $3 == "_png_set_scale_16" || $3 == "_png_set_strip_16" || \
+        $3 == "_png_set_strip_alpha" || \
+        $3 == "_png_set_tRNS_to_alpha" || \
+        $3 == "_png_start_read_image") \
+        { sub(/^_/, "", $3); print $3 }' | \
+    sort > "$CLASSIC_READ_TRANSFORM_ACTUAL"
+diff -u "$CLASSIC_READ_TRANSFORM_EXPECTED" "$CLASSIC_READ_TRANSFORM_ACTUAL"
 nm -gU "$OUT/libpng4cj_preview.dylib" | \
     awk '$2 == "T" && ($3 == "_png_create_write_struct" || \
         $3 == "_png_create_write_struct_2" || \
@@ -518,6 +539,28 @@ fi
     exit 1
 }
 
+cc "$ROOT/test/abi_consumer/png_classic_read_transform.c" \
+    -std=c11 \
+    -Wall \
+    -Wextra \
+    -Werror \
+    -I"$ROOT/abi/include" \
+    -L"$OUT" \
+    -lpng4cj_preview \
+    -L"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -lcangjie-runtime \
+    -lpthread \
+    -Wl,-rpath,@loader_path \
+    -Wl,-rpath,"${CANGJIE_HOME}/runtime/lib/darwin_aarch64_cjnative" \
+    -o "$OUT/png-classic-read-transform-consumer"
+
+"$OUT/png-classic-read-transform-consumer" \
+    "$OUT/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn3p04.png" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
+    "$ROOT/test/fixtures/pngsuite/basn4a16.png" \
+    "$ROOT/test/fixtures/pngsuite/basn2c08.png"
+
 cc "$ROOT/test/abi_consumer/png_classic_write_chunk.c" \
     -std=c11 \
     -Wall \
@@ -575,6 +618,7 @@ cp "$OUT/png-classic-scalar-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-extended-metadata-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-runtime-context-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-owner-read-limits-consumer" "$RELOCATED/"
+cp "$OUT/png-classic-read-transform-consumer" "$RELOCATED/"
 cp "$OUT/png-classic-write-chunk-consumer" "$RELOCATED/"
 "$RELOCATED/abi-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
@@ -678,6 +722,12 @@ fi
         "relocated png_set_chunk_malloc_max exit=$relocated_chunk_limit_status, expected=82" >&2
     exit 1
 }
+"$RELOCATED/png-classic-read-transform-consumer" \
+    "$RELOCATED/libpng4cj_preview.dylib" \
+    "$ROOT/test/fixtures/pngsuite/basn3p04.png" \
+    "$ROOT/test/fixtures/pngsuite/basn0g01.png" \
+    "$ROOT/test/fixtures/pngsuite/basn4a16.png" \
+    "$ROOT/test/fixtures/pngsuite/basn2c08.png"
 "$RELOCATED/png-classic-write-chunk-consumer" \
     "$RELOCATED/libpng4cj_preview.dylib" \
     "$ROOT/test/fixtures/pngsuite/basn0g01.png"

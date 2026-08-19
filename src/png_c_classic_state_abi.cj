@@ -83,6 +83,8 @@ class PngCClassicReadState {
     var writeChunkRemaining = UInt64(0)
     var writeChunkCrc = pngCrc32Start()
     var decodedRows: Option<PngDecodedRows> = None
+    let readTransforms = PngReadTransformState()
+    var transformedRows: Option<PngInitializedReadRowsResult> = None
     var decodedInfoHandle = UIntNative(0)
     var nextRow = Int64(0)
     var readEndComplete = false
@@ -1277,6 +1279,7 @@ private func pngCClassicEndReadInfo(
             case Some(_) =>
                 match (decoded) {
                     case Some(value) =>
+                        state.readTransforms.markIhdrRead(value.ihdr)
                         state.decodedRows = Some(value)
                         state.decodedInfoHandle = infoPtr.toUIntNative()
                         match (PNG_C_CLASSIC_INFO_REGISTRY.get(
@@ -1354,9 +1357,41 @@ func pngCClassicEndMetadataAccess(
     }
 }
 
-private func pngCClassicDecodedIhdr(
+class PngCClassicImageFacts {
+    let width: UInt32
+    let height: UInt32
+    let bitDepth: UInt8
+    let colorType: PngColorType
+    let channels: UInt8
+    let rowBytes: UInt64
+    let compressionMethod: UInt8
+    let filterMethod: UInt8
+    let interlaceMethod: PngInterlaceMethod
+
+    init(ihdr: PngIhdr, transformed: Option<PngInitializedReadRowsResult>) {
+        width = ihdr.width
+        height = ihdr.height
+        compressionMethod = ihdr.compressionMethod
+        filterMethod = ihdr.filterMethod
+        interlaceMethod = ihdr.interlaceMethod
+        match (transformed) {
+            case Some(value) =>
+                bitDepth = value.info.bitDepth
+                colorType = value.info.colorType
+                channels = value.info.channels
+                rowBytes = value.info.rowBytes
+            case None =>
+                bitDepth = ihdr.bitDepth
+                colorType = ihdr.colorType
+                channels = ihdr.channels
+                rowBytes = ihdr.rowBytes
+        }
+    }
+}
+
+private func pngCClassicDecodedImageFacts(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
-): Option<PngIhdr> {
+): Option<PngCClassicImageFacts> {
     if (pngPtr.isNull() || infoPtr.isNull()) { return None }
     synchronized(PNG_C_CLASSIC_REGISTRY_MUTEX) {
         match (PNG_C_CLASSIC_READ_REGISTRY.get(pngPtr.toUIntNative())) {
@@ -1371,7 +1406,9 @@ private func pngCClassicDecodedIhdr(
                             None
                         } else {
                             match (state.decodedRows) {
-                                case Some(decoded) => Some(decoded.ihdr)
+                                case Some(decoded) => Some(PngCClassicImageFacts(
+                                    decoded.ihdr, state.transformedRows
+                                ))
                                 case None => None
                             }
                         }
@@ -1406,16 +1443,23 @@ private func pngCClassicTakeRow(
                 } else if (state.readEndComplete) {
                     PngCClassicRowTake(None, "Read Error")
                 } else {
-                    match (state.decodedRows) {
-                        case Some(decoded) =>
-                            if (state.nextRow >= decoded.rowCount()) {
+                    match ((state.decodedRows, state.transformedRows)) {
+                        case (Some(decoded), transformed) =>
+                            let rowCount = match (transformed) {
+                                case Some(value) => value.rowCount()
+                                case None => decoded.rowCount()
+                            }
+                            if (state.nextRow >= rowCount) {
                                 PngCClassicRowTake(None, "Not enough image data")
                             } else {
-                                let row = decoded.row(state.nextRow)
+                                let row = match (transformed) {
+                                    case Some(value) => value.row(state.nextRow)
+                                    case None => decoded.row(state.nextRow)
+                                }
                                 state.nextRow += Int64(1)
                                 PngCClassicRowTake(Some(row), "")
                             }
-                        case None => PngCClassicRowTake(
+                        case _ => PngCClassicRowTake(
                             None, "Invalid attempt to read row data"
                         )
                     }
@@ -1441,6 +1485,11 @@ private func pngCClassicReadOne(
     row: CPointer<UInt8>,
     displayRow: CPointer<UInt8>
 ): Bool {
+    let transformError = pngCClassicEnsureReadTransforms(pngPtr)
+    if (transformError != "") {
+        pngCClassicErrorText(pngPtr, transformError)
+        return false
+    }
     let taken = pngCClassicTakeRow(pngPtr)
     if (taken.error != "") {
         pngCClassicErrorText(pngPtr, taken.error)
@@ -1469,10 +1518,14 @@ private func pngCClassicImageRowCount(
                 } else {
                     match (state.decodedRows) {
                         case Some(decoded) =>
+                            let rowCount = match (state.transformedRows) {
+                                case Some(value) => value.rowCount()
+                                case None => decoded.rowCount()
+                            }
                             if (state.nextRow != Int64(0)) {
                                 (Int64(0), "png_read_image may only be called once")
                             } else {
-                                (decoded.rowCount(), "")
+                                (rowCount, "")
                             }
                         case None => (
                             Int64(0), "Invalid attempt to read row data"
@@ -2315,8 +2368,8 @@ public func png_read_end(
 public func png_get_rowbytes(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UIntNative {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => UIntNative(ihdr.rowBytes)
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => UIntNative(facts.rowBytes)
         case None => UIntNative(0)
     }
 }
@@ -2325,8 +2378,8 @@ public func png_get_rowbytes(
 public func png_get_channels(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt8 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.channels
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.channels
         case None => UInt8(0)
     }
 }
@@ -2335,8 +2388,8 @@ public func png_get_channels(
 public func png_get_image_width(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt32 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.width
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.width
         case None => UInt32(0)
     }
 }
@@ -2345,8 +2398,8 @@ public func png_get_image_width(
 public func png_get_image_height(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt32 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.height
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.height
         case None => UInt32(0)
     }
 }
@@ -2355,8 +2408,8 @@ public func png_get_image_height(
 public func png_get_bit_depth(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt8 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.bitDepth
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.bitDepth
         case None => UInt8(0)
     }
 }
@@ -2365,8 +2418,8 @@ public func png_get_bit_depth(
 public func png_get_color_type(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt8 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.colorType.encodedValue()
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.colorType.encodedValue()
         case None => UInt8(0)
     }
 }
@@ -2375,8 +2428,8 @@ public func png_get_color_type(
 public func png_get_filter_type(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt8 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.filterMethod
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.filterMethod
         case None => UInt8(0)
     }
 }
@@ -2385,8 +2438,8 @@ public func png_get_filter_type(
 public func png_get_interlace_type(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt8 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.interlaceMethod.encodedValue()
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.interlaceMethod.encodedValue()
         case None => UInt8(0)
     }
 }
@@ -2395,8 +2448,8 @@ public func png_get_interlace_type(
 public func png_get_compression_type(
     pngPtr: CPointer<Unit>, infoPtr: CPointer<Unit>
 ): UInt8 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) => ihdr.compressionMethod
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) => facts.compressionMethod
         case None => UInt8(0)
     }
 }
@@ -2413,27 +2466,27 @@ public func png_get_IHDR(
     compressionType: CPointer<Int32>,
     filterType: CPointer<Int32>
 ): UInt32 {
-    match (pngCClassicDecodedIhdr(pngPtr, infoPtr)) {
-        case Some(ihdr) =>
+    match (pngCClassicDecodedImageFacts(pngPtr, infoPtr)) {
+        case Some(facts) =>
             unsafe {
-                if (!width.isNull()) { width.write(ihdr.width) }
-                if (!height.isNull()) { height.write(ihdr.height) }
+                if (!width.isNull()) { width.write(facts.width) }
+                if (!height.isNull()) { height.write(facts.height) }
                 if (!bitDepth.isNull()) {
-                    bitDepth.write(Int32(ihdr.bitDepth))
+                    bitDepth.write(Int32(facts.bitDepth))
                 }
                 if (!colorType.isNull()) {
-                    colorType.write(Int32(ihdr.colorType.encodedValue()))
+                    colorType.write(Int32(facts.colorType.encodedValue()))
                 }
                 if (!interlaceType.isNull()) {
                     interlaceType.write(Int32(
-                        ihdr.interlaceMethod.encodedValue()
+                        facts.interlaceMethod.encodedValue()
                     ))
                 }
                 if (!compressionType.isNull()) {
-                    compressionType.write(Int32(ihdr.compressionMethod))
+                    compressionType.write(Int32(facts.compressionMethod))
                 }
                 if (!filterType.isNull()) {
-                    filterType.write(Int32(ihdr.filterMethod))
+                    filterType.write(Int32(facts.filterMethod))
                 }
             }
             UInt32(1)
