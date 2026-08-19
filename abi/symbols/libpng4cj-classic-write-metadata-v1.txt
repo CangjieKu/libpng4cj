@@ -1,0 +1,14 @@
+png_set_bKGD
+png_set_cHRM_fixed
+png_set_cICP
+png_set_cLLI_fixed
+png_set_eXIf_1
+png_set_gAMA_fixed
+png_set_hIST
+png_set_mDCV_fixed
+png_set_oFFs
+png_set_pHYs
+png_set_sBIT
+png_set_sRGB
+png_set_tIME
+png_set_tRNS

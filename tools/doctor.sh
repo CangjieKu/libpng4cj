@@ -77,8 +77,14 @@ fi
     fail "classic runtime/context ABI symbol manifest is missing"
 [ -f "$ROOT/abi/symbols/libpng4cj-classic-owner-read-limits-v1.txt" ] || \
     fail "classic owner read-limits ABI symbol manifest is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-classic-read-transform-v1.txt" ] || \
+    fail "classic read-transform ABI symbol manifest is missing"
 [ -f "$ROOT/abi/symbols/libpng4cj-classic-write-chunk-v1.txt" ] || \
     fail "classic write-chunk ABI symbol manifest is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-classic-write-lifecycle-v1.txt" ] || \
+    fail "classic write-lifecycle ABI symbol manifest is missing"
+[ -f "$ROOT/abi/symbols/libpng4cj-classic-write-metadata-v1.txt" ] || \
+    fail "classic write-metadata ABI symbol manifest is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_read_handle.c" ] || \
     fail "classic read-handle ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_core_info.c" ] || \
@@ -97,10 +103,22 @@ fi
     fail "classic runtime/context ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_owner_read_limits.c" ] || \
     fail "classic owner read-limits ABI C consumer is missing"
+[ -f "$ROOT/test/abi_consumer/png_classic_read_transform.c" ] || \
+    fail "classic read-transform ABI C consumer is missing"
 [ -f "$ROOT/test/abi_consumer/png_classic_write_chunk.c" ] || \
     fail "classic write-chunk ABI C consumer is missing"
+[ -f "$ROOT/test/abi_consumer/png_classic_write_lifecycle.c" ] || \
+    fail "classic write-lifecycle ABI C consumer is missing"
+[ -f "$ROOT/test/abi_consumer/png_classic_write_metadata.c" ] || \
+    fail "classic write-metadata ABI C consumer is missing"
+[ -x "$ROOT/tools/check_abi_coverage.sh" ] || \
+    fail "ABI coverage checker is missing or not executable"
+
+coverage=$("$ROOT/tools/check_abi_coverage.sh") || \
+    fail "ABI coverage inventory does not match the manifests"
+note "$coverage"
 
 note "upstream=libpng-1.6.58 reference present"
 note "png_image=memory/file/stdio ABI header and symbol manifests present"
-note "classic-abi=stateless, read-handle, error, memory, read-IO, core-info, row-read, metadata, easy-access, scalar-metadata, extended-metadata, runtime-context, owner-read-limits, and write-chunk manifests/consumers present"
+note "classic-abi=stateless, read-handle, error, memory, read-IO, core-info, row-read, metadata, easy-access, scalar-metadata, extended-metadata, runtime-context, owner-read-limits, read-transform, write-chunk, write-lifecycle, and write-metadata manifests/consumers present"
 note "PASS"

@@ -37,12 +37,13 @@ not linked into the Cangjie implementation.
 ## ABI Surface
 
 The C ABI is built from direct Cangjie `@C` exports. It currently manifests
-`134/258` default public libpng symbols, including simplified image operations,
-classic read ownership, IO, row delivery, metadata getters, memory and error
-callbacks, limits, and raw write-chunk output.
+`180/258` default public libpng symbols, including simplified image operations,
+classic read ownership, IO, row delivery, read transforms, metadata getters and
+safe setters, memory and error callbacks, limits, and write lifecycle/output.
 
 See [C ABI Surfaces](ABI_PREVIEW.md) for the supported contract and explicit
-limits.
+limits. The exact supported and remaining sets are checked by
+`tools/check_abi_coverage.sh`.
 
 ## Alignment Evidence
 

@@ -1,0 +1,14 @@
+png_set_IHDR
+png_set_PLTE
+png_set_compression_buffer_size
+png_set_compression_level
+png_set_compression_mem_level
+png_set_compression_method
+png_set_compression_strategy
+png_set_compression_window_bits
+png_set_filter
+png_write_end
+png_write_image
+png_write_info
+png_write_row
+png_write_rows

@@ -123,6 +123,14 @@ private func pngCClassicWriteBytes(
     }
 }
 
+func pngCClassicWriteEncodedBytes(
+    pngPtr: CPointer<Unit>, bytes: Array<Byte>
+): Unit {
+    pngCClassicWriteBytes(
+        pngPtr, bytes, PNG_C_CLASSIC_IO_WRITING, UInt32(0)
+    )
+}
+
 private func pngCClassicChunkType(
     chunkName: CPointer<UInt8>
 ): Option<(UInt32, Array<Byte>)> {

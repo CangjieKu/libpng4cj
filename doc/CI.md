@@ -47,7 +47,7 @@ On macOS arm64, run:
 ```
 
 This builds the preview dynamic library, checks exported-symbol manifests,
-compiles 14 strict C11 consumers, runs them against the original library, and
+compiles 17 strict C11 consumers, runs them against the original library, and
 replays the relocation-sensitive paths from a copied location.
 
 The C ABI suite is separate from the portable native CI entry because the

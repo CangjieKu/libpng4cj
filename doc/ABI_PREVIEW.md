@@ -2,9 +2,9 @@
 
 [English](ABI_PREVIEW.md) | [简体中文](zh-CN/C_ABI.md)
 
-libpng4cj provides a preview C ABI implemented directly by Cangjie `@C`
-exports. It is intended for early integration and compatibility work. It is not
-yet a complete replacement for `libpng16`.
+libpng4cj provides a review-candidate C ABI implemented directly by Cangjie `@C`
+exports. It is intended for integration and compatibility work. It is not yet a
+complete replacement for `libpng16`.
 
 ## Build And Test
 
@@ -20,7 +20,11 @@ output location and relocation-sensitive loading from a copied directory.
 
 ## Exported Surface
 
-The manifests currently cover `134/258` default public libpng symbols.
+The manifests currently cover `180/258` default public libpng symbols. The
+machine-checked supported and remaining inventories are
+[`libpng4cj-1.6.58-supported-symbols.txt`](upstream/libpng4cj-1.6.58-supported-symbols.txt)
+and [`libpng4cj-1.6.58-remaining-symbols.txt`](upstream/libpng4cj-1.6.58-remaining-symbols.txt).
+Run `tools/check_abi_coverage.sh` to replay the count from the manifests.
 
 Supported groups include:
 
@@ -31,8 +35,11 @@ Supported groups include:
 - error, warning, allocator, and IO callback contexts
 - user dimensions and per-chunk allocation limits
 - `png_read_info`, source-packed row delivery, and `png_read_end`
+- classic read transforms with transformed-row delivery and info projection
 - IHDR, scalar, fixed, floating, physical, color, text, ICC, and extended
   metadata getters
+- IHDR/PLTE write setup, row/image/end lifecycle, compression and filter
+  controls, and safe classic metadata setters
 - write callbacks, signature emission, one-shot and streamed raw chunks, CRC,
   flush, and stdio output
 
@@ -94,9 +101,16 @@ build and consumer receipt is added.
 
 ## Open Compatibility Areas
 
-- the remaining `124` default public symbols
-- complete classic transform setters and transformed row timing
-- full progressive and user-callback C trampolines
+- the remaining `78` default public symbols; see the exact inventory linked
+  above
+- callback-driven transforms and status/user-chunk trampolines
+- progressive C ABI callbacks and the upstream `png_read_png` convenience path
 - exact upstream `setjmp`/`longjmp` behavior
 - canonical `libpng16` naming, installation, and package metadata
 - non-macOS C ABI artifacts and receipts
+
+The remaining inventory is intentionally grouped by risk: non-local-jump error
+and lifetime helpers, progressive and callback registration, pointer-tree or
+text/unknown-chunk mutation, additional transform/compression policy setters,
+and upstream convenience or platform-time helpers. These are not represented
+by address-only stubs.
