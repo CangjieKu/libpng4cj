@@ -1,6 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Cangjie-libpng4cj-ff6b35?style=for-the-badge&labelColor=1a1a2e" alt="libpng4cj" />
-  <img src="https://img.shields.io/badge/version-0.8.1-blue?style=for-the-badge&labelColor=1a1a2e" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge&labelColor=1a1a2e" alt="Version" />
   <img src="https://img.shields.io/badge/license-Libpng--2.0-green?style=for-the-badge&labelColor=1a1a2e" alt="License" />
 </p>
 
@@ -21,17 +21,19 @@
   <a href="README.md">简体中文</a>
 </p>
 
-> Documentation version: `0.8.1`
+> Documentation version: `1.0.0`
 
 libpng4cj is a PNG codec for Cangjie. It uses libpng `1.6.58` as its behavioral
 reference while implementing PNG parsing, filters, pixel transforms, metadata,
 progressive reading, and encoding in Cangjie. zlib remains the compression
 dependency.
 
-Version `0.8.1` provides native read and write APIs for Cangjie applications.
+Version `1.0.0` provides native read and write APIs for Cangjie applications.
 The native consumer path has been verified on macOS arm64 and Debian 13 amd64.
 The repository also ships a strict C11-tested libpng16 C ABI subset for macOS
-arm64. That ABI remains a preview and is not a complete libpng16 replacement.
+arm64. The C ABI is an additional compatibility surface, while the native
+Cangjie API remains the primary public interface. The current subset is not a
+complete libpng16 replacement.
 
 ## Supported Features
 
@@ -44,7 +46,7 @@ arm64. That ABI remains a preview and is not a complete libpng16 replacement.
 | Progressive reading | Incremental input, info/row/end callbacks, Adam7 pass information, pause, and resume |
 | Encoding | Whole-image, row-at-a-time, incremental IDAT, Adam7, filter and compression control, metadata, and unknown chunks |
 | Simplified API | Memory, files, caller-managed streams, direct8, linear16, colormap, and positive or negative strides |
-| C ABI | `134/258` default public symbols, with the complete current receipt limited to macOS arm64 |
+| C ABI | `180/258` default public symbols, with the complete current receipt limited to macOS arm64 |
 | ICC | iCCP profiles are retained and validated; ICC pixel color conversion is not performed |
 
 See the [Compatibility and Dependency Matrix](doc/COMPATIBILITY_AND_DEPENDENCY_MATRIX.md)
@@ -178,6 +180,9 @@ describe source-function coverage, not complete C ABI coverage.
 
 ## C ABI Preview
 
+The C ABI is an additionally maintained compatibility surface. The native
+Cangjie API is the project's primary public interface.
+
 Run the complete C ABI verification on macOS arm64:
 
 ```sh
@@ -187,8 +192,10 @@ Run the complete C ABI verification on macOS arm64:
 The script builds the Cangjie `@C` dylib, verifies frozen symbol manifests,
 compiles strict C11 consumers with warnings as errors, and reruns them from the
 original and relocated library locations. Current coverage includes the
-`png_image` memory/file/stdio subset, classic read and metadata getters,
-allocator/error/IO lifecycle, and write owners with raw chunks, CRC, and flush.
+`png_image` memory/file/stdio subset, classic reads and read transforms,
+metadata getters, 14 safe write metadata setters, allocator/error/IO lifecycle,
+the classic write info/row/image/end lifecycle, compression and filter controls,
+and write owners with raw chunks, CRC, and flush.
 
 A C process must call `InitCJRuntime`, `LoadCJLibraryWithInit`, and
 `FiniCJRuntime` as required by the Cangjie toolchain. See
@@ -196,14 +203,14 @@ A C process must call `InitCJRuntime`, `LoadCJLibraryWithInit`, and
 
 ## Current Limits
 
-- The C ABI does not yet cover every default libpng16 symbol or behavior.
-- `setjmp` / `longjmp`, several callbacks, and raw user-pointer families remain open.
-- Classic write-info/row/image and remaining setter/state APIs are incomplete.
-- ICC-profile-driven pixel color conversion is not implemented.
-- Linux, Windows, HarmonyOS, and OpenHarmony C ABI artifacts are not yet verified.
+- The C ABI has `78` default public symbols remaining and does not claim complete libpng16 compatibility.
+- Non-local-jump ABI, progressive and user callbacks, text and unknown-chunk pointer-tree setters, and some transform and policy setters remain open.
+- Cangjie exceptions are not treated as an ABI-equivalent replacement for C `setjmp` / `longjmp` non-local jumps.
+- iCCP profiles are retained and validated, but ICC pixel color conversion is not performed; that normally requires a color-management library such as lcms2.
+- Linux, Windows, HarmonyOS, and OpenHarmony C ABI artifacts are not yet verified; this does not narrow the documented native Cangjie API support.
 - There is no throughput certification above 100 MB, concurrent stress proof,
   or stable ABI commitment yet.
-- Version `0.8.1` is not an LTS release.
+- The `1.0.0` version number does not by itself constitute LTS certification.
 
 ## Project Layout
 

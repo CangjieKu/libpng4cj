@@ -1,6 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Cangjie-libpng4cj-ff6b35?style=for-the-badge&labelColor=1a1a2e" alt="libpng4cj" />
-  <img src="https://img.shields.io/badge/version-0.8.1-blue?style=for-the-badge&labelColor=1a1a2e" alt="Version" />
+  <img src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge&labelColor=1a1a2e" alt="Version" />
   <img src="https://img.shields.io/badge/license-Libpng--2.0-green?style=for-the-badge&labelColor=1a1a2e" alt="License" />
 </p>
 
@@ -21,16 +21,16 @@
   <a href="README-EN.md">English</a>
 </p>
 
-> 当前文档对应版本：`0.8.1`
+> 当前文档对应版本：`1.0.0`
 
 libpng4cj 是面向仓颉的 PNG 编解码库。项目以 libpng `1.6.58` 为行为参考，
 用仓颉实现 PNG 解析、过滤、像素变换、元数据、渐进式读取和编码，并保留 zlib
 作为压缩依赖。
 
-`0.8.1` 提供可直接用于仓颉项目的原生读写 API。原生消费链已在 macOS arm64
+`1.0.0` 提供可直接用于仓颉项目的原生读写 API。原生消费链已在 macOS arm64
 和 Debian 13 amd64 上验证。仓库同时提供 macOS arm64 上经过严格 C11
-消费者验证的 libpng16 C ABI 子集；该 ABI 仍处于 preview 阶段，不是完整的
-libpng16 替代品。
+消费者验证的 libpng16 C ABI 子集。C ABI 是兼容扩展，仓颉原生 API 是项目的
+主要公共接口；当前子集不是完整的 libpng16 替代品。
 
 ## 支持范围
 
@@ -43,7 +43,7 @@ libpng16 替代品。
 | 渐进式读取 | 增量输入、info/row/end 回调、Adam7 pass 信息、暂停与恢复 |
 | 编码 | 整图、逐行、增量 IDAT、Adam7、过滤和压缩控制、元数据、未知块 |
 | 简化 API | 内存、文件、调用方管理的流，支持 direct8、linear16、colormap 和正负 stride |
-| C ABI | `134/258` 个默认公开符号，当前完整回执限 macOS arm64 |
+| C ABI | `180/258` 个默认公开符号，当前完整回执限 macOS arm64 |
 | ICC | 保留并校验 iCCP profile，不执行 ICC 像素颜色转换 |
 
 详细状态见[兼容性与依赖矩阵](doc/zh-CN/COMPATIBILITY.md)。
@@ -172,6 +172,8 @@ decode -> encode -> decode 完整像素 roundtrip。
 
 ## C ABI Preview
 
+C ABI 是额外维护的兼容扩展；仓颉原生 API 是项目的主要公共接口。
+
 macOS arm64 上可以运行完整 C ABI 验证：
 
 ```sh
@@ -180,8 +182,9 @@ macOS arm64 上可以运行完整 C ABI 验证：
 
 该脚本会构建仓颉 `@C` 导出的 dylib，校验符号清单，以 warnings-as-errors
 编译严格 C11 消费者，并在原位置和同机重定位后重复运行。当前覆盖
-`png_image` 内存/文件/stdio 子集、经典读取和元数据 getter、allocator/error/
-IO 生命周期，以及 write owner、raw chunk、CRC 和 flush。
+`png_image` 内存/文件/stdio 子集、经典读取与读取变换、元数据 getter、14 个
+安全的 write metadata setter、allocator/error/IO 生命周期、经典 write
+info/row/image/end 生命周期、压缩与过滤控制，以及 raw chunk、CRC 和 flush。
 
 C 进程需要按照仓颉工具链要求调用 `InitCJRuntime`、
 `LoadCJLibraryWithInit` 和 `FiniCJRuntime`。完整说明见
@@ -189,13 +192,13 @@ C 进程需要按照仓颉工具链要求调用 `InitCJRuntime`、
 
 ## 当前限制
 
-- C ABI 尚未覆盖全部 libpng16 默认符号和行为
-- `setjmp` / `longjmp`、部分回调和原始用户指针族仍未完成
-- 经典 write-info/row/image 与剩余 setter/state API 仍需补齐
-- 不执行 ICC profile 驱动的像素颜色转换
-- Linux、Windows、HarmonyOS/OpenHarmony 的 C ABI 制品尚未验证
+- C ABI 仍有 `78` 个默认公开符号未覆盖，不代表完整 libpng16 兼容
+- 非局部跳转 ABI、渐进式/用户回调、文本与未知块的指针树 setter，以及部分变换和策略 setter 尚未覆盖
+- 仓颉 Exception 不作为 C ABI `setjmp` / `longjmp` 非局部跳转的等价替代
+- iCCP profile 会被保留和校验，但项目不执行 ICC 像素颜色转换；此类转换通常需要 lcms2 等色彩管理库
+- Linux、Windows、HarmonyOS/OpenHarmony 的 C ABI 制品尚未验证；这些平台不影响仓颉原生 API 的既有支持范围
 - 尚无超过 100 MB 图片的吞吐认证、并发压力证明或稳定 ABI 承诺
-- `0.8.1` 不是 LTS 版本
+- `1.0.0` 版本号本身不代表 LTS 认证
 
 ## 项目结构
 

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 1.0.0 - 2026-08-19
+
+- Connect the classic read-transform ABI and complete the classic write
+  info/row/image/end lifecycle with compression and filter controls.
+- Add fourteen safe classic write metadata setters while keeping pointer-tree
+  text and unknown-chunk setters outside the supported ABI boundary.
+- Freeze exact default-profile C ABI coverage at `180/258`, with an explicit
+  inventory of the `78` remaining symbols and no claim of complete libpng16
+  compatibility.
+- Complete bilingual migration, rollback, ABI, compatibility, and release
+  documentation for the `1.0.0` candidate.
+- Verify `504/504` tests, the standalone Cangjie consumer, strict C11 consumers,
+  and original plus relocated macOS arm64 ABI execution.
+- Keep non-local jumps, remaining callback and pointer-tree surfaces,
+  non-macOS C ABI artifacts, stable ABI, production, and LTS certification as
+  explicit non-claims.
+
 ## 0.8.1 - 2026-07-19
 
 - Add a generated five-function `pngwtran.c` inventory and a source-backed
